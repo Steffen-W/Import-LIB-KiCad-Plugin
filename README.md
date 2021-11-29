@@ -1,6 +1,6 @@
 Assembles local KiCad component libraries from downloaded octopart,
-samacsys or ultralibrarian zipfiles. Currently assembles just the symbols
-and the footptints only.
+samacsys, ultralibrarian and snapeda zipfiles. Currently assembles just the
+symbols and the footptints only.
 
 
 # Configure

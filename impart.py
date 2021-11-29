@@ -2,8 +2,8 @@
 # coding: utf-8
 
 # Assembles local KiCad component libraries from downloaded octopart,
-# samacsys or ultralibrarian zipfiles. Currently assembles just the symbols
-# and the footptints only.
+# samacsys, ultralibrarian and snapeda zipfiles. Currently assembles just
+# the symbols and the footptints only.
 
 from pathlib import Path
 import argparse
@@ -16,7 +16,7 @@ import zipfile
 
 SRC = Path.home() / 'Desktop'
 TGT = Path.home() / 'private/edn/kicad-libs'
-PRJ = 'octopart', 'samacsys', 'ultralibrarian'
+PRJ = {0: 'octopart', 1: 'samacsys', 2: 'ultralibrarian', 3: 'snapeda'}
 
 
 def Signal(signum, stack):
@@ -84,41 +84,45 @@ def Impart(zip):
     tail = zip.name.rfind('_') + 1
     if tail:
         if zip.name.startswith('LIB_'):
-            prj = PRJ[1]        # samacsys
+            prj = 1             # samacsys
         elif zip.name.startswith('ul_'):
-            prj = PRJ[2]        # ultralibrarian
+            prj = 2             # ultralibrarian
         else:
-            prj = PRJ[0]        # octopart
+            prj = 0             # octopart
     else:
-        return 'Cannot guess library project',
+        prj = 3                 # snapeda
 
     device = zip.name[tail:-4]
     eec = Pretext(device)('Generic device name ? ')
     if eec == '':
         eec = device
-    print('Adding', eec, 'to', prj)
+    print('Adding', eec, 'to', PRJ[prj])
 
     with zipfile.ZipFile(zip) as zf:
         root = zipfile.Path(zf)
 
-        if prj == PRJ[2]:
-            path = root / 'KiCAD'
-            for dir in path.iterdir():
-                if dir.is_dir():
-                    break
-            symb = dir / (dir.name + '.lib')
-            food = dir / 'footprints.pretty'
-            txt = ['$CMP ' + device, 'D ' + device, 'F ', '$ENDCMP']
-        else:
-            if prj == PRJ[0]:
-                path = root / 'eec.dcm'
+        if prj < 2:
+            if prj == 0:
+                desc = root / 'eec.dcm'
                 symb = root / 'eec.lib'
                 food = root / 'eec.pretty'
-            elif prj == PRJ[1]:
-                path = root / eec / 'KiCad' / (eec + '.dcm')
-                symb = root / eec / 'KiCad' / (eec + '.lib')
-                food = root / eec / 'KiCad'
-            txt = path.read_text().splitlines()
+            elif prj == 1:
+                desc = root / device / 'KiCad' / (device + '.dcm')
+                symb = root / device / 'KiCad' / (device + '.lib')
+                food = root / device / 'KiCad'
+            txt = desc.read_text().splitlines()
+        else:
+            if prj == 2:
+                path = root / 'KiCAD'
+                for dir in path.iterdir():
+                    if dir.is_dir():
+                        break
+                symb = dir / (dir.name + '.lib')
+                food = dir / 'footprints.pretty'
+            else:
+                symb = root / (device + '.lib')
+                food = root
+            txt = ['$CMP ' + device, 'D ' + device, 'F ', '$ENDCMP']
 
         stx = None
         etx = None
@@ -150,8 +154,8 @@ def Impart(zip):
             return device, 'not found in', path
         dcm = '\n'.join(txt[stx:etx]) + '\n#\n'  # documentation
 
-        rd_dcm = TGT / (prj + '.dcm')
-        wr_dcm = TGT / (prj + '.dcm~')
+        rd_dcm = TGT / (PRJ[prj] + '.dcm')
+        wr_dcm = TGT / (PRJ[prj] + '.dcm~')
         with rd_dcm.open('rt') as rf:
             with wr_dcm.open('wt') as wf:
                 for tx in rf:
@@ -182,8 +186,8 @@ def Impart(zip):
             return device, 'not found in', symb
         lib = '\n'.join(txt[stx:etx]) + '\n#\n'
 
-        rd_lib = TGT / (prj + '.lib')
-        wr_lib = TGT / (prj + '.lib~')
+        rd_lib = TGT / (PRJ[prj] + '.lib')
+        wr_lib = TGT / (PRJ[prj] + '.lib~')
         with rd_lib.open('rt') as rf:
             with wr_lib.open('wt') as wf:
                 for tx in rf:
@@ -200,7 +204,7 @@ def Impart(zip):
                 name = (rd.name if rd.name.startswith(eec)
                         else eec + '_' + rd.name)
                 txt = rd.read_text()
-                with (TGT / (prj + '.pretty') / name).open('wt') as wr:
+                with (TGT / (PRJ[prj] + '.pretty') / name).open('wt') as wr:
                     wr.write(txt)
         print('footprints:', pretty)
 
@@ -225,33 +229,34 @@ if __name__ == '__main__':
     readline.parse_and_bind('tab: complete')
 
     try:
-        prj = list(PRJ)
-        while arg.init:
-            libra = Select(prj)('Erase/Initialize which library? ')
-            if libra == '':
-                break
-            assert libra in PRJ, 'Unknown library'
+        if arg.init:
+            libras = list(PRJ.values())
+            while libras:
+                libra = Select(libras)('Erase/Initialize which library? ')
+                if libra == '':
+                    break
+                assert libra in libras, 'Unknown library'
 
-            dcm = TGT / (libra + '.dcm')
-            with dcm.open('wt') as dcmf:
-                dcmf.writelines(['EESchema-DOCLIB  Version 2.0\n',
-                                 '#\n',
-                                 '#End Doc Library\n'])
-            dcm.chmod(0o660)
+                dcm = TGT / (libra + '.dcm')
+                with dcm.open('wt') as dcmf:
+                    dcmf.writelines(['EESchema-DOCLIB  Version 2.0\n',
+                                     '#\n',
+                                     '#End Doc Library\n'])
+                dcm.chmod(0o660)
 
-            lib = TGT / (libra + '.lib')
-            with lib.open('wt') as libf:
-                libf.writelines(['EESchema-LIBRARY Version 2.4\n',
-                                 '#encoding utf-8\n',
-                                 '#\n',
-                                 '#End Library\n'])
-            lib.chmod(0o660)
+                lib = TGT / (libra + '.lib')
+                with lib.open('wt') as libf:
+                    libf.writelines(['EESchema-LIBRARY Version 2.4\n',
+                                     '#encoding utf-8\n',
+                                     '#\n',
+                                     '#End Library\n'])
+                lib.chmod(0o660)
 
-            pcb = TGT / (libra + '.pretty')
-            shutil.rmtree(pcb, ignore_errors=True)
-            pcb.mkdir(mode=0o770, parents=False, exist_ok=False)
+                pcb = TGT / (libra + '.pretty')
+                shutil.rmtree(pcb, ignore_errors=True)
+                pcb.mkdir(mode=0o770, parents=False, exist_ok=False)
 
-            prj.remove(libra)
+                libras.remove(libra)
 
         while True:
             zips = [zip.name for zip in SRC.glob('*.zip')]
