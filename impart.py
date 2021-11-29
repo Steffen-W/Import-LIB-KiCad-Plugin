@@ -159,8 +159,10 @@ def Impart(zip):
         with rd_dcm.open('rt') as rf:
             with wr_dcm.open('wt') as wf:
                 for tx in rf:
-                    if tx.startswith('$CMP ') and tx[5:].startswith(eec):
-                        return 'OK:', eec, 'already in', rd_dcm
+                    if tx.startswith('$CMP '):
+                        t = tx[5:].strip()
+                        if t.startswith(eec) or eec.startswith(t):
+                            return 'OK:', eec, 'already in', rd_dcm
                     elif re.match('# *end ', tx, re.IGNORECASE):
                         wf.write(dcm)
                         wf.write(tx)
