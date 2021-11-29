@@ -31,13 +31,13 @@ class Pretext:
         clipboard.copy('')
 
     def __call__(self, prompt):
-        reply = input(prompt)
+        reply = input(prompt + (': ' if self._pretext else ' [=clipboard]: '))
         if reply == '':
             text = clipboard.paste()
             if text:
                 self._pretext = text.replace('\n', ' ')
                 clipboard.copy('')
-                reply = input(prompt)
+                reply = input(prompt + ': ')
 
         readline.set_pre_input_hook(None)
         return reply
@@ -95,7 +95,7 @@ def Impart(zip):
         prj = 3                 # snapeda
 
     device = zip.name[tail:-4]
-    eec = Pretext(device)('Generic device name ? ')
+    eec = Pretext(device)('Generic device name')
     if eec == '':
         eec = device
     print('Adding', eec, 'to', PRJ[prj])
@@ -124,7 +124,7 @@ def Impart(zip):
             else:
                 symb = root / (device + '.lib')
                 food = root
-            txt = ['$CMP ' + device, 'D ' + device, 'F ', '$ENDCMP']
+            txt = ['$CMP ' + device, 'D ', 'F ', '$ENDCMP']
 
         stx = None
         etx = None
@@ -142,14 +142,13 @@ def Impart(zip):
                 elif tx.startswith('$ENDCMP'):
                     etx = no + 1
                 elif tx.startswith('D '):
-                    dsc = Pretext('')(
-                        'Device description [=' + tx[2:] + '] ? ')
+                    t = tx[2:].strip()
+                    dsc = Pretext(t)('Device description')
                     if dsc:
                         txt[no] = 'D ' + dsc
                 elif tx.startswith('F '):
-                    url = Pretext('')(
-                        'URL ' + (('[=' + tx[2:] + '] ') if tx[2:]
-                                  else '') + '? ')
+                    t = tx[2:].strip()
+                    url = Pretext(t)('Device URL')
                     if url:
                         txt[no] = 'F ' + url
         if etx is None:
