@@ -35,10 +35,9 @@ class Pretext:
         if reply == '':
             text = clipboard.paste()
             if text:
-                self._pretext = text.replace('\n', ' ')
                 clipboard.copy('')
+                self._pretext = text.replace('\n', ' ')
                 reply = input(prompt + ': ')
-
         readline.set_pre_input_hook(None)
         return reply
 
@@ -148,7 +147,7 @@ def Impart(zip):
                         txt[no] = 'D ' + dsc
                 elif tx.startswith('F '):
                     t = tx[2:].strip()
-                    url = Pretext(t)('Device URL')
+                    url = Pretext(t)('Datasheet URL')
                     if url:
                         txt[no] = 'F ' + url
         if etx is None:
