@@ -218,7 +218,7 @@ def Impart(zip):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        epilog='Copy to clipboard as usual, just hit Enter to paste...')
+        epilog='Note, empty input: invites clipboard content, if available.')
     parser.add_argument('--init', action='store_true',
                         help='initialize library')
     parser.add_argument('--zap', action='store_true',
