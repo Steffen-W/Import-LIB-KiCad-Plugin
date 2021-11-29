@@ -7,7 +7,6 @@ symbols and the footptints only.
 
     SRC = Path.home() / 'Desktop'
     TGT = Path.home() / 'private/edn/kicad-libs'
-    PRJ = 'octopart', 'samacsys', 'ultralibrarian'
 
 
 # Usage

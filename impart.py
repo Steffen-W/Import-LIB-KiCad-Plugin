@@ -16,7 +16,6 @@ import zipfile
 
 SRC = Path.home() / 'Desktop'
 TGT = Path.home() / 'private/edn/kicad-libs'
-PRJ = {0: 'octopart', 1: 'samacsys', 2: 'ultralibrarian', 3: 'snapeda'}
 
 
 def Signal(signum, stack):
@@ -72,6 +71,9 @@ class Select:
         except IndexError:
             response = None
         return response
+
+
+PRJ = {0: 'octopart', 1: 'samacsys', 2: 'ultralibrarian', 3: 'snapeda'}
 
 
 def Impart(zip):
