@@ -127,14 +127,19 @@ def Impart(zip):
 
         stx = None
         etx = None
+        hsh = None
         for no, tx in enumerate(txt):
             if stx is None:
-                if tx.startswith('$CMP '):
-                    stx = no
+                if tx.strip() == '#' and hsh is None:
+                    hsh = no
+                elif tx.startswith('$CMP '):
+                    stx = no if hsh is None else hsh
                     t = tx[5:].strip()
                     if t != device:
                         return 'Unexpected device in', path
                     txt[no] = '$CMP ' + eec
+                else:
+                    hsh = None
             elif etx is None:
                 if tx.startswith('$CMP '):
                     return 'Multiple devices in', path
@@ -152,7 +157,7 @@ def Impart(zip):
                         txt[no] = 'F ' + url
         if etx is None:
             return device, 'not found in', path
-        dcm = '\n'.join(txt[stx:etx]) + '\n#\n'  # documentation
+        dcm = ('#\n' if hsh is None else '') + '\n'.join(txt[stx:etx]) + '\n'
 
         rd_dcm = TGT / (PRJ[prj] + '.dcm')
         wr_dcm = TGT / (PRJ[prj] + '.dcm~')
@@ -171,11 +176,14 @@ def Impart(zip):
 
         stx = None
         etx = None
+        hsh = None
         txt = symb.read_text().splitlines()
         for no, tx in enumerate(txt):
             if stx is None:
-                if tx.startswith('DEF ' + device):
-                    stx = no
+                if tx.strip() == '#' and hsh is None:
+                    hsh = no
+                elif tx.startswith('DEF ' + device):
+                    stx = no if hsh is None else hsh
                     txt[no] = tx.replace(device, eec, 1)
             elif etx is None:
                 if tx.startswith('ENDDEF'):
@@ -186,7 +194,7 @@ def Impart(zip):
                 return 'Multiple devices in', symb
         if etx is None:
             return device, 'not found in', symb
-        lib = '\n'.join(txt[stx:etx]) + '\n#\n'
+        lib = ('#\n' if hsh is None else '') + '\n'.join(txt[stx:etx]) + '\n'
 
         rd_lib = TGT / (PRJ[prj] + '.lib')
         wr_lib = TGT / (PRJ[prj] + '.lib~')
@@ -242,7 +250,6 @@ if __name__ == '__main__':
                 dcm = TGT / (libra + '.dcm')
                 with dcm.open('wt') as dcmf:
                     dcmf.writelines(['EESchema-DOCLIB  Version 2.0\n',
-                                     '#\n',
                                      '#End Doc Library\n'])
                 dcm.chmod(0o660)
 
@@ -250,7 +257,6 @@ if __name__ == '__main__':
                 with lib.open('wt') as libf:
                     libf.writelines(['EESchema-LIBRARY Version 2.4\n',
                                      '#encoding utf-8\n',
-                                     '#\n',
                                      '#End Library\n'])
                 lib.chmod(0o660)
 
