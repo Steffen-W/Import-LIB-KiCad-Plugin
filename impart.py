@@ -130,8 +130,8 @@ def Impart(zip):
         hsh = None
         for no, tx in enumerate(txt):
             if stx is None:
-                if tx.strip() == '#':
-                    if hsh is None:
+                if tx.startswith('#'):
+                    if tx.strip() == '#' and hsh is None:
                         hsh = no
                 elif tx.startswith('$CMP '):
                     stx = no if hsh is None else hsh
@@ -181,8 +181,8 @@ def Impart(zip):
         txt = symb.read_text().splitlines()
         for no, tx in enumerate(txt):
             if stx is None:
-                if tx.strip() == '#':
-                    if hsh is None:
+                if tx.startswith('#'):
+                    if tx.strip() == '#' and hsh is None:
                         hsh = no
                 elif tx.startswith('DEF ' + device):
                     stx = no if hsh is None else hsh
