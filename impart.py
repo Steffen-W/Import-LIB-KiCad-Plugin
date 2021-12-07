@@ -132,7 +132,7 @@ def Impart(zip):
             if stx is None:
                 if tx.startswith('#'):
                     if tx.strip() == '#' and hsh is None:
-                        hsh = no
+                        hsh = no  # header start
                 elif tx.startswith('$CMP '):
                     stx = no if hsh is None else hsh
                     t = tx[5:].strip()
@@ -183,7 +183,7 @@ def Impart(zip):
             if stx is None:
                 if tx.startswith('#'):
                     if tx.strip() == '#' and hsh is None:
-                        hsh = no
+                        hsh = no  # header start
                 elif tx.startswith('DEF ' + device):
                     stx = no if hsh is None else hsh
                     txt[no] = tx.replace(device, eec, 1)
