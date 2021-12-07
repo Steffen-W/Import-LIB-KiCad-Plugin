@@ -158,7 +158,7 @@ def Impart(zip):
                         txt[no] = 'F ' + url
         if etx is None:
             return device, 'not found in', path
-        dcm = ('#\n' if hsh is None else '') + '\n'.join(txt[stx:etx]) + '\n'
+        dcm = '\n'.join(txt[stx:etx]) + '\n'
 
         rd_dcm = TGT / (PRJ[prj] + '.dcm')
         wr_dcm = TGT / (PRJ[prj] + '.dcm~')
@@ -198,7 +198,7 @@ def Impart(zip):
                 return 'Multiple devices in', symb
         if etx is None:
             return device, 'not found in', symb
-        lib = ('#\n' if hsh is None else '') + '\n'.join(txt[stx:etx]) + '\n'
+        lib = '\n'.join(txt[stx:etx]) + '\n'
 
         rd_lib = TGT / (PRJ[prj] + '.lib')
         wr_lib = TGT / (PRJ[prj] + '.lib~')
