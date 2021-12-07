@@ -185,6 +185,8 @@ def Impart(zip):
                 elif tx.startswith('DEF ' + device):
                     stx = no if hsh is None else hsh
                     txt[no] = tx.replace(device, eec, 1)
+                else:
+                    hsh = None
             elif etx is None:
                 if tx.startswith('ENDDEF'):
                     etx = no + 1
