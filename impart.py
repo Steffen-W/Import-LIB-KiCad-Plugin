@@ -241,6 +241,7 @@ if __name__ == '__main__':
 
     readline.set_completer_delims('\t')
     readline.parse_and_bind('tab: complete')
+    readline.set_auto_history(False)
 
     try:
         if arg.init:
