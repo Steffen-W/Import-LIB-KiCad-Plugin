@@ -123,7 +123,7 @@ def Impart(zip):
             else:
                 symb = root / (device + '.lib')
                 food = root
-            txt = ['$CMP ' + device, 'D ', 'F ', '$ENDCMP']
+            txt = ['#', '# '+device, '#', '$CMP '+device, 'D', 'F', '$ENDCMP']
 
         stx = None
         etx = None
@@ -135,10 +135,9 @@ def Impart(zip):
                         hsh = no  # header start
                 elif tx.startswith('$CMP '):
                     stx = no if hsh is None else hsh
-                    t = tx[5:].strip()
-                    if t != device:
+                    if tx[5:].strip() != device:
                         return 'Unexpected device in', path
-                    txt[no] = '$CMP ' + eec
+                    txt[no] = tx.replace(device, eec, 1)
                 else:
                     hsh = None
             elif etx is None:
@@ -146,12 +145,12 @@ def Impart(zip):
                     return 'Multiple devices in', path
                 elif tx.startswith('$ENDCMP'):
                     etx = no + 1
-                elif tx.startswith('D '):
+                elif tx.startswith('D'):
                     t = tx[2:].strip()
                     dsc = Pretext(t)('Device description')
                     if dsc:
                         txt[no] = 'D ' + dsc
-                elif tx.startswith('F '):
+                elif tx.startswith('F'):
                     t = tx[2:].strip()
                     url = Pretext(t)('Datasheet URL')
                     if url:
@@ -175,16 +174,17 @@ def Impart(zip):
                         break
                     wf.write(tx)
 
+        txt = symb.read_text().splitlines()
+
         stx = None
         etx = None
         hsh = None
-        txt = symb.read_text().splitlines()
         for no, tx in enumerate(txt):
             if stx is None:
                 if tx.startswith('#'):
                     if tx.strip() == '#' and hsh is None:
                         hsh = no  # header start
-                elif tx.startswith('DEF ' + device):
+                elif tx.startswith('DEF '):
                     stx = no if hsh is None else hsh
                     txt[no] = tx.replace(device, eec, 1)
                 else:
