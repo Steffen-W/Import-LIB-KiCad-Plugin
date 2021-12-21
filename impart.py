@@ -15,7 +15,7 @@ import signal
 import zipfile
 
 SRC = Path.home() / 'Desktop'
-TGT = Path.home() / 'private/edn/kicad-libs'
+LIB = Path.home() / 'private/edn/kicad-libs'
 
 
 def Signal(signum, stack):
@@ -40,7 +40,7 @@ class Pretext:
                 reply = input(prompt + ': ')
         readline.set_pre_input_hook(None)
 
-        index = reply.find('~') + 1  # that's for Emacs PDB
+        index = reply.find('~') + 1  # ~ clears line when running Emacs
         return reply[index:]
 
     def insert(self):
@@ -165,8 +165,8 @@ def Impart(zip):
             return device, 'not found in', path
         dcm = '\n'.join(txt[stx:etx]) + '\n'
 
-        rd_dcm = TGT / (PRJ[prj] + '.dcm')
-        wr_dcm = TGT / (PRJ[prj] + '.dcm~')
+        rd_dcm = LIB / (PRJ[prj] + '.dcm')
+        wr_dcm = LIB / (PRJ[prj] + '.dcm~')
         update = False
         with rd_dcm.open('rt') as rf:
             with wr_dcm.open('wt') as wf:
@@ -218,8 +218,8 @@ def Impart(zip):
             return device, 'not found in', symb
         lib = '\n'.join(txt[stx:etx]) + '\n'
 
-        rd_lib = TGT / (PRJ[prj] + '.lib')
-        wr_lib = TGT / (PRJ[prj] + '.lib~')
+        rd_lib = LIB / (PRJ[prj] + '.lib')
+        wr_lib = LIB / (PRJ[prj] + '.lib~')
         update = False
         with rd_lib.open('rt') as rf:
             with wr_lib.open('wt') as wf:
@@ -247,7 +247,7 @@ def Impart(zip):
                 name = (rd.name if rd.name.startswith(eec)
                         else eec + '_' + rd.name)
                 txt = rd.read_text()
-                with (TGT / (PRJ[prj] + '.pretty') / name).open('wt') as wr:
+                with (LIB / (PRJ[prj] + '.pretty') / name).open('wt') as wr:
                     wr.write(txt)
         print('footprints:', pretty)
 
@@ -281,20 +281,20 @@ if __name__ == '__main__':
                     break
                 assert libra in libras, 'Unknown library'
 
-                dcm = TGT / (libra + '.dcm')
+                dcm = LIB / (libra + '.dcm')
                 with dcm.open('wt') as dcmf:
                     dcmf.writelines(['EESchema-DOCLIB  Version 2.0\n',
                                      '#End Doc Library\n'])
                 dcm.chmod(0o660)
 
-                lib = TGT / (libra + '.lib')
+                lib = LIB / (libra + '.lib')
                 with lib.open('wt') as libf:
                     libf.writelines(['EESchema-LIBRARY Version 2.4\n',
                                      '#encoding utf-8\n',
                                      '#End Library\n'])
                 lib.chmod(0o660)
 
-                pcb = TGT / (libra + '.pretty')
+                pcb = LIB / (libra + '.pretty')
                 shutil.rmtree(pcb, ignore_errors=True)
                 pcb.mkdir(mode=0o770, parents=False, exist_ok=False)
 
