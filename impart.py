@@ -39,7 +39,9 @@ class Pretext:
                 self._pretext = text.replace('\n', ' ')
                 reply = input(prompt + ': ')
         readline.set_pre_input_hook(None)
-        return reply
+
+        index = reply.find('~') + 1  # that's for Emacs PDB
+        return reply[index:]
 
     def insert(self):
         readline.insert_text(self._pretext)
@@ -66,10 +68,12 @@ class Select:
             else:
                 self._pre = self._select[:]
         try:
-            response = self._pre[state]
+            reply = self._pre[state]
         except IndexError:
-            response = None
-        return response
+            reply = None
+
+        index = reply.find('~') + 1
+        return reply[index:]
 
 
 PRJ = {0: 'octopart', 1: 'samacsys', 2: 'ultralibrarian', 3: 'snapeda'}
@@ -98,6 +102,8 @@ def Impart(zip):
     if eec == '':
         eec = device
     print('Adding', eec, 'to', PRJ[prj])
+
+    Update = False
 
     with zipfile.ZipFile(zip) as zf:
         root = zipfile.Path(zf)
@@ -161,18 +167,30 @@ def Impart(zip):
 
         rd_dcm = TGT / (PRJ[prj] + '.dcm')
         wr_dcm = TGT / (PRJ[prj] + '.dcm~')
+        update = False
         with rd_dcm.open('rt') as rf:
             with wr_dcm.open('wt') as wf:
                 for tx in rf:
                     if tx.startswith('$CMP '):
                         t = tx[5:].strip()
-                        if t.startswith(eec) or eec.startswith(t):
-                            return 'OK:', eec, 'already in', rd_dcm
+                        if t.startswith(eec):
+                            yes = Pretext('No')(
+                                eec + ' in library, replace it ? ')
+                            update = yes and 'yes'.startswith(yes.lower())
+                            if not update:
+                                return 'OK:', eec, 'already in', rd_dcm
+                            Update = True
+                            wf.write(dcm)
                     elif re.match('# *end ', tx, re.IGNORECASE):
-                        wf.write(dcm)
+                        if not Update:
+                            wf.write(dcm)
                         wf.write(tx)
                         break
-                    wf.write(tx)
+                    elif update:
+                        if tx.startswith('$ENDCMP'):
+                            update = False
+                    else:
+                        wf.write(tx)
 
         txt = symb.read_text().splitlines()
 
@@ -202,14 +220,25 @@ def Impart(zip):
 
         rd_lib = TGT / (PRJ[prj] + '.lib')
         wr_lib = TGT / (PRJ[prj] + '.lib~')
+        update = False
         with rd_lib.open('rt') as rf:
             with wr_lib.open('wt') as wf:
                 for tx in rf:
-                    if re.match('# *end ', tx, re.IGNORECASE):
-                        wf.write(lib)
+                    if Update and tx.startswith('DEF '):
+                        t = tx[4:].lstrip()
+                        if t.startswith(eec):
+                            update = True
+                            wf.write(lib)
+                    elif re.match('# *end ', tx, re.IGNORECASE):
+                        if not Update:
+                            wf.write(lib)
                         wf.write(tx)
                         break
-                    wf.write(tx)
+                    elif update:
+                        if tx.startswith('ENDDEF'):
+                            update = False
+                    else:
+                        wf.write(tx)
 
         pretty = 0
         for rd in food.iterdir():
