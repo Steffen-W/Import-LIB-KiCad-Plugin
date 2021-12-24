@@ -178,7 +178,7 @@ def Impart(zip):
                         wf.write(tx)
                         break
                     elif tx.startswith('$CMP '):
-                        t = tx[5:].lstrip()
+                        t = tx.split()[1]
                         if t.startswith(eec) or eec.startswith(t):
                             yes = Pretext('No')(
                                 eec + ' in library.dcm, replace it ? ')
@@ -233,7 +233,7 @@ def Impart(zip):
                         wf.write(tx)
                         break
                     elif tx.startswith('DEF '):
-                        t = tx[4:].lstrip()
+                        t = tx.split()[1]
                         if t.startswith(eec) or eec.startswith(t):
                             yes = Pretext('No')(
                                 eec + ' in library.lib, replace it ? ')
