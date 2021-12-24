@@ -19,7 +19,7 @@ def Signal(signum, stack):
     raise UserWarning('CTRL-C')
 
 
-def xinput(prompt):
+def Xinput(prompt):
     # extended input to allow Emacs input backspace
     reply = input(prompt)
     index = reply.find('~') + 1
@@ -35,13 +35,13 @@ class Pretext:
         clipboard.copy('')
 
     def __call__(self, prompt):
-        reply = xinput(prompt + (': ' if self._pretext else ' [=clipboard]: '))
+        reply = Xinput(prompt + (': ' if self._pretext else ' [=clipboard]: '))
         if reply == '':
             text = clipboard.paste()
             if text:
                 clipboard.copy('')
                 self._pretext = text.replace('\n', ' ')
-                reply = xinput(prompt + ': ')
+                reply = Xinput(prompt + ': ')
         readline.set_pre_input_hook(None)
         return reply.strip()
 
@@ -58,7 +58,7 @@ class Select:
         readline.set_pre_input_hook(None)
 
     def __call__(self, prompt):
-        reply = xinput(prompt)
+        reply = Xinput(prompt)
         readline.set_completer(lambda: None)
         return reply.strip()
 
