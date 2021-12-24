@@ -5,7 +5,7 @@
 # samacsys, ultralibrarian and snapeda zipfiles. Currently assembles just
 # the symbols and the footptints only.
 
-from pathlib import Path
+from mydirs import SRC, LIB     # configure me
 import argparse
 import clipboard
 import re
@@ -14,12 +14,16 @@ import shutil
 import signal
 import zipfile
 
-SRC = Path.home() / 'Desktop'
-LIB = Path.home() / 'private/edn/kicad-libs'
-
 
 def Signal(signum, stack):
     raise UserWarning('CTRL-C')
+
+
+def xinput(prompt):
+    # extended input to allow Emacs input backspace
+    reply = input(prompt)
+    index = reply.find('~') + 1
+    return reply[index:]
 
 
 class Pretext:
@@ -31,17 +35,15 @@ class Pretext:
         clipboard.copy('')
 
     def __call__(self, prompt):
-        reply = input(prompt + (': ' if self._pretext else ' [=clipboard]: '))
+        reply = xinput(prompt + (': ' if self._pretext else ' [=clipboard]: '))
         if reply == '':
             text = clipboard.paste()
             if text:
                 clipboard.copy('')
                 self._pretext = text.replace('\n', ' ')
-                reply = input(prompt + ': ')
+                reply = xinput(prompt + ': ')
         readline.set_pre_input_hook(None)
-
-        index = reply.find('~') + 1  # ~ clears line when running Emacs
-        return reply[index:]
+        return reply.strip()
 
     def insert(self):
         readline.insert_text(self._pretext)
@@ -56,9 +58,9 @@ class Select:
         readline.set_pre_input_hook(None)
 
     def __call__(self, prompt):
-        reply = input(prompt)
+        reply = xinput(prompt)
         readline.set_completer(lambda: None)
-        return reply
+        return reply.strip()
 
     def complete(self, text, state):
         if state == 0:
@@ -67,13 +69,13 @@ class Select:
                              if s and s.startswith(text)]
             else:
                 self._pre = self._select[:]
-        try:
-            reply = self._pre[state]
-        except IndexError:
-            reply = None
 
-        index = reply.find('~') + 1
-        return reply[index:]
+        try:
+            echo = self._pre[state]
+        except IndexError:
+            echo = None
+
+        return echo
 
 
 PRJ = {0: 'octopart', 1: 'samacsys', 2: 'ultralibrarian', 3: 'snapeda'}
@@ -103,8 +105,6 @@ def Impart(zip):
         eec = device
     print('Adding', eec, 'to', PRJ[prj])
 
-    Update = False
-
     with zipfile.ZipFile(zip) as zf:
         root = zipfile.Path(zf)
 
@@ -129,7 +129,8 @@ def Impart(zip):
             else:
                 symb = root / (device + '.lib')
                 food = root
-            txt = ['#', '# '+device, '#', '$CMP '+device, 'D', 'F', '$ENDCMP']
+            txt = ['#', '# ' + device, '#',
+                   '$CMP ' + device, 'D', 'F', '$ENDCMP']
 
         stx = None
         etx = None
@@ -167,25 +168,27 @@ def Impart(zip):
 
         rd_dcm = LIB / (PRJ[prj] + '.dcm')
         wr_dcm = LIB / (PRJ[prj] + '.dcm~')
-        update = False
+        update = updated = False
         with rd_dcm.open('rt') as rf:
             with wr_dcm.open('wt') as wf:
                 for tx in rf:
-                    if tx.startswith('$CMP '):
-                        t = tx[5:].strip()
-                        if t.startswith(eec):
-                            yes = Pretext('No')(
-                                eec + ' in library, replace it ? ')
-                            update = yes and 'yes'.startswith(yes.lower())
-                            if not update:
-                                return 'OK:', eec, 'already in', rd_dcm
-                            Update = True
-                            wf.write(dcm)
-                    elif re.match('# *end ', tx, re.IGNORECASE):
-                        if not Update:
+                    if re.match('# *end ', tx, re.IGNORECASE):
+                        if not updated:
                             wf.write(dcm)
                         wf.write(tx)
                         break
+                    elif tx.startswith('$CMP '):
+                        t = tx[5:].lstrip()
+                        if t.startswith(eec):
+                            yes = Pretext('No')(
+                                eec + ' in library.dcm, replace it ? ')
+                            update = yes and 'yes'.startswith(yes.lower())
+                            if not update:
+                                return 'OK:', eec, 'already in', rd_dcm
+                            wf.write(dcm)
+                            updated = True
+                        else:
+                            wf.write(tx)
                     elif update:
                         if tx.startswith('$ENDCMP'):
                             update = False
@@ -220,20 +223,25 @@ def Impart(zip):
 
         rd_lib = LIB / (PRJ[prj] + '.lib')
         wr_lib = LIB / (PRJ[prj] + '.lib~')
-        update = False
+        update = updated = False
         with rd_lib.open('rt') as rf:
             with wr_lib.open('wt') as wf:
                 for tx in rf:
-                    if Update and tx.startswith('DEF '):
-                        t = tx[4:].lstrip()
-                        if t.startswith(eec):
-                            update = True
-                            wf.write(lib)
-                    elif re.match('# *end ', tx, re.IGNORECASE):
-                        if not Update:
+                    if re.match('# *end ', tx, re.IGNORECASE):
+                        if not updated:
                             wf.write(lib)
                         wf.write(tx)
                         break
+                    elif tx.startswith('DEF '):
+                        t = tx[4:].lstrip()
+                        if t.startswith(eec):
+                            yes = Pretext('No')(
+                                eec + ' in library.lib, replace it ? ')
+                            update = yes and 'yes'.startswith(yes.lower())
+                            if not update:
+                                return 'OK:', eec, 'already in', rd_lib
+                            wf.write(lib)
+                            updated = True
                     elif update:
                         if tx.startswith('ENDDEF'):
                             update = False
