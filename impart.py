@@ -244,6 +244,8 @@ def Impart(zip):
                                 return 'OK:', eec, 'already in', rd_lib
                             wf.write(lib)
                             updated = True
+                        else:
+                            wf.write(tx)
                     elif update:
                         if tx.startswith('ENDDEF'):
                             update = False
