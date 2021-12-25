@@ -141,10 +141,10 @@ def Impart(zip):
                     if tx.strip() == '#' and hsh is None:
                         hsh = no  # header start
                 elif tx.startswith('$CMP '):
-                    stx = no if hsh is None else hsh
-                    if tx[5:].strip() != device:
+                    if tx.split()[1] != device:
                         return 'Unexpected device in', path
                     txt[no] = tx.replace(device, eec, 1)
+                    stx = no if hsh is None else hsh
                 else:
                     hsh = None
             elif etx is None:
@@ -180,7 +180,7 @@ def Impart(zip):
                     elif tx.startswith('$CMP '):
                         t = tx.split()[1]
                         if t.startswith(eec) or eec.startswith(t):
-                            yes = Pretext('No')(
+                            yes = Pretext('NO')(
                                 eec + ' in library.dcm, replace it ? ')
                             update = yes and 'yes'.startswith(yes.lower())
                             if not update:
@@ -206,8 +206,10 @@ def Impart(zip):
                     if tx.strip() == '#' and hsh is None:
                         hsh = no  # header start
                 elif tx.startswith('DEF '):
-                    stx = no if hsh is None else hsh
+                    if tx.split()[1] != device:
+                        return 'Unexpected device in', symb
                     txt[no] = tx.replace(device, eec, 1)
+                    stx = no if hsh is None else hsh
                 else:
                     hsh = None
             elif etx is None:
@@ -235,7 +237,7 @@ def Impart(zip):
                     elif tx.startswith('DEF '):
                         t = tx.split()[1]
                         if t.startswith(eec) or eec.startswith(t):
-                            yes = Pretext('No')(
+                            yes = Pretext('NO')(
                                 eec + ' in library.lib, replace it ? ')
                             update = yes and 'yes'.startswith(yes.lower())
                             if not update:
