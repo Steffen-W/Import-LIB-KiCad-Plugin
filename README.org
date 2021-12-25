@@ -1,11 +1,12 @@
 #+OPTIONS: toc:nil author:nil email:nil
 
-Assembles local KiCad component libraries from downloaded octopart,
-samacsys, ultralibrarian and snapeda zipfiles. Currently assembles just the
-symbols and the footptints only. Supports component updates. Can copy
-multi-lines from the clipboard to update component description.
+Assembles local KiCad component libraries from downloaded [[https://octopart.com/][Octopart]],
+[[https://componentsearchengine.com/][Samacsys]], [[https://app.ultralibrarian.com/search][Ultralibrarian]] and [[https://www.snapeda.com/home/][Snapeda]] zipfiles. Currently assembles just
+symbols and footptints. Supports component updates. Can safely copy
+multi-lines from the clipboard to update component description. Tested with
+KiCad 5.1.12 for Ubuntu.
 
-* Configure
+* Configure mydirs.py
 
 #+begin_example
 SRC = Path.home() / 'Desktop'

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-# Assembles local KiCad component libraries from downloaded octopart,
-# samacsys, ultralibrarian and snapeda zipfiles. Currently assembles just
-# the symbols and the footptints only.
+# Assembles local KiCad component libraries from downloaded Octopart,
+# Samacsys, Ultralibrarian and Snapeda zipfiles. Currently assembles just
+# symbols and footptints. Tested with KiCad 5.1.12 for Ubuntu.
 
-from mydirs import SRC, LIB     # configure me
+from mydirs import SRC, LIB     # * CONFIGURE ME *
 import argparse
 import clipboard
 import re
