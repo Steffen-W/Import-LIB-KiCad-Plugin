@@ -5,7 +5,7 @@
 # Samacsys, Ultralibrarian and Snapeda zipfiles. Currently assembles just
 # symbols and footptints. Tested with KiCad 5.1.12 for Ubuntu.
 
-from mydirs import SRC, LIB     # * CONFIGURE ME *
+from mydirs import SRC, LIB     # *CONFIGURE ME*
 import argparse
 import clipboard
 import re
@@ -81,56 +81,65 @@ class Select:
 PRJ = {0: 'octopart', 1: 'samacsys', 2: 'ultralibrarian', 3: 'snapeda'}
 
 
+class Catch(Exception):
+    def __init__(self, value):
+        self.catch = value
+        super().__init__(self)
+
+
+def Zipper(root, suffix):
+    """return zipfile.Path starting with root ending with suffix"""
+    def zipper(parent):
+        if parent.name.endswith(suffix):
+            raise Catch(parent)
+        elif parent.is_dir():
+            for child in parent.iterdir():
+                zipper(child)
+
+    try:
+        zipper(root)
+    except Catch as e:
+        return e.catch
+
+    return None
+
+
 def Impart(zip):
-    """given the zipfile path"""
+    """zip is a pathlib.Path to import the symbol from"""
     if not zipfile.is_zipfile(zip):
         return None
 
-    # Library detection heuristics:
-
-    tail = zip.name.rfind('_') + 1
-    if tail:
-        if zip.name.startswith('LIB_'):
-            prj = 1             # samacsys
-        elif zip.name.startswith('ul_'):
-            prj = 2             # ultralibrarian
-        else:
-            prj = 0             # octopart
-    else:
-        prj = 3                 # snapeda
-
-    device = zip.name[tail:-4]
+    device = zip.name[:-4]
     eec = Pretext(device)('Generic device name')
     if eec == '':
-        eec = device
-    print('Adding', eec, 'to', PRJ[prj])
+        return None
 
     with zipfile.ZipFile(zip) as zf:
         root = zipfile.Path(zf)
 
-        if prj < 2:
-            if prj == 0:
-                desc = root / 'eec.dcm'
-                symb = root / 'eec.lib'
-                food = root / 'eec.pretty'
-            elif prj == 1:
-                desc = root / device / 'KiCad' / (device + '.dcm')
-                symb = root / device / 'KiCad' / (device + '.lib')
-                food = root / device / 'KiCad'
-            txt = desc.read_text().splitlines()
+        dir = Zipper(root, 'KiCad')
+        if dir:
+            root = dir
+
+        desc = Zipper(root, '.dcm')
+        symb = Zipper(root, '.lib')
+        if symb.name == 'eec.lib':
+            prj = 0             # octopart
+            food = Zipper(root, '.pretty')
+        elif root == dir:
+            prj = 1             # samacsys
+            food = root
+        elif symb.parent.name == 'KiCAD':
+            prj = 2             # ultralibrarian
+            food = Zipper(root, '.pretty')
         else:
-            if prj == 2:
-                path = root / 'KiCAD'
-                for dir in path.iterdir():
-                    if dir.is_dir():
-                        break
-                symb = dir / (dir.name + '.lib')
-                food = dir / 'footprints.pretty'
-            else:
-                symb = root / (device + '.lib')
-                food = root
-            txt = ['#', '# ' + device, '#',
-                   '$CMP ' + device, 'D', 'F', '$ENDCMP']
+            prj = 3             # snapeda
+            food = root
+
+        txt = desc.read_text().splitlines() if desc else [
+            '#', '# ' + device, '#', '$CMP ' + eec, 'D', 'F', '$ENDCMP']
+
+        print('Adding', eec, 'to', PRJ[prj])
 
         stx = None
         etx = None
@@ -141,15 +150,16 @@ def Impart(zip):
                     if tx.strip() == '#' and hsh is None:
                         hsh = no  # header start
                 elif tx.startswith('$CMP '):
-                    if tx.split()[1] != device:
-                        return 'Unexpected device in', path
-                    txt[no] = tx.replace(device, eec, 1)
+                    t = tx[5:].strip()
+                    if not t.startswith(eec):
+                        return 'Unexpected device in', desc.name
+                    txt[no] = tx.replace(t, eec, 1)
                     stx = no if hsh is None else hsh
                 else:
                     hsh = None
             elif etx is None:
                 if tx.startswith('$CMP '):
-                    return 'Multiple devices in', path
+                    return 'Multiple devices in', desc.name
                 elif tx.startswith('$ENDCMP'):
                     etx = no + 1
                 elif tx.startswith('D'):
@@ -163,7 +173,7 @@ def Impart(zip):
                     if url:
                         txt[no] = 'F ' + url
         if etx is None:
-            return device, 'not found in', path
+            return eec, 'not found in', desc.name
         dcm = '\n'.join(txt[stx:etx]) + '\n'
 
         rd_dcm = LIB / (PRJ[prj] + '.dcm')
@@ -178,13 +188,13 @@ def Impart(zip):
                         wf.write(tx)
                         break
                     elif tx.startswith('$CMP '):
-                        t = tx.split()[1]
-                        if t.startswith(eec) or eec.startswith(t):
+                        t = tx[5:].strip()
+                        if t.startswith(eec):
                             yes = Pretext('NO')(
-                                eec + ' in library.dcm, replace it ? ')
+                                eec + ' in ' + rd_dcm.name + ', replace it ? ')
                             update = yes and 'yes'.startswith(yes.lower())
                             if not update:
-                                return 'OK:', eec, 'already in', rd_dcm
+                                return 'OK:', eec, 'already in', rd_dcm.name
                             wf.write(dcm)
                             updated = True
                         else:
@@ -206,9 +216,10 @@ def Impart(zip):
                     if tx.strip() == '#' and hsh is None:
                         hsh = no  # header start
                 elif tx.startswith('DEF '):
-                    if tx.split()[1] != device:
-                        return 'Unexpected device in', symb
-                    txt[no] = tx.replace(device, eec, 1)
+                    t = tx.split()[1]
+                    if not t.startswith(eec):
+                        return 'Unexpected device in', symb.name
+                    txt[no] = tx.replace(t, eec, 1)
                     stx = no if hsh is None else hsh
                 else:
                     hsh = None
@@ -218,9 +229,9 @@ def Impart(zip):
                 elif tx.startswith('F1 '):
                     txt[no] = tx.replace(device, eec, 1)
             elif tx.startswith('DEF '):
-                return 'Multiple devices in', symb
+                return 'Multiple devices in', symb.name
         if etx is None:
-            return device, 'not found in', symb
+            return device, 'not found in', symb.name
         lib = '\n'.join(txt[stx:etx]) + '\n'
 
         rd_lib = LIB / (PRJ[prj] + '.lib')
@@ -236,9 +247,9 @@ def Impart(zip):
                         break
                     elif tx.startswith('DEF '):
                         t = tx.split()[1]
-                        if t.startswith(eec) or eec.startswith(t):
+                        if t.startswith(eec):
                             yes = Pretext('NO')(
-                                eec + ' in library.lib, replace it ? ')
+                                eec + ' in ' + rd_lib.name + ', replace it ? ')
                             update = yes and 'yes'.startswith(yes.lower())
                             if not update:
                                 return 'OK:', eec, 'already in', rd_lib
@@ -256,10 +267,8 @@ def Impart(zip):
         for rd in food.iterdir():
             if rd.name.endswith('.kicad_mod') or rd.name.endswith('.mod'):
                 pretty += 1
-                name = (rd.name if rd.name.startswith(eec)
-                        else eec + '_' + rd.name)
                 txt = rd.read_text()
-                with (LIB / (PRJ[prj] + '.pretty') / name).open('wt') as wr:
+                with (LIB / (PRJ[prj] + '.pretty') / rd.name).open('wt') as wr:
                     wr.write(txt)
         print('footprints:', pretty)
 
