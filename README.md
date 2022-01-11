@@ -1,8 +1,8 @@
-Assembles local KiCad component libraries from downloaded [Octopart](https://octopart.com/),
-[Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search) and [Snapeda](https://www.snapeda.com/home/) zipfiles. Currently assembles just
-symbols and footptints. Supports component updates. Can safely copy
-multi-lines from the clipboard to update component description. Tested with
-KiCad 5.1.12 for Ubuntu.
+Assembles KiCad "legacy" format component libraries from downloaded
+[Octopart](https://octopart.com/), [Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search) and [Snapeda](https://www.snapeda.com/home/) zipfiles. Currently
+assembles only symbols and footprints. Supports component updates. Can
+safely copy multi-lines from the clipboard to update the component
+description and URL. Can be used with KiCad 5 and 6.
 
 
 # Configure mydirs.py
