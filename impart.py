@@ -117,24 +117,40 @@ def Impart(zip):
     with zipfile.ZipFile(zip) as zf:
         root = zipfile.Path(zf)
 
-        dir = Zipper(root, 'KiCad')
-        if dir:
-            root = dir
+        while True:
+            desc = root / 'eec.dcm'
+            symb = root / 'eec.lib'
+            food = root / 'eec.pretty'
+            if desc.exists() and symb.exists() and food.exists():
+                prj = 0         # OCTOPART
+                break
 
-        desc = Zipper(root, '.dcm')
-        symb = Zipper(root, '.lib')
-        if symb.name == 'eec.lib':
-            prj = 0             # octopart
-            food = Zipper(root, '.pretty')
-        elif root == dir:
-            prj = 1             # samacsys
-            food = root
-        elif symb.parent.name == 'KiCAD':
-            prj = 2             # ultralibrarian
-            food = Zipper(root, '.pretty')
-        else:
-            prj = 3             # snapeda
-            food = root
+            dir = Zipper(root, 'KiCad')
+            if dir:
+                desc = Zipper(dir, '.dcm')
+                symb = Zipper(dir, '.lib')
+                food = dir
+                assert desc and symb, 'Not in samacsys format'
+                prj = 1         # SAMACSYS
+                break
+
+            dir = root / 'KiCAD'
+            if dir.exists():
+                desc = Zipper(dir, '.dcm')
+                symb = Zipper(dir, '.lib')
+                food = Zipper(dir, '.pretty')
+                assert symb and food, 'Not in ultralibrarian format'
+                prj = 2         # ULTRALIBRARIAN
+                break
+
+            symb = Zipper(root, '.lib')
+            if symb:
+                desc = Zipper(root, '.dcm')
+                food = root
+                prj = 3         # SNAPEDA
+                break
+
+            assert False, 'Unknown library zipfile'
 
         txt = desc.read_text().splitlines() if desc else [
             '#', '# ' + device, '#', '$CMP ' + eec, 'D', 'F', '$ENDCMP']
