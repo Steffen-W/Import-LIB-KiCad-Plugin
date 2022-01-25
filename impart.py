@@ -170,7 +170,7 @@ def Impart(zip):
                     if not t.startswith(eec):
                         return 'Unexpected device in', desc.name
                     txt[no] = tx.replace(t, eec, 1)
-                    stx = no if hsh is None else hsh
+                    stx = no
                 else:
                     hsh = None
             elif etx is None:
@@ -190,7 +190,6 @@ def Impart(zip):
                         txt[no] = 'F ' + url
         if etx is None:
             return eec, 'not found in', desc.name
-        dcm = '\n'.join(txt[stx:etx]) + '\n'
 
         rd_dcm = LIB / (PRJ[prj] + '.dcm')
         wr_dcm = LIB / (PRJ[prj] + '.dcm~')
@@ -200,18 +199,19 @@ def Impart(zip):
                 for tx in rf:
                     if re.match('# *end ', tx, re.IGNORECASE):
                         if not updated:
-                            wf.write(dcm)
+                            wf.write('\n'.join(txt[stx if hsh is None else hsh:
+                                                   etx]) + '\n')
                         wf.write(tx)
                         break
                     elif tx.startswith('$CMP '):
                         t = tx[5:].strip()
                         if t.startswith(eec):
-                            yes = Pretext('NO')(
+                            yes = Pretext('Yes')(
                                 eec + ' in ' + rd_dcm.name + ', replace it ? ')
                             update = yes and 'yes'.startswith(yes.lower())
                             if not update:
                                 return 'OK:', eec, 'already in', rd_dcm.name
-                            wf.write(dcm)
+                            wf.write('\n'.join(txt[stx:etx]) + '\n')
                             updated = True
                         else:
                             wf.write(tx)
@@ -236,7 +236,7 @@ def Impart(zip):
                     if not t.startswith(eec):
                         return 'Unexpected device in', symb.name
                     txt[no] = tx.replace(t, eec, 1)
-                    stx = no if hsh is None else hsh
+                    stx = no
                 else:
                     hsh = None
             elif etx is None:
@@ -248,7 +248,6 @@ def Impart(zip):
                 return 'Multiple devices in', symb.name
         if etx is None:
             return device, 'not found in', symb.name
-        lib = '\n'.join(txt[stx:etx]) + '\n'
 
         rd_lib = LIB / (PRJ[prj] + '.lib')
         wr_lib = LIB / (PRJ[prj] + '.lib~')
@@ -258,18 +257,19 @@ def Impart(zip):
                 for tx in rf:
                     if re.match('# *end ', tx, re.IGNORECASE):
                         if not updated:
-                            wf.write(lib)
+                            wf.write('\n'.join(txt[stx if hsh is None else hsh:
+                                                   etx]) + '\n')
                         wf.write(tx)
                         break
                     elif tx.startswith('DEF '):
                         t = tx.split()[1]
                         if t.startswith(eec):
-                            yes = Pretext('NO')(
+                            yes = Pretext('Yes')(
                                 eec + ' in ' + rd_lib.name + ', replace it ? ')
                             update = yes and 'yes'.startswith(yes.lower())
                             if not update:
                                 return 'OK:', eec, 'already in', rd_lib
-                            wf.write(lib)
+                            wf.write('\n'.join(txt[stx:etx]) + '\n')
                             updated = True
                         else:
                             wf.write(tx)
