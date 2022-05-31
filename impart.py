@@ -5,17 +5,15 @@
 # Samacsys, Ultralibrarian and Snapeda zipfiles. Currently assembles just
 # symbols and footptints. Tested with KiCad 5.1.12 for Ubuntu.
 
-from mydirs import SRC_PATH, LIB_PATH     # *CONFIGURE ME*
+from mydirs import SRC_PATH, LIB_PATH  # *CONFIGURE ME*
 import argparse
-import clipboard
 import re
 import readline
-import shutil
 import zipfile
 from os import stat
 
 
-def Xinput(prompt):
+def xinput(prompt):
     # extended input to allow Emacs input backspace
     reply = input(prompt)
     index = reply.find('~') + 1
@@ -24,13 +22,14 @@ def Xinput(prompt):
 
 class Select:
     """input() from select completions """
+
     def __init__(self, select):
         self._select = select
         readline.set_completer(self.complete)
         readline.set_pre_input_hook(None)
 
     def __call__(self, prompt):
-        reply = Xinput(prompt)
+        reply = xinput(prompt)
         readline.set_completer(lambda: None)
         return reply.strip()
 
@@ -59,8 +58,9 @@ class Catch(Exception):
         super().__init__(self)
 
 
-def Zipper(root, suffix):
+def unzip(root, suffix):
     """return zipfile.Path starting with root ending with suffix"""
+
     def zipper(parent):
         if parent.name.endswith(suffix):
             raise Catch(parent)
@@ -70,25 +70,25 @@ def Zipper(root, suffix):
 
     try:
         zipper(root)
-    except Catch as e:
-        return e.catch
+    except Catch as error:
+        return error.catch
 
     return None
 
 
-def Impart(zip):
+def import_all(zip_file):
     """zip is a pathlib.Path to import the symbol from"""
-    if not zipfile.is_zipfile(zip):
+    if not zipfile.is_zipfile(zip_file):
         return None
 
-    device = zip.name[:-4]
+    device = zip_file.name[:-4]
     # Request user input, but default to device if nothing entered
     device_name = input('Generic device name [{0}]: '.format(device)) or device
     if device_name == '':
         return None
 
     # Identify format based on directory structure
-    with zipfile.ZipFile(zip) as zf:
+    with zipfile.ZipFile(zip_file) as zf:
         root = zipfile.Path(zf)
 
         while True:
@@ -96,32 +96,32 @@ def Impart(zip):
             lib_path = root / 'device_name.lib'
             footprint_dir_path = root / 'device_name.pretty'
             if dcm_path.exists() and lib_path.exists() and footprint_dir_path.exists():
-                remote_type = 0         # OCTOPART
+                remote_type = 0  # OCTOPART
                 break
 
-            dir = Zipper(root, 'KiCad')
-            if dir:
-                dcm_path = Zipper(dir, '.dcm')
-                lib_path = Zipper(dir, '.lib')
-                footprint_dir_path = dir
+            directory = unzip(root, 'KiCad')
+            if directory:
+                dcm_path = unzip(directory, '.dcm')
+                lib_path = unzip(directory, '.lib')
+                footprint_dir_path = directory
                 assert dcm_path and lib_path, 'Not in samacsys format'
-                remote_type = 1         # SAMACSYS
+                remote_type = 1  # SAMACSYS
                 break
 
-            dir = root / 'KiCAD'
-            if dir.exists():
-                dcm_path = Zipper(dir, '.dcm')
-                lib_path = Zipper(dir, '.lib')
-                footprint_dir_path = Zipper(dir, '.pretty')
+            directory = root / 'KiCAD'
+            if directory.exists():
+                dcm_path = unzip(directory, '.dcm')
+                lib_path = unzip(directory, '.lib')
+                footprint_dir_path = unzip(directory, '.pretty')
                 assert lib_path and footprint_dir_path, 'Not in ultralibrarian format'
-                remote_type = 2         # ULTRALIBRARIAN
+                remote_type = 2  # ULTRALIBRARIAN
                 break
 
-            lib_path = Zipper(root, '.lib')
+            lib_path = unzip(root, '.lib')
             if lib_path:
-                dcm_path = Zipper(root, '.dcm')
+                dcm_path = unzip(root, '.dcm')
                 footprint_dir_path = root
-                remote_type = 3         # SNAPEDA
+                remote_type = 3  # SNAPEDA
                 break
 
             assert False, 'Unknown library zipfile'
@@ -185,7 +185,7 @@ def Impart(zip):
         with dcm_file_read.open('rt') as readfile:
             with dcm_file_write.open('wt') as writefile:
 
-                if (stat(dcm_file_read).st_size == 0):
+                if stat(dcm_file_read).st_size == 0:
                     # todo Handle appending to empty file
                     with dcm_file_read.open('wt') as template_file:
                         template = ["EESchema-DOCLIB  Version 2.0", "#End Doc Library"]
@@ -195,15 +195,16 @@ def Impart(zip):
                 for line in readfile:
                     if re.match('# *end ', line, re.IGNORECASE):
                         if not overwrote_existing:
-                            writefile.write('\n'.join(dcm_attributes[index_start if index_header_start is None else index_header_start:
-                                                   index_end]) + '\n')
+                            writefile.write('\n'.join(
+                                dcm_attributes[index_start if index_header_start is None else index_header_start:
+                                               index_end]) + '\n')
                         writefile.write(line)
                         break
                     elif line.startswith('$CMP '):
                         component_name = line[5:].strip()
                         if component_name.startswith(device_name):
                             yes = input(device_name + ' in ' + dcm_file_read.name + ', replace it? [Yes]: ') or "Yes"
-                            overwrite_existing = yes and 'yes'.startswith(yes.lower()) #todo should also accept y or Y
+                            overwrite_existing = yes and 'yes'.startswith(yes.lower())  # todo should also accept y or Y
                             if not overwrite_existing:
                                 return 'OK:', device_name, 'already in', dcm_file_read.name
                             writefile.write('\n'.join(dcm_attributes[index_start:index_end]) + '\n')
@@ -221,11 +222,9 @@ def Impart(zip):
         # todo it doesn't look like this handles duplicates like the other parsing sections
         # --------------------------------------------------------------------------------------------------------
         pretty = 0
-        footprint_name = None
         for footprint_dir_item in footprint_dir_path.iterdir():
             if footprint_dir_item.name.endswith('.kicad_mod') or footprint_dir_item.name.endswith('.mod'):
                 pretty += 1
-                footprint_name = footprint_dir_item.name # todo what happens if you have more than one footprint? This will save the last one only.
                 footprint_lines = footprint_dir_item.read_text()
 
                 if not (LIB_PATH / (REMOTE_TYPES[remote_type] + '.pretty')).is_dir():
@@ -237,7 +236,6 @@ def Impart(zip):
                 with (LIB_PATH / (REMOTE_TYPES[remote_type] + '.pretty') / footprint_dir_item.name).open('wt') as wr:
                     wr.write(footprint_lines)
         print('footprints:', pretty)
-
 
         # --------------------------------------------------------------------------------------------------------
         # .lib file parsing
@@ -252,7 +250,6 @@ def Impart(zip):
         index_start = None
         index_end = None
         index_header_start = None
-        index_footprint = None
         for line_idx, line in enumerate(lib_lines):
             if index_start is None:
                 if line.startswith('#'):
@@ -272,7 +269,6 @@ def Impart(zip):
                     footprint = footprint.strip("\"")
                     lib_lines[line_idx] = line.replace(
                         footprint, REMOTE_TYPES[remote_type] + ":" + footprint, 1)
-                    index_footprint = line_idx
                 elif line.startswith('ENDDEF'):
                     index_end = line_idx + 1
                 elif line.startswith('F1 '):
@@ -294,27 +290,30 @@ def Impart(zip):
         with lib_file_read.open('rt') as readfile:
             with lib_file_write.open('wt') as writefile:
 
-                if (stat(lib_file_read).st_size == 0):
+                if stat(lib_file_read).st_size == 0:
                     # todo Handle appending to empty file
                     with lib_file_read.open('wt') as template_file:
                         template = ["EESchema-LIBRARY Version 2.4", "#encoding utf-8", "# End Library"]
                         template_file.writelines(line + '\n' for line in template)
                         template_file.close()
 
-                # For each line in the existing lib file (not the file being read from the zip. The lib file you will add it to.)
+                # For each line in the existing lib file (not the file being read from the zip. The lib file you will
+                # add it to.)
                 for line in readfile:
                     # Is this trying to match ENDDRAW, ENDDEF, End Library or any of the above?
                     if re.match('# *end ', line, re.IGNORECASE):
                         # If you already overwrote the new info don't add it to the end
                         if not overwrote_existing:
-                            writefile.write('\n'.join(lib_lines[index_start if index_header_start is None else index_header_start:
-                                                   index_end]) + '\n')
+                            writefile.write(
+                                '\n'.join(lib_lines[index_start if index_header_start is None else index_header_start:
+                                                    index_end]) + '\n')
                         writefile.write(line)
                         break
                     # Catch start of new component definition
                     elif line.startswith('DEF '):
                         component_name = line.split()[1]
-                        # Catch if the currently read component matches the name of the component you are planning to write
+                        # Catch if the currently read component matches the name of the component you are planning to
+                        # write
                         if component_name.startswith(device_name):
                             # Ask if you want to overwrite existing component
                             yes = input(device_name + ' in ' + lib_file_read.name + ', replace it? [Yes]: ') or "Yes"
@@ -340,8 +339,6 @@ def Impart(zip):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         epilog='Note, empty input: invites clipboard content, if available.')
-    parser.add_argument('--init', action='store_true',
-                        help='initialize library')
     parser.add_argument('--zap', action='store_true',
                         help='delete source zipfile after assembly')
     arg = parser.parse_args()
@@ -351,45 +348,13 @@ if __name__ == '__main__':
     readline.set_auto_history(False)
 
     try:
-        if arg.init:
-            libras = list(REMOTE_TYPES.values())
-            while libras:
-                libra = Select(libras)('Erase/Initialize which library? ')
-                if libra == '':
-                    break
-                assert libra in libras, 'Unknown library'
-
-                dcm = LIB_PATH / (libra + '.dcm')
-                if not dcm.exists():
-                    dcm.touch(mode=0o666)
-
-                with dcm.open('wt') as dcmf:
-                    dcmf.writelines(['EESchema-DOCLIB  Version 2.0\n',
-                                     '#End Doc Library\n'])
-                dcm.chmod(0o660)
-
-                lib = LIB_PATH / (libra + '.lib')
-                if not lib.exists():
-                    lib.touch(mode=0o666)
-                with lib.open('wt') as libf:
-                    libf.writelines(['EESchema-LIBRARY Version 2.4\n',
-                                     '#encoding utf-8\n',
-                                     '#End Library\n'])
-                lib.chmod(0o660)
-
-                pcb = LIB_PATH / (libra + '.pretty')
-                shutil.rmtree(pcb, ignore_errors=True)
-                pcb.mkdir(mode=0o770, parents=False, exist_ok=False)
-
-                libras.remove(libra)
-
-        zips = [zip.name for zip in SRC_PATH.glob('*.zip')]
-        zip = SRC_PATH / Select(zips)('Library zip file: ')
-        response = Impart(zip)
+        zips = [zip_file.name for zip_file in SRC_PATH.glob('*.zip')]
+        chosen_zip = SRC_PATH / Select(zips)('Library zip file: ')
+        response = import_all(chosen_zip)
         if response:
             print(*response)
             if arg.zap and response[0] == 'OK:':
-                zip.unlink()
+                chosen_zip.unlink()
     except EOFError:
         print('EOF')
     except Exception as e:
