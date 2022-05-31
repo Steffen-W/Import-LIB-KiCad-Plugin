@@ -5,18 +5,14 @@
 # Samacsys, Ultralibrarian and Snapeda zipfiles. Currently assembles just
 # symbols and footptints. Tested with KiCad 5.1.12 for Ubuntu.
 
-from mydirs import SRC, LIB     # *CONFIGURE ME*
+from mydirs import SRC_PATH, LIB_PATH     # *CONFIGURE ME*
 import argparse
 import clipboard
 import re
 import readline
 import shutil
-import signal
 import zipfile
-
-
-def Signal(signum, stack):
-    raise UserWarning('CTRL-C')
+from os import stat
 
 
 def Xinput(prompt):
@@ -24,30 +20,6 @@ def Xinput(prompt):
     reply = input(prompt)
     index = reply.find('~') + 1
     return reply[index:]
-
-
-class Pretext:
-    """input() with inserted text"""
-    def __init__(self, pretext):
-        self._pretext = pretext
-        readline.set_completer(lambda: None)
-        readline.set_pre_input_hook(self.insert)
-        clipboard.copy('')
-
-    def __call__(self, prompt):
-        reply = Xinput(prompt + (': ' if self._pretext else ' [=clipboard]: '))
-        if reply == '':
-            text = clipboard.paste()
-            if text:
-                clipboard.copy('')
-                self._pretext = text.replace('\n', ' ')
-                reply = Xinput(prompt + ': ')
-        readline.set_pre_input_hook(None)
-        return reply.strip()
-
-    def insert(self):
-        readline.insert_text(self._pretext)
-        readline.redisplay()
 
 
 class Select:
@@ -78,7 +50,7 @@ class Select:
         return echo
 
 
-PRJ = {0: 'octopart', 1: 'samacsys', 2: 'ultralibrarian', 3: 'snapeda'}
+REMOTE_TYPES = {0: 'octopart', 1: 'samacsys', 2: 'ultralibrarian', 3: 'snapeda'}
 
 
 class Catch(Exception):
@@ -110,186 +82,257 @@ def Impart(zip):
         return None
 
     device = zip.name[:-4]
-    eec = Pretext(device)('Generic device name')
-    if eec == '':
+    # Request user input, but default to device if nothing entered
+    device_name = input('Generic device name [{0}]: '.format(device)) or device
+    if device_name == '':
         return None
 
+    # Identify format based on directory structure
     with zipfile.ZipFile(zip) as zf:
         root = zipfile.Path(zf)
 
         while True:
-            desc = root / 'eec.dcm'
-            symb = root / 'eec.lib'
-            food = root / 'eec.pretty'
-            if desc.exists() and symb.exists() and food.exists():
-                prj = 0         # OCTOPART
+            dcm_path = root / 'device_name.dcm'
+            lib_path = root / 'device_name.lib'
+            footprint_dir_path = root / 'device_name.pretty'
+            if dcm_path.exists() and lib_path.exists() and footprint_dir_path.exists():
+                remote_type = 0         # OCTOPART
                 break
 
             dir = Zipper(root, 'KiCad')
             if dir:
-                desc = Zipper(dir, '.dcm')
-                symb = Zipper(dir, '.lib')
-                food = dir
-                assert desc and symb, 'Not in samacsys format'
-                prj = 1         # SAMACSYS
+                dcm_path = Zipper(dir, '.dcm')
+                lib_path = Zipper(dir, '.lib')
+                footprint_dir_path = dir
+                assert dcm_path and lib_path, 'Not in samacsys format'
+                remote_type = 1         # SAMACSYS
                 break
 
             dir = root / 'KiCAD'
             if dir.exists():
-                desc = Zipper(dir, '.dcm')
-                symb = Zipper(dir, '.lib')
-                food = Zipper(dir, '.pretty')
-                assert symb and food, 'Not in ultralibrarian format'
-                prj = 2         # ULTRALIBRARIAN
+                dcm_path = Zipper(dir, '.dcm')
+                lib_path = Zipper(dir, '.lib')
+                footprint_dir_path = Zipper(dir, '.pretty')
+                assert lib_path and footprint_dir_path, 'Not in ultralibrarian format'
+                remote_type = 2         # ULTRALIBRARIAN
                 break
 
-            symb = Zipper(root, '.lib')
-            if symb:
-                desc = Zipper(root, '.dcm')
-                food = root
-                prj = 3         # SNAPEDA
+            lib_path = Zipper(root, '.lib')
+            if lib_path:
+                dcm_path = Zipper(root, '.dcm')
+                footprint_dir_path = root
+                remote_type = 3         # SNAPEDA
                 break
 
             assert False, 'Unknown library zipfile'
 
-        txt = desc.read_text().splitlines() if desc else [
-            '#', '# ' + device, '#', '$CMP ' + eec, 'D', 'F', '$ENDCMP']
+        # --------------------------------------------------------------------------------------------------------
+        # .dcm file parsing
+        # Note this reads in the existing dcm file for the particular remote repo, and tries to catch any duplicates
+        # before overwriting or creating duplicates. It reads the existing dcm file line by line and simply copy+paste
+        # each line if nothing will be overwritten or duplicated. If something could be overwritten or duplicated, the
+        # terminal will prompt whether to overwrite or to keep the existing content and ignore the new file contents.
+        # --------------------------------------------------------------------------------------------------------
+        # Array of values defining all attributes of .dcm file
+        dcm_attributes = dcm_path.read_text().splitlines() if dcm_path else [
+            '#', '# ' + device, '#', '$CMP ' + device_name, 'D', 'F', '$ENDCMP']
 
-        print('Adding', eec, 'to', PRJ[prj])
+        print('Adding', device_name, 'to', REMOTE_TYPES[remote_type])
 
-        stx = None
-        etx = None
-        hsh = None
-        for no, tx in enumerate(txt):
-            if stx is None:
-                if tx.startswith('#'):
-                    if tx.strip() == '#' and hsh is None:
-                        hsh = no  # header start
-                elif tx.startswith('$CMP '):
-                    t = tx[5:].strip()
-                    if not t.startswith(eec):
-                        return 'Unexpected device in', desc.name
-                    txt[no] = tx.replace(t, eec, 1)
-                    stx = no
+        # Find which lines contain the component information (ignore the rest).
+        index_start = None
+        index_end = None
+        index_header_start = None
+        for attribute_idx, attribute in enumerate(dcm_attributes):
+            if index_start is None:
+                if attribute.startswith('#'):
+                    if attribute.strip() == '#' and index_header_start is None:
+                        index_header_start = attribute_idx  # header start
+                elif attribute.startswith('$CMP '):
+                    component_name = attribute[5:].strip()
+                    if not component_name.startswith(device_name):
+                        return 'Unexpected device in', dcm_path.name
+                    dcm_attributes[attribute_idx] = attribute.replace(component_name, device_name, 1)
+                    index_start = attribute_idx
                 else:
-                    hsh = None
-            elif etx is None:
-                if tx.startswith('$CMP '):
-                    return 'Multiple devices in', desc.name
-                elif tx.startswith('$ENDCMP'):
-                    etx = no + 1
-                elif tx.startswith('D'):
-                    t = tx[2:].strip()
-                    dsc = Pretext(t)('Device description')
-                    if dsc:
-                        txt[no] = 'D ' + dsc
-                elif tx.startswith('F'):
-                    t = tx[2:].strip()
-                    url = Pretext(t)('Datasheet URL')
-                    if url:
-                        txt[no] = 'F ' + url
-        if etx is None:
-            return eec, 'not found in', desc.name
+                    index_header_start = None
+            elif index_end is None:
+                if attribute.startswith('$CMP '):
+                    return 'Multiple devices in', dcm_path.name
+                elif attribute.startswith('$ENDCMP'):
+                    index_end = attribute_idx + 1
+                elif attribute.startswith('D'):
+                    description = attribute[2:].strip()
+                    description = input('Device description [{0}]: '.format(description)) or description
+                    if description:
+                        dcm_attributes[attribute_idx] = 'D ' + description
+                elif attribute.startswith('F'):
+                    datasheet = attribute[2:].strip()
+                    datasheet = input('Datasheet URL [{0}]: '.format(datasheet)) or datasheet
+                    if datasheet:
+                        dcm_attributes[attribute_idx] = 'F ' + datasheet
+        if index_end is None:
+            return device_name, 'not found in', dcm_path.name
 
-        rd_dcm = LIB / (PRJ[prj] + '.dcm')
-        wr_dcm = LIB / (PRJ[prj] + '.dcm~')
-        update = updated = False
-        with rd_dcm.open('rt') as rf:
-            with wr_dcm.open('wt') as wf:
-                for tx in rf:
-                    if re.match('# *end ', tx, re.IGNORECASE):
-                        if not updated:
-                            wf.write('\n'.join(txt[stx if hsh is None else hsh:
-                                                   etx]) + '\n')
-                        wf.write(tx)
+        dcm_file_read = LIB_PATH / (REMOTE_TYPES[remote_type] + '.dcm')
+        dcm_file_write = LIB_PATH / (REMOTE_TYPES[remote_type] + '.dcm~')
+        overwrite_existing = overwrote_existing = False
+        if not dcm_file_read.exists():
+            dcm_file_read.touch(mode=0o666)
+        if not dcm_file_write.exists():
+            dcm_file_write.touch(mode=0o666)
+
+        with dcm_file_read.open('rt') as readfile:
+            with dcm_file_write.open('wt') as writefile:
+
+                if (stat(dcm_file_read).st_size == 0):
+                    # todo Handle appending to empty file
+                    with dcm_file_read.open('wt') as template_file:
+                        template = ["EESchema-DOCLIB  Version 2.0", "#End Doc Library"]
+                        template_file.writelines(line + '\n' for line in template)
+                        template_file.close()
+
+                for line in readfile:
+                    if re.match('# *end ', line, re.IGNORECASE):
+                        if not overwrote_existing:
+                            writefile.write('\n'.join(dcm_attributes[index_start if index_header_start is None else index_header_start:
+                                                   index_end]) + '\n')
+                        writefile.write(line)
                         break
-                    elif tx.startswith('$CMP '):
-                        t = tx[5:].strip()
-                        if t.startswith(eec):
-                            yes = Pretext('Yes')(
-                                eec + ' in ' + rd_dcm.name + ', replace it ? ')
-                            update = yes and 'yes'.startswith(yes.lower())
-                            if not update:
-                                return 'OK:', eec, 'already in', rd_dcm.name
-                            wf.write('\n'.join(txt[stx:etx]) + '\n')
-                            updated = True
+                    elif line.startswith('$CMP '):
+                        component_name = line[5:].strip()
+                        if component_name.startswith(device_name):
+                            yes = input(device_name + ' in ' + dcm_file_read.name + ', replace it? [Yes]: ') or "Yes"
+                            overwrite_existing = yes and 'yes'.startswith(yes.lower()) #todo should also accept y or Y
+                            if not overwrite_existing:
+                                return 'OK:', device_name, 'already in', dcm_file_read.name
+                            writefile.write('\n'.join(dcm_attributes[index_start:index_end]) + '\n')
+                            overwrote_existing = True
                         else:
-                            wf.write(tx)
-                    elif update:
-                        if tx.startswith('$ENDCMP'):
-                            update = False
+                            writefile.write(line)
+                    elif overwrite_existing:
+                        if line.startswith('$ENDCMP'):
+                            overwrite_existing = False
                     else:
-                        wf.write(tx)
+                        writefile.write(line)
 
-        txt = symb.read_text().splitlines()
-
-        stx = None
-        etx = None
-        hsh = None
-        for no, tx in enumerate(txt):
-            if stx is None:
-                if tx.startswith('#'):
-                    if tx.strip() == '#' and hsh is None:
-                        hsh = no  # header start
-                elif tx.startswith('DEF '):
-                    t = tx.split()[1]
-                    if not t.startswith(eec):
-                        return 'Unexpected device in', symb.name
-                    txt[no] = tx.replace(t, eec, 1)
-                    stx = no
-                else:
-                    hsh = None
-            elif etx is None:
-                if tx.startswith('ENDDEF'):
-                    etx = no + 1
-                elif tx.startswith('F1 '):
-                    txt[no] = tx.replace(device, eec, 1)
-            elif tx.startswith('DEF '):
-                return 'Multiple devices in', symb.name
-        if etx is None:
-            return device, 'not found in', symb.name
-
-        rd_lib = LIB / (PRJ[prj] + '.lib')
-        wr_lib = LIB / (PRJ[prj] + '.lib~')
-        update = updated = False
-        with rd_lib.open('rt') as rf:
-            with wr_lib.open('wt') as wf:
-                for tx in rf:
-                    if re.match('# *end ', tx, re.IGNORECASE):
-                        if not updated:
-                            wf.write('\n'.join(txt[stx if hsh is None else hsh:
-                                                   etx]) + '\n')
-                        wf.write(tx)
-                        break
-                    elif tx.startswith('DEF '):
-                        t = tx.split()[1]
-                        if t.startswith(eec):
-                            yes = Pretext('Yes')(
-                                eec + ' in ' + rd_lib.name + ', replace it ? ')
-                            update = yes and 'yes'.startswith(yes.lower())
-                            if not update:
-                                return 'OK:', eec, 'already in', rd_lib
-                            wf.write('\n'.join(txt[stx:etx]) + '\n')
-                            updated = True
-                        else:
-                            wf.write(tx)
-                    elif update:
-                        if tx.startswith('ENDDEF'):
-                            update = False
-                    else:
-                        wf.write(tx)
-
+        # --------------------------------------------------------------------------------------------------------
+        # Footprint file parsing
+        # todo it doesn't look like this handles duplicates like the other parsing sections
+        # --------------------------------------------------------------------------------------------------------
         pretty = 0
-        for rd in food.iterdir():
-            if rd.name.endswith('.kicad_mod') or rd.name.endswith('.mod'):
+        footprint_name = None
+        for footprint_dir_item in footprint_dir_path.iterdir():
+            if footprint_dir_item.name.endswith('.kicad_mod') or footprint_dir_item.name.endswith('.mod'):
                 pretty += 1
-                txt = rd.read_text()
-                with (LIB / (PRJ[prj] + '.pretty') / rd.name).open('wt') as wr:
-                    wr.write(txt)
+                footprint_name = footprint_dir_item.name # todo what happens if you have more than one footprint? This will save the last one only.
+                footprint_lines = footprint_dir_item.read_text()
+
+                if not (LIB_PATH / (REMOTE_TYPES[remote_type] + '.pretty')).is_dir():
+                    (LIB_PATH / (REMOTE_TYPES[remote_type] + '.pretty')).mkdir(parents=True)
+
+                if not (LIB_PATH / (REMOTE_TYPES[remote_type] + '.pretty') / footprint_dir_item.name).exists():
+                    (LIB_PATH / (REMOTE_TYPES[remote_type] + '.pretty') / footprint_dir_item.name).touch(mode=0o666)
+
+                with (LIB_PATH / (REMOTE_TYPES[remote_type] + '.pretty') / footprint_dir_item.name).open('wt') as wr:
+                    wr.write(footprint_lines)
         print('footprints:', pretty)
 
-        wr_dcm.replace(rd_dcm)
-        wr_lib.replace(rd_lib)
+
+        # --------------------------------------------------------------------------------------------------------
+        # .lib file parsing
+        # Note this reads in the existing lib file for the particular remote repo, and tries to catch any duplicates
+        # before overwriting or creating duplicates. It reads the existing dcm file line by line and simply copy+paste
+        # each line if nothing will be overwritten or duplicated. If something could be overwritten or duplicated, the
+        # terminal will prompt whether to overwrite or to keep the existing content and ignore the new file contents.
+        # --------------------------------------------------------------------------------------------------------
+        lib_lines = lib_path.read_text().splitlines()
+
+        # Find which lines contain the component information in file to be imported
+        index_start = None
+        index_end = None
+        index_header_start = None
+        index_footprint = None
+        for line_idx, line in enumerate(lib_lines):
+            if index_start is None:
+                if line.startswith('#'):
+                    if line.strip() == '#' and index_header_start is None:
+                        index_header_start = line_idx  # header start
+                elif line.startswith('DEF '):
+                    component_name = line.split()[1]
+                    if not component_name.startswith(device_name):
+                        return 'Unexpected device in', lib_path.name
+                    lib_lines[line_idx] = line.replace(component_name, device_name, 1)
+                    index_start = line_idx
+                else:
+                    index_header_start = None
+            elif index_end is None:
+                if line.startswith("F2"):
+                    footprint = line.split()[1]
+                    footprint = footprint.strip("\"")
+                    lib_lines[line_idx] = line.replace(
+                        footprint, REMOTE_TYPES[remote_type] + ":" + footprint, 1)
+                    index_footprint = line_idx
+                elif line.startswith('ENDDEF'):
+                    index_end = line_idx + 1
+                elif line.startswith('F1 '):
+                    lib_lines[line_idx] = line.replace(device, device_name, 1)
+            elif line.startswith('DEF '):
+                return 'Multiple devices in', lib_path.name
+        if index_end is None:
+            return device, 'not found in', lib_path.name
+
+        lib_file_read = LIB_PATH / (REMOTE_TYPES[remote_type] + '.lib')
+        lib_file_write = LIB_PATH / (REMOTE_TYPES[remote_type] + '.lib~')
+        overwrite_existing = overwrote_existing = False
+
+        if not lib_file_read.exists():
+            lib_file_read.touch(mode=0o666)
+        if not lib_file_write.exists():
+            lib_file_write.touch(mode=0o666)
+
+        with lib_file_read.open('rt') as readfile:
+            with lib_file_write.open('wt') as writefile:
+
+                if (stat(lib_file_read).st_size == 0):
+                    # todo Handle appending to empty file
+                    with lib_file_read.open('wt') as template_file:
+                        template = ["EESchema-LIBRARY Version 2.4", "#encoding utf-8", "# End Library"]
+                        template_file.writelines(line + '\n' for line in template)
+                        template_file.close()
+
+                # For each line in the existing lib file (not the file being read from the zip. The lib file you will add it to.)
+                for line in readfile:
+                    # Is this trying to match ENDDRAW, ENDDEF, End Library or any of the above?
+                    if re.match('# *end ', line, re.IGNORECASE):
+                        # If you already overwrote the new info don't add it to the end
+                        if not overwrote_existing:
+                            writefile.write('\n'.join(lib_lines[index_start if index_header_start is None else index_header_start:
+                                                   index_end]) + '\n')
+                        writefile.write(line)
+                        break
+                    # Catch start of new component definition
+                    elif line.startswith('DEF '):
+                        component_name = line.split()[1]
+                        # Catch if the currently read component matches the name of the component you are planning to write
+                        if component_name.startswith(device_name):
+                            # Ask if you want to overwrite existing component
+                            yes = input(device_name + ' in ' + lib_file_read.name + ', replace it? [Yes]: ') or "Yes"
+                            overwrite_existing = yes and 'yes'.startswith(yes.lower())
+                            if not overwrite_existing:
+                                return 'OK:', device_name, 'already in', lib_file_read
+                            writefile.write('\n'.join(lib_lines[index_start:index_end]) + '\n')
+                            overwrote_existing = True
+                        else:
+                            writefile.write(line)
+                    elif overwrite_existing:
+                        if line.startswith('ENDDEF'):
+                            overwrite_existing = False
+                    else:
+                        writefile.write(line)
+
+        dcm_file_write.replace(dcm_file_read)
+        lib_file_write.replace(lib_file_read)
 
     return 'OK:',
 
@@ -303,48 +346,50 @@ if __name__ == '__main__':
                         help='delete source zipfile after assembly')
     arg = parser.parse_args()
 
-    signal.signal(signal.SIGINT, Signal)
-
     readline.set_completer_delims('\t')
     readline.parse_and_bind('tab: complete')
     readline.set_auto_history(False)
 
     try:
         if arg.init:
-            libras = list(PRJ.values())
+            libras = list(REMOTE_TYPES.values())
             while libras:
                 libra = Select(libras)('Erase/Initialize which library? ')
                 if libra == '':
                     break
                 assert libra in libras, 'Unknown library'
 
-                dcm = LIB / (libra + '.dcm')
+                dcm = LIB_PATH / (libra + '.dcm')
+                if not dcm.exists():
+                    dcm.touch(mode=0o666)
+
                 with dcm.open('wt') as dcmf:
                     dcmf.writelines(['EESchema-DOCLIB  Version 2.0\n',
                                      '#End Doc Library\n'])
                 dcm.chmod(0o660)
 
-                lib = LIB / (libra + '.lib')
+                lib = LIB_PATH / (libra + '.lib')
+                if not lib.exists():
+                    lib.touch(mode=0o666)
                 with lib.open('wt') as libf:
                     libf.writelines(['EESchema-LIBRARY Version 2.4\n',
                                      '#encoding utf-8\n',
                                      '#End Library\n'])
                 lib.chmod(0o660)
 
-                pcb = LIB / (libra + '.pretty')
+                pcb = LIB_PATH / (libra + '.pretty')
                 shutil.rmtree(pcb, ignore_errors=True)
                 pcb.mkdir(mode=0o770, parents=False, exist_ok=False)
 
                 libras.remove(libra)
 
-        while True:
-            zips = [zip.name for zip in SRC.glob('*.zip')]
-            zip = SRC / Select(zips)('Library zip file: ')
-            response = Impart(zip)
-            if response:
-                print(*response)
-                if arg.zap and response[0] == 'OK:':
-                    zip.unlink()
+        zips = [zip.name for zip in SRC_PATH.glob('*.zip')]
+        zip = SRC_PATH / Select(zips)('Library zip file: ')
+        response = Impart(zip)
+        if response:
+            print(*response)
+            if arg.zap and response[0] == 'OK:':
+                zip.unlink()
     except EOFError:
         print('EOF')
     except Exception as e:

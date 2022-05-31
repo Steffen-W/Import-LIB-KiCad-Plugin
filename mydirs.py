@@ -1,4 +1,4 @@
 from pathlib import Path
 
-SRC = Path.home() / 'Desktop'
-LIB = Path.home() / 'private/edn/kicad-libs'
+SRC_PATH = Path.home() / 'Desktop'
+LIB_PATH = Path.home() / 'private/edn/kicad-libs'
