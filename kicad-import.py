@@ -255,6 +255,64 @@ def model_import(model_path: pathlib.Path, zf: zipfile.ZipFile) -> Union[pathlib
             return model_dir_item
 
 
+def footprint_import(footprint_path: pathlib.Path, remote_type: REMOTE_TYPES, found_model: pathlib.Path):
+    # --------------------------------------------------------------------------------------------------------
+    # Footprint file parsing
+    # todo it doesn't look like this handles duplicates like the other parsing sections
+    # --------------------------------------------------------------------------------------------------------
+    for footprint_path_item in footprint_path.iterdir():
+        if footprint_path_item.name.endswith('.kicad_mod') or footprint_path_item.name.endswith('.mod'):
+            footprint = footprint_path_item.read_text()
+
+            footprint_write_path = (REMOTE_FOOTPRINTS_PATH / (remote_type.name + '.pretty'))
+            footprint_file_read = footprint_write_path / footprint_path_item.name
+            footprint_file_write = footprint_write_path / (footprint_path_item.name + "~")
+
+            if found_model:
+                footprint.splitlines()
+                model = ["  (model \"" + "${REMOTE_3DMODEL_DIR}/" + found_model.name + "\"",
+                         "    (offset (xyz 0 0 0))", "    (scale (xyz 1 1 1))", "    (rotate (xyz 0 0 0))", "  )"]
+
+                overwrite_existing = overwrote_existing = False
+
+                if footprint_file_read.exists():
+                    overwrite_existing = input(
+                        "Footprint already exists at " + str(
+                            footprint_file_read) + ". Overwrite existing footprint? [Yes]: ") or "Yes"
+                    if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+                        return None
+
+                check_file(footprint_file_read)
+
+                with footprint_file_read.open('wt') as wr:
+                    wr.write(footprint)
+                    overwrote_existing = True
+
+                check_file(footprint_file_write)
+
+                with footprint_file_read.open('rt') as readfile:
+                    with footprint_file_write.open('wt') as writefile:
+
+                        if stat(footprint_file_read).st_size == 0:
+                            # todo Handle appending to empty file?
+                            pass
+
+                        lines = readfile.readlines()
+
+                        for line_idx, line in enumerate(lines):
+                            if line_idx == len(lines) - 1:
+                                writefile.writelines(model_line + '\n' for model_line in model)
+                                writefile.write(line)
+                                break
+                            else:
+                                writefile.write(line)
+
+            else:
+                with footprint_file_read.open('wt') as wr:
+                    wr.write(footprint)
+
+            footprint_file_write.replace(footprint_file_read)
+
 def import_all(zip_file: pathlib.Path):
     """zip is a pathlib.Path to import the symbol from"""
     if not zipfile.is_zipfile(zip_file):
@@ -274,59 +332,8 @@ def import_all(zip_file: pathlib.Path):
         dcm_import(device, device_name, remote_type, dcm_path)
 
         found_model = model_import(model_path, zf)
-        # --------------------------------------------------------------------------------------------------------
-        # Footprint file parsing
-        # todo it doesn't look like this handles duplicates like the other parsing sections
-        # --------------------------------------------------------------------------------------------------------
-        for footprint_path_item in footprint_path.iterdir():
-            if footprint_path_item.name.endswith('.kicad_mod') or footprint_path_item.name.endswith('.mod'):
-                footprint = footprint_path_item.read_text()
 
-                footprint_write_path = (REMOTE_FOOTPRINTS_PATH / (remote_type.name + '.pretty'))
-                footprint_file_read = footprint_write_path / footprint_path_item.name
-                footprint_file_write = footprint_write_path / (footprint_path_item.name + "~")
-
-                if found_model:
-                    footprint.splitlines()
-                    model = ["  (model \"" + "${REMOTE_3DMODEL_DIR}/" + found_model.name + "\"",
-                             "    (offset (xyz 0 0 0))", "    (scale (xyz 1 1 1))", "    (rotate (xyz 0 0 0))", "  )"]
-
-                    overwrite_existing = overwrote_existing = False
-
-                    if footprint_file_read.exists():
-                        overwrite_existing = input(
-                            "Footprint already exists at " + str(footprint_file_read) + ". Overwrite existing footprint? [Yes]: ") or "Yes"
-                        if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
-                            return 'OK:', footprint_path_item.name, 'already in', footprint_file_read.name
-
-                    check_file(footprint_file_read)
-
-                    with footprint_file_read.open('wt') as wr:
-                        wr.write(footprint)
-                        overwrote_existing = True
-
-                    check_file(footprint_file_write)
-
-                    with footprint_file_read.open('rt') as readfile:
-                        with footprint_file_write.open('wt') as writefile:
-
-                            if stat(footprint_file_read).st_size == 0:
-                                # todo Handle appending to empty file?
-                                pass
-
-                            lines = readfile.readlines()
-
-                            for line_idx, line in enumerate(lines):
-                                if line_idx == len(lines) - 1:
-                                    writefile.writelines(model_line + '\n' for model_line in model)
-                                    writefile.write(line)
-                                    break
-                                else:
-                                    writefile.write(line)
-
-                else:
-                    with footprint_file_read.open('wt') as wr:
-                        wr.write(footprint)
+        footprint_import(footprint_path, remote_type, found_model)
 
         # --------------------------------------------------------------------------------------------------------
         # .lib file parsing
@@ -419,7 +426,6 @@ def import_all(zip_file: pathlib.Path):
                     else:
                         writefile.write(line)
 
-        footprint_file_write.replace(footprint_file_read)
         lib_file_write.replace(lib_file_read)
 
 
