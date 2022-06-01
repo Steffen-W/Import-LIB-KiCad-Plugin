@@ -143,7 +143,100 @@ def check_file(path: pathlib.Path):
         path.touch(mode=0o666)
 
 
-def import_all(zip_file):
+def dcm_import(device: str, device_name: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
+    """
+    # .dcm file parsing
+    # Note this reads in the existing dcm file for the particular remote repo, and tries to catch any duplicates
+    # before overwriting or creating duplicates. It reads the existing dcm file line by line and simply copy+paste
+    # each line if nothing will be overwritten or duplicated. If something could be overwritten or duplicated, the
+    # terminal will prompt whether to overwrite or to keep the existing content and ignore the new file contents.
+    """
+
+
+    # Array of values defining all attributes of .dcm file
+    dcm_attributes = dcm_path.read_text().splitlines() if dcm_path else [
+        '#', '# ' + device, '#', '$CMP ' + device_name, 'D', 'F', '$ENDCMP']
+
+    # Find which lines contain the component information (ignore the rest).
+    index_start = None
+    index_end = None
+    index_header_start = None
+    for attribute_idx, attribute in enumerate(dcm_attributes):
+        if index_start is None:
+            if attribute.startswith('#'):
+                if attribute.strip() == '#' and index_header_start is None:
+                    index_header_start = attribute_idx  # header start
+            elif attribute.startswith('$CMP '):
+                component_name = attribute[5:].strip()
+                if not component_name.startswith(device_name):
+                    return 'Unexpected device in', dcm_path.name
+                dcm_attributes[attribute_idx] = attribute.replace(component_name, device_name, 1)
+                index_start = attribute_idx
+            else:
+                index_header_start = None
+        elif index_end is None:
+            if attribute.startswith('$CMP '):
+                return 'Multiple devices in', dcm_path.name
+            elif attribute.startswith('$ENDCMP'):
+                index_end = attribute_idx + 1
+            elif attribute.startswith('D'):
+                description = attribute[2:].strip()
+                description = input('Device description [{0}]: '.format(description)) or description
+                if description:
+                    dcm_attributes[attribute_idx] = 'D ' + description
+            elif attribute.startswith('F'):
+                datasheet = attribute[2:].strip()
+                if datasheet:
+                    dcm_attributes[attribute_idx] = 'F ' + datasheet
+    if index_end is None:
+        return device_name, 'not found in', dcm_path.name
+
+    dcm_file_read = REMOTE_LIB_PATH / (remote_type.name + '.dcm')
+    dcm_file_write = REMOTE_LIB_PATH / (remote_type.name + '.dcm~')
+    overwrite_existing = overwrote_existing = False
+
+    check_file(dcm_file_read)
+    check_file(dcm_file_write)
+
+    with dcm_file_read.open('rt') as readfile:
+        with dcm_file_write.open('wt') as writefile:
+
+            if stat(dcm_file_read).st_size == 0:
+                # todo Handle appending to empty file
+                with dcm_file_read.open('wt') as template_file:
+                    template = ["EESchema-DOCLIB  Version 2.0", "#End Doc Library"]
+                    template_file.writelines(line + '\n' for line in template)
+                    template_file.close()
+
+            for line in readfile:
+                if re.match('# *end ', line, re.IGNORECASE):
+                    if not overwrote_existing:
+                        writefile.write('\n'.join(
+                            dcm_attributes[index_start if index_header_start is None else index_header_start:
+                                           index_end]) + '\n')
+                    writefile.write(line)
+                    break
+                elif line.startswith('$CMP '):
+                    component_name = line[5:].strip()
+                    if component_name.startswith(device_name):
+                        overwrite_existing = input(device_name + ' definition already exists in ' + str(
+                            dcm_file_read) + ', replace it? [Yes]: ') or "Yes"
+                        if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+                            return 'OK:', device_name, 'already in', dcm_file_read.name
+                        writefile.write('\n'.join(dcm_attributes[index_start:index_end]) + '\n')
+                        overwrote_existing = True
+                    else:
+                        writefile.write(line)
+                elif overwrite_existing:
+                    if line.startswith('$ENDCMP'):
+                        overwrite_existing = False
+                else:
+                    writefile.write(line)
+
+    dcm_file_write.replace(dcm_file_read)
+
+
+def import_all(zip_file: pathlib.Path):
     """zip is a pathlib.Path to import the symbol from"""
     if not zipfile.is_zipfile(zip_file):
         return None
@@ -154,99 +247,12 @@ def import_all(zip_file):
     if device_name == '':
         return None
 
-    # Identify format based on directory structure
     with zipfile.ZipFile(zip_file) as zf:
         root: Path = zipfile.Path(zf)
 
         dcm_path, lib_path, footprint_path, model_path, remote_type = get_remote_info(root)
 
-
-
-        # --------------------------------------------------------------------------------------------------------
-        # .dcm file parsing
-        # Note this reads in the existing dcm file for the particular remote repo, and tries to catch any duplicates
-        # before overwriting or creating duplicates. It reads the existing dcm file line by line and simply copy+paste
-        # each line if nothing will be overwritten or duplicated. If something could be overwritten or duplicated, the
-        # terminal will prompt whether to overwrite or to keep the existing content and ignore the new file contents.
-        # --------------------------------------------------------------------------------------------------------
-        # Array of values defining all attributes of .dcm file
-        dcm_attributes = dcm_path.read_text().splitlines() if dcm_path else [
-            '#', '# ' + device, '#', '$CMP ' + device_name, 'D', 'F', '$ENDCMP']
-
-        # Find which lines contain the component information (ignore the rest).
-        index_start = None
-        index_end = None
-        index_header_start = None
-        for attribute_idx, attribute in enumerate(dcm_attributes):
-            if index_start is None:
-                if attribute.startswith('#'):
-                    if attribute.strip() == '#' and index_header_start is None:
-                        index_header_start = attribute_idx  # header start
-                elif attribute.startswith('$CMP '):
-                    component_name = attribute[5:].strip()
-                    if not component_name.startswith(device_name):
-                        return 'Unexpected device in', dcm_path.name
-                    dcm_attributes[attribute_idx] = attribute.replace(component_name, device_name, 1)
-                    index_start = attribute_idx
-                else:
-                    index_header_start = None
-            elif index_end is None:
-                if attribute.startswith('$CMP '):
-                    return 'Multiple devices in', dcm_path.name
-                elif attribute.startswith('$ENDCMP'):
-                    index_end = attribute_idx + 1
-                elif attribute.startswith('D'):
-                    description = attribute[2:].strip()
-                    description = input('Device description [{0}]: '.format(description)) or description
-                    if description:
-                        dcm_attributes[attribute_idx] = 'D ' + description
-                elif attribute.startswith('F'):
-                    datasheet = attribute[2:].strip()
-                    if datasheet:
-                        dcm_attributes[attribute_idx] = 'F ' + datasheet
-        if index_end is None:
-            return device_name, 'not found in', dcm_path.name
-
-        dcm_file_read = REMOTE_LIB_PATH / (remote_type.name + '.dcm')
-        dcm_file_write = REMOTE_LIB_PATH / (remote_type.name + '.dcm~')
-        overwrite_existing = overwrote_existing = False
-
-        check_file(dcm_file_read)
-        check_file(dcm_file_write)
-
-        with dcm_file_read.open('rt') as readfile:
-            with dcm_file_write.open('wt') as writefile:
-
-                if stat(dcm_file_read).st_size == 0:
-                    # todo Handle appending to empty file
-                    with dcm_file_read.open('wt') as template_file:
-                        template = ["EESchema-DOCLIB  Version 2.0", "#End Doc Library"]
-                        template_file.writelines(line + '\n' for line in template)
-                        template_file.close()
-
-                for line in readfile:
-                    if re.match('# *end ', line, re.IGNORECASE):
-                        if not overwrote_existing:
-                            writefile.write('\n'.join(
-                                dcm_attributes[index_start if index_header_start is None else index_header_start:
-                                               index_end]) + '\n')
-                        writefile.write(line)
-                        break
-                    elif line.startswith('$CMP '):
-                        component_name = line[5:].strip()
-                        if component_name.startswith(device_name):
-                            overwrite_existing = input(device_name + ' definition already exists in ' + str(dcm_file_read) + ', replace it? [Yes]: ') or "Yes"
-                            if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
-                                return 'OK:', device_name, 'already in', dcm_file_read.name
-                            writefile.write('\n'.join(dcm_attributes[index_start:index_end]) + '\n')
-                            overwrote_existing = True
-                        else:
-                            writefile.write(line)
-                    elif overwrite_existing:
-                        if line.startswith('$ENDCMP'):
-                            overwrite_existing = False
-                    else:
-                        writefile.write(line)
+        dcm_import(device, device_name, remote_type, dcm_path)
 
         # --------------------------------------------------------------------------------------------------------
         # 3D Model file extraction
@@ -410,7 +416,6 @@ def import_all(zip_file):
                     else:
                         writefile.write(line)
 
-        dcm_file_write.replace(dcm_file_read)
         footprint_file_write.replace(footprint_file_read)
         lib_file_write.replace(lib_file_read)
 
@@ -431,7 +436,7 @@ if __name__ == '__main__':
 
     try:
         zips = [zip_file.name for zip_file in SRC_PATH.glob('*.zip')]
-        chosen_zip = SRC_PATH / Select(zips)('Library zip file: ')
+        chosen_zip: pathlib.Path = SRC_PATH / Select(zips)('Library zip file: ')
         response = import_all(chosen_zip)
         if response:
             print(*response)
