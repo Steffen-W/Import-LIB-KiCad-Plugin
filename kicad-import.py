@@ -222,7 +222,7 @@ def dcm_import(device: str, device_name: str, remote_type: REMOTE_TYPES, dcm_pat
                         overwrite_existing = input(device_name + ' definition already exists in ' + str(
                             dcm_file_read) + ', replace it? [Yes]: ') or "Yes"
                         if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
-                            return 'OK:', device_name, 'already in', dcm_file_read.name
+                            return None
                         writefile.write('\n'.join(dcm_attributes[index_start:index_end]) + '\n')
                         overwrote_existing = True
                     else:
@@ -234,6 +234,25 @@ def dcm_import(device: str, device_name: str, remote_type: REMOTE_TYPES, dcm_pat
                     writefile.write(line)
 
     dcm_file_write.replace(dcm_file_read)
+
+
+def model_import(model_path: pathlib.Path, zf: zipfile.ZipFile) -> Union[pathlib.Path, None]:
+    # --------------------------------------------------------------------------------------------------------
+    # 3D Model file extraction
+    # --------------------------------------------------------------------------------------------------------
+    if not REMOTE_3DMODEL_PATH.is_dir():
+        REMOTE_3DMODEL_PATH.mkdir(parents=True)
+
+    for model_dir_item in model_path.iterdir():
+        if model_dir_item.name.endswith('.step'):
+            if (REMOTE_3DMODEL_PATH / model_dir_item.name).exists():
+                overwrite_existing = input("Model already exists at " + str(
+                    REMOTE_3DMODEL_PATH / model_dir_item.name) + ". Overwrite existing model? [Yes]: ") or "Yes"
+                if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+                    return None
+
+            zf.extract(model_dir_item.name, REMOTE_3DMODEL_PATH)
+            return model_dir_item
 
 
 def import_all(zip_file: pathlib.Path):
@@ -254,23 +273,7 @@ def import_all(zip_file: pathlib.Path):
 
         dcm_import(device, device_name, remote_type, dcm_path)
 
-        # --------------------------------------------------------------------------------------------------------
-        # 3D Model file extraction
-        # --------------------------------------------------------------------------------------------------------
-        found_model = None
-        if not REMOTE_3DMODEL_PATH.is_dir():
-            REMOTE_3DMODEL_PATH.mkdir(parents=True)
-
-        for model_dir_item in model_path.iterdir():
-            if model_dir_item.name.endswith('.step'):
-                if (REMOTE_3DMODEL_PATH / model_dir_item.name).exists():
-                    overwrite_existing = input("Model already exists at " + str(REMOTE_3DMODEL_PATH / model_dir_item.name) + ". Overwrite existing model? [Yes]: ") or "Yes"
-                    if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
-                        return 'OK:', model_dir_item, 'already in', str(model_path)
-
-                zf.extract(model_dir_item.name, REMOTE_3DMODEL_PATH)
-                found_model = model_dir_item
-
+        found_model = model_import(model_path, zf)
         # --------------------------------------------------------------------------------------------------------
         # Footprint file parsing
         # todo it doesn't look like this handles duplicates like the other parsing sections
