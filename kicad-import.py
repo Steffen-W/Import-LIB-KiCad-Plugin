@@ -143,7 +143,7 @@ def check_file(path: pathlib.Path):
         path.touch(mode=0o666)
 
 
-def dcm_import(device: str, device_name: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
+def import_dcm(device: str, device_name: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
     """
     # .dcm file parsing
     # Note this reads in the existing dcm file for the particular remote repo, and tries to catch any duplicates
@@ -236,7 +236,7 @@ def dcm_import(device: str, device_name: str, remote_type: REMOTE_TYPES, dcm_pat
     dcm_file_write.replace(dcm_file_read)
 
 
-def model_import(model_path: pathlib.Path, zf: zipfile.ZipFile) -> Union[pathlib.Path, None]:
+def import_model(model_path: pathlib.Path, zf: zipfile.ZipFile) -> Union[pathlib.Path, None]:
     # --------------------------------------------------------------------------------------------------------
     # 3D Model file extraction
     # --------------------------------------------------------------------------------------------------------
@@ -255,7 +255,7 @@ def model_import(model_path: pathlib.Path, zf: zipfile.ZipFile) -> Union[pathlib
             return model_dir_item
 
 
-def footprint_import(footprint_path: pathlib.Path, remote_type: REMOTE_TYPES, found_model: pathlib.Path):
+def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, found_model: pathlib.Path):
     # --------------------------------------------------------------------------------------------------------
     # Footprint file parsing
     # todo it doesn't look like this handles duplicates like the other parsing sections
@@ -314,7 +314,7 @@ def footprint_import(footprint_path: pathlib.Path, remote_type: REMOTE_TYPES, fo
             footprint_file_write.replace(footprint_file_read)
 
 
-def lib_import(device: str, device_name: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path):
+def import_lib(device: str, device_name: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path):
     # --------------------------------------------------------------------------------------------------------
     # .lib file parsing
     # Note this reads in the existing lib file for the particular remote repo, and tries to catch any duplicates
@@ -426,13 +426,13 @@ def import_all(zip_file: pathlib.Path):
 
         dcm_path, lib_path, footprint_path, model_path, remote_type = get_remote_info(root)
 
-        dcm_import(device, device_name, remote_type, dcm_path)
+        import_dcm(device, device_name, remote_type, dcm_path)
 
-        found_model = model_import(model_path, zf)
+        found_model = import_model(model_path, zf)
 
-        footprint_import(footprint_path, remote_type, found_model)
+        import_footprint(remote_type, footprint_path, found_model)
 
-        lib_import(device, device_name, remote_type, lib_path)
+        import_lib(device, device_name, remote_type, lib_path)
 
     return 'OK:',
 
