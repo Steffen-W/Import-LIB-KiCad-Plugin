@@ -6,7 +6,7 @@
 # symbols and footptints. Tested with KiCad 5.1.12 for Ubuntu.
 import shutil
 
-from mydirs import SRC_PATH, REMOTE_LIB_PATH, REMOTE_3DMODEL_PATH  # *CONFIGURE ME*
+from config import SRC_PATH, REMOTE_LIB_PATH, REMOTE_FOOTPRINTS_PATH, REMOTE_3DMODEL_PATH  # *CONFIGURE ME*
 import argparse
 import re
 import readline
