@@ -313,6 +313,103 @@ def footprint_import(footprint_path: pathlib.Path, remote_type: REMOTE_TYPES, fo
 
             footprint_file_write.replace(footprint_file_read)
 
+
+def lib_import(device: str, device_name: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path):
+    # --------------------------------------------------------------------------------------------------------
+    # .lib file parsing
+    # Note this reads in the existing lib file for the particular remote repo, and tries to catch any duplicates
+    # before overwriting or creating duplicates. It reads the existing dcm file line by line and simply copy+paste
+    # each line if nothing will be overwritten or duplicated. If something could be overwritten or duplicated, the
+    # terminal will prompt whether to overwrite or to keep the existing content and ignore the new file contents.
+    # --------------------------------------------------------------------------------------------------------
+    lib_lines = lib_path.read_text().splitlines()
+
+    # Find which lines contain the component information in file to be imported
+    index_start = None
+    index_end = None
+    index_header_start = None
+    for line_idx, line in enumerate(lib_lines):
+        if index_start is None:
+            if line.startswith('#'):
+                if line.strip() == '#' and index_header_start is None:
+                    index_header_start = line_idx  # header start
+            elif line.startswith('DEF '):
+                component_name = line.split()[1]
+                if not component_name.startswith(device_name):
+                    return 'Unexpected device in', lib_path.name
+                lib_lines[line_idx] = line.replace(component_name, device_name, 1)
+                index_start = line_idx
+            else:
+                index_header_start = None
+        elif index_end is None:
+            if line.startswith("F2"):
+                footprint = line.split()[1]
+                footprint = footprint.strip("\"")
+                lib_lines[line_idx] = line.replace(
+                    footprint, remote_type.name + ":" + footprint, 1)
+            elif line.startswith('ENDDEF'):
+                index_end = line_idx + 1
+            elif line.startswith('F1 '):
+                lib_lines[line_idx] = line.replace(device, device_name, 1)
+        elif line.startswith('DEF '):
+            return 'Multiple devices in', lib_path.name
+    if index_end is None:
+        return device, 'not found in', lib_path.name
+
+    lib_file_read = REMOTE_LIB_PATH / (remote_type.name + '.lib')
+    lib_file_write = REMOTE_LIB_PATH / (remote_type.name + '.lib~')
+    overwrite_existing = overwrote_existing = False
+
+    check_file(lib_file_read)
+    check_file(lib_file_write)
+
+    with lib_file_read.open('rt') as readfile:
+        with lib_file_write.open('wt') as writefile:
+
+            if stat(lib_file_read).st_size == 0:
+                # todo Handle appending to empty file
+                with lib_file_read.open('wt') as template_file:
+                    template = ["EESchema-LIBRARY Version 2.4", "#encoding utf-8", "# End Library"]
+                    template_file.writelines(line + '\n' for line in template)
+                    template_file.close()
+
+            # For each line in the existing lib file (not the file being read from the zip. The lib file you will
+            # add it to.)
+            for line in readfile:
+                # Is this trying to match ENDDRAW, ENDDEF, End Library or any of the above?
+                if re.match('# *end ', line, re.IGNORECASE):
+                    # If you already overwrote the new info don't add it to the end
+                    if not overwrote_existing:
+                        writefile.write(
+                            '\n'.join(lib_lines[index_start if index_header_start is None else index_header_start:
+                                                index_end]) + '\n')
+                    writefile.write(line)
+                    break
+                # Catch start of new component definition
+                elif line.startswith('DEF '):
+                    component_name = line.split()[1]
+                    # Catch if the currently read component matches the name of the component you are planning to
+                    # write
+                    if component_name.startswith(device_name):
+                        # Ask if you want to overwrite existing component
+                        yes = input(
+                            device_name + ' lib already in ' + str(lib_file_read) + ', replace it? [Yes]: ') or "Yes"
+                        overwrite_existing = yes and 'yes'.startswith(yes.lower())
+                        if not overwrite_existing:
+                            return 'OK:', device_name, 'already in', lib_file_read
+                        writefile.write('\n'.join(lib_lines[index_start:index_end]) + '\n')
+                        overwrote_existing = True
+                    else:
+                        writefile.write(line)
+                elif overwrite_existing:
+                    if line.startswith('ENDDEF'):
+                        overwrite_existing = False
+                else:
+                    writefile.write(line)
+
+    lib_file_write.replace(lib_file_read)
+
+
 def import_all(zip_file: pathlib.Path):
     """zip is a pathlib.Path to import the symbol from"""
     if not zipfile.is_zipfile(zip_file):
@@ -335,99 +432,7 @@ def import_all(zip_file: pathlib.Path):
 
         footprint_import(footprint_path, remote_type, found_model)
 
-        # --------------------------------------------------------------------------------------------------------
-        # .lib file parsing
-        # Note this reads in the existing lib file for the particular remote repo, and tries to catch any duplicates
-        # before overwriting or creating duplicates. It reads the existing dcm file line by line and simply copy+paste
-        # each line if nothing will be overwritten or duplicated. If something could be overwritten or duplicated, the
-        # terminal will prompt whether to overwrite or to keep the existing content and ignore the new file contents.
-        # --------------------------------------------------------------------------------------------------------
-        lib_lines = lib_path.read_text().splitlines()
-
-        # Find which lines contain the component information in file to be imported
-        index_start = None
-        index_end = None
-        index_header_start = None
-        for line_idx, line in enumerate(lib_lines):
-            if index_start is None:
-                if line.startswith('#'):
-                    if line.strip() == '#' and index_header_start is None:
-                        index_header_start = line_idx  # header start
-                elif line.startswith('DEF '):
-                    component_name = line.split()[1]
-                    if not component_name.startswith(device_name):
-                        return 'Unexpected device in', lib_path.name
-                    lib_lines[line_idx] = line.replace(component_name, device_name, 1)
-                    index_start = line_idx
-                else:
-                    index_header_start = None
-            elif index_end is None:
-                if line.startswith("F2"):
-                    footprint = line.split()[1]
-                    footprint = footprint.strip("\"")
-                    lib_lines[line_idx] = line.replace(
-                        footprint, remote_type.name + ":" + footprint, 1)
-                elif line.startswith('ENDDEF'):
-                    index_end = line_idx + 1
-                elif line.startswith('F1 '):
-                    lib_lines[line_idx] = line.replace(device, device_name, 1)
-            elif line.startswith('DEF '):
-                return 'Multiple devices in', lib_path.name
-        if index_end is None:
-            return device, 'not found in', lib_path.name
-
-        lib_file_read = REMOTE_LIB_PATH / (remote_type.name + '.lib')
-        lib_file_write = REMOTE_LIB_PATH / (remote_type.name + '.lib~')
-        overwrite_existing = overwrote_existing = False
-
-        check_file(lib_file_read)
-        check_file(lib_file_write)
-
-        with lib_file_read.open('rt') as readfile:
-            with lib_file_write.open('wt') as writefile:
-
-                if stat(lib_file_read).st_size == 0:
-                    # todo Handle appending to empty file
-                    with lib_file_read.open('wt') as template_file:
-                        template = ["EESchema-LIBRARY Version 2.4", "#encoding utf-8", "# End Library"]
-                        template_file.writelines(line + '\n' for line in template)
-                        template_file.close()
-
-                # For each line in the existing lib file (not the file being read from the zip. The lib file you will
-                # add it to.)
-                for line in readfile:
-                    # Is this trying to match ENDDRAW, ENDDEF, End Library or any of the above?
-                    if re.match('# *end ', line, re.IGNORECASE):
-                        # If you already overwrote the new info don't add it to the end
-                        if not overwrote_existing:
-                            writefile.write(
-                                '\n'.join(lib_lines[index_start if index_header_start is None else index_header_start:
-                                                    index_end]) + '\n')
-                        writefile.write(line)
-                        break
-                    # Catch start of new component definition
-                    elif line.startswith('DEF '):
-                        component_name = line.split()[1]
-                        # Catch if the currently read component matches the name of the component you are planning to
-                        # write
-                        if component_name.startswith(device_name):
-                            # Ask if you want to overwrite existing component
-                            yes = input(device_name + ' lib already in ' + str(lib_file_read) + ', replace it? [Yes]: ') or "Yes"
-                            overwrite_existing = yes and 'yes'.startswith(yes.lower())
-                            if not overwrite_existing:
-                                return 'OK:', device_name, 'already in', lib_file_read
-                            writefile.write('\n'.join(lib_lines[index_start:index_end]) + '\n')
-                            overwrote_existing = True
-                        else:
-                            writefile.write(line)
-                    elif overwrite_existing:
-                        if line.startswith('ENDDEF'):
-                            overwrite_existing = False
-                    else:
-                        writefile.write(line)
-
-        lib_file_write.replace(lib_file_read)
-
+        lib_import(device, device_name, remote_type, lib_path)
 
     return 'OK:',
 
