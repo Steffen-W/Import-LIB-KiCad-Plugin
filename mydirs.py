@@ -1,5 +1,6 @@
 from pathlib import Path
 
 SRC_PATH = Path.home() / 'Downloads/remotelibs'
-LIB_PATH = Path.home() / 'private/edn/kicad-libs'
-REMOTE_3DMODEL_DIR = LIB_PATH / 'models'
+REMOTE_LIB_PATH = "~/kicad-imports/kicad-symbols"
+REMOTE_FOOTPRINTS_PATH = "~/kicad-imports/kicad-footprints"
+REMOTE_3DMODEL_PATH = "~/kicad-imports/kicad-packages3D"

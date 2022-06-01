@@ -6,7 +6,7 @@
 # symbols and footptints. Tested with KiCad 5.1.12 for Ubuntu.
 import shutil
 
-from mydirs import SRC_PATH, LIB_PATH, REMOTE_3DMODEL_DIR  # *CONFIGURE ME*
+from mydirs import SRC_PATH, REMOTE_LIB_PATH, REMOTE_3DMODEL_PATH  # *CONFIGURE ME*
 import argparse
 import re
 import readline
@@ -180,8 +180,8 @@ def import_all(zip_file):
         if index_end is None:
             return device_name, 'not found in', dcm_path.name
 
-        dcm_file_read = LIB_PATH / (REMOTE_TYPES[remote_type] + '.dcm')
-        dcm_file_write = LIB_PATH / (REMOTE_TYPES[remote_type] + '.dcm~')
+        dcm_file_read = REMOTE_LIB_PATH / (REMOTE_TYPES[remote_type] + '.dcm')
+        dcm_file_write = REMOTE_LIB_PATH / (REMOTE_TYPES[remote_type] + '.dcm~')
         overwrite_existing = overwrote_existing = False
         if not dcm_file_read.exists():
             dcm_file_read.touch(mode=0o666)
@@ -226,17 +226,17 @@ def import_all(zip_file):
         # 3D Model file extraction
         # --------------------------------------------------------------------------------------------------------
         found_model = None
-        if not REMOTE_3DMODEL_DIR.is_dir():
-            REMOTE_3DMODEL_DIR.mkdir(parents=True)
+        if not REMOTE_3DMODEL_PATH.is_dir():
+            REMOTE_3DMODEL_PATH.mkdir(parents=True)
 
         for model_dir_item in model_path.iterdir():
             if model_dir_item.name.endswith('.step'):
-                if (REMOTE_3DMODEL_DIR / model_dir_item.name).exists():
+                if (REMOTE_3DMODEL_PATH / model_dir_item.name).exists():
                     overwrite_existing = input("Model already exists. Overwrite existing model? [Yes]: ") or "Yes"
                     if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
                         return 'OK:', model_dir_item, 'already in', str(model_path)
 
-                zf.extract(model_dir_item.name, REMOTE_3DMODEL_DIR)
+                zf.extract(model_dir_item.name, REMOTE_3DMODEL_PATH)
                 found_model = model_dir_item
 
         # --------------------------------------------------------------------------------------------------------
@@ -249,7 +249,7 @@ def import_all(zip_file):
                 pretty += 1
                 footprint = footprint_dir_item.read_text()
 
-                footprint_write_path = (LIB_PATH / (REMOTE_TYPES[remote_type] + '.pretty'))
+                footprint_write_path = (REMOTE_LIB_PATH / (REMOTE_TYPES[remote_type] + '.pretty'))
                 if not footprint_write_path.is_dir():
                     footprint_write_path.mkdir(parents=True)
 
@@ -341,8 +341,8 @@ def import_all(zip_file):
         if index_end is None:
             return device, 'not found in', lib_path.name
 
-        lib_file_read = LIB_PATH / (REMOTE_TYPES[remote_type] + '.lib')
-        lib_file_write = LIB_PATH / (REMOTE_TYPES[remote_type] + '.lib~')
+        lib_file_read = REMOTE_LIB_PATH / (REMOTE_TYPES[remote_type] + '.lib')
+        lib_file_write = REMOTE_LIB_PATH / (REMOTE_TYPES[remote_type] + '.lib~')
         overwrite_existing = overwrote_existing = False
 
         if not lib_file_read.exists():
