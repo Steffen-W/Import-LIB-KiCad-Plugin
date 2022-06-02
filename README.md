@@ -33,6 +33,13 @@ $ python kicad-import
 
 If the lib, dcm, footprint or 3D model already exist, it will prompt you on whether or not you want to overwrite them. 
 
+After you import what you need or before (the following is a one-time setup for each new remote repo you import from):
+
+You will have to ensure that your "Configure Paths" in KiCAD point to the correct paths:
+
+1. Configure your KiCAD PATHs. The only hardcoded path you should need to add is REMOTE_3DMODEL_PATH. This will be used by all the footprints being imported to connect them with the imported 3D models. So in KiCAD go to Preferences->Config Paths and Add a new Nam REMOTE_3DMODEL_PATH and copy the REMOTE_3DMODEL_PATH path from `config.py` here. Make sure the you replace the `Path.home() / ` portion of `Path.home() / "kicad-imports/kicad-packages3D"` with `~/` or a hard link to your home directory. 
+2. Ensure you have either a global oor project specific library that points to each remote path in the REMOTE_LIB_PATH. So for example, if your config.py sets REMOTE_LIB_PATH as `~/kicad-import/libs/` and you import something from SnapEDA, it will default to adding this lib to ``~/kicad-import/libs/SnapEDA.lib` so ensure you have a configured library in KiCAD pointing to this .lib file. More specifically, go to KiCAD->Preferences->Manage Symbol Libraries.. and add either a global or project specific library that points to the imported libraries. Repeat this for any other remotes (e.g. Ultra-Librarian) 
+
 # Warranty
 **None. Zero. Zilch. Use at your own risk, and please be sure to use git or some other means of backing up/reverting changes caused by this script. This script will modify existing lib, dcm, footprint or 3D model files. It is your responsiblity to back them up or have a way to revert changes should you inadvertantly mess something up using this tool** 
 
