@@ -322,7 +322,7 @@ def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, fo
 
             if found_model:
                 footprint.splitlines()
-                model = ["  (model \"" + "${REMOTE_3DMODEL_DIR}/" + found_model.name + "\"",
+                model = ["  (model \"" + "${KICAD6_3RD_PARTY}/" + found_model.name + "\"",
                          "    (offset (xyz 0 0 0))", "    (scale (xyz 1 1 1))", "    (rotate (xyz 0 0 0))", "  )"]
 
                 overwrite_existing = overwrote_existing = False
