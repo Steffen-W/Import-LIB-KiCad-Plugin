@@ -176,7 +176,7 @@ def get_remote_info(root_path) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
     if lib_path:
         dcm_path = unzip(root_path, '.dcm')
         footprint_path = root_path
-        model_path = root_path
+        model_path = unzip(root_path, '.step')
         remote_type = REMOTE_TYPES.SNAPEDA
         return dcm_path, lib_path, footprint_path, model_path, remote_type
 
@@ -287,19 +287,20 @@ def import_model(model_path: pathlib.Path, zf: zipfile.ZipFile) -> Union[pathlib
         REMOTE_3DMODEL_PATH.mkdir(parents=True)
         modified_objects.append(REMOTE_3DMODEL_PATH, Modification.MKDIR)
 
-    for model_dir_item in model_path.iterdir():
-        if model_dir_item.name.endswith('.step'):
-            if (REMOTE_3DMODEL_PATH / model_dir_item.name).exists():
-                overwrite_existing = input("Model already exists at " + str(
-                    REMOTE_3DMODEL_PATH / model_dir_item.name) + ". Overwrite existing model? [Yes]: ") or "Yes"
-                if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
-                    print("Import of model skipped")
-                    return None
+    if (REMOTE_3DMODEL_PATH / model_path.name).exists():
+        overwrite_existing = input("Model already exists at " + str(
+            REMOTE_3DMODEL_PATH / model_path.name) + ". Overwrite existing model? [Yes]: ") or "Yes"
+        if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+            print("Import of model skipped")
+            return None
 
-            zf.extract(model_dir_item.name, REMOTE_3DMODEL_PATH)
-            modified_objects.append(REMOTE_3DMODEL_PATH / model_dir_item.name, Modification.EXTRACTED_FILE)
-            print("Import of model succeeded")
-            return model_dir_item
+    if model_path.is_file():
+        zf.extract(model_path.name, REMOTE_3DMODEL_PATH)
+        modified_objects.append(REMOTE_3DMODEL_PATH / model_path.name, Modification.EXTRACTED_FILE)
+        print("Import of model succeeded")
+
+    return model_path
+
 
 
 def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, found_model: pathlib.Path) -> \
