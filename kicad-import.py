@@ -100,7 +100,6 @@ def check_file(path: pathlib.Path):
 def exception_handler(e: Exception):
     traceback.print_exception(type(e), e, e.__traceback__)
 
-    print(e.args)
     print("So far the following have been modified: " + "\n")
     pprint(modified_objects.dict)
 
