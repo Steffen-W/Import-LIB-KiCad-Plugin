@@ -78,10 +78,10 @@ class Select:
 
 
 class REMOTE_TYPES(Enum):
-    OCTOPART = 0
-    SAMACSYS = 1
-    ULTRA_LIBRARIAN = 2
-    SNAPEDA = 3
+    Octopart = 0
+    Samacsys = 1
+    Ulatra_Librarian = 2
+    Snapeda = 3
 
 
 class Catch(Exception):
@@ -149,7 +149,7 @@ def get_remote_info(root_path) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
     model_path = root_path / 'device.step'
     # todo fill in model path for OCTOPART
     if dcm_path.exists() and lib_path.exists() and footprint_path.exists():
-        remote_type = REMOTE_TYPES.OCTOPART
+        remote_type = REMOTE_TYPES.Octopart
         return dcm_path, lib_path, footprint_path, model_path, remote_type
 
     directory = unzip(root_path, 'KiCad')
@@ -159,7 +159,7 @@ def get_remote_info(root_path) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
         footprint_path = directory
         # todo fill in model path for SAMACSYS
         assert dcm_path and lib_path, 'Not in samacsys format'
-        remote_type = REMOTE_TYPES.SAMACSYS
+        remote_type = REMOTE_TYPES.Samacsys
         return dcm_path, lib_path, footprint_path, model_path, remote_type
 
     directory = root_path / 'KiCAD'
@@ -169,7 +169,7 @@ def get_remote_info(root_path) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
         footprint_path = unzip(directory, '.pretty')
         model_path = unzip(root_path, '.step')
         assert lib_path and footprint_path, 'Not in ultralibrarian format'
-        remote_type = REMOTE_TYPES.ULTRA_LIBRARIAN
+        remote_type = REMOTE_TYPES.Ulatra_Librarian
         return dcm_path, lib_path, footprint_path, model_path, remote_type
 
     lib_path = unzip(root_path, '.lib')
@@ -177,7 +177,7 @@ def get_remote_info(root_path) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
         dcm_path = unzip(root_path, '.dcm')
         footprint_path = root_path
         model_path = unzip(root_path, '.step')
-        remote_type = REMOTE_TYPES.SNAPEDA
+        remote_type = REMOTE_TYPES.Snapeda
         return dcm_path, lib_path, footprint_path, model_path, remote_type
 
     assert False, 'Unknown library zipfile'
