@@ -360,17 +360,18 @@ def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, fo
     return footprint_file_read, footprint_file_write
 
 
-def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -> \
-        Tuple[Union[pathlib.Path, None], Union[pathlib.Path, None]]:
+def import_lib(remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -> \
+        Tuple[str, Union[pathlib.Path, None], Union[pathlib.Path, None]]:
     """
     .lib file parsing
     Note this reads in the existing lib file for the particular remote repo, and tries to catch any duplicates
     before overwriting or creating duplicates. It reads the existing dcm file line by line and simply copy+paste
     each line if nothing will be overwritten or duplicated. If something could be overwritten or duplicated, the
     terminal will prompt whether to overwrite or to keep the existing content and ignore the new file contents.
-    :returns: lib_file_read, lib_file_write
+    :returns: device, lib_file_read, lib_file_write
     """
 
+    device = None
     lib_lines = lib_path.read_text().splitlines()
 
     # Find which lines contain the component information in file to be imported
@@ -383,10 +384,7 @@ def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -
                 if line.strip() == '#' and index_header_start is None:
                     index_header_start = line_idx  # header start
             elif line.startswith('DEF '):
-                component_name = line.split()[1]
-                if not component_name.startswith(device):
-                    raise Warning('Unexpected device in ' + lib_path.name)
-                lib_lines[line_idx] = line.replace(component_name, device, 1)
+                device = line.split()[1]
                 index_start = line_idx
             else:
                 index_header_start = None
@@ -446,7 +444,7 @@ def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -
                         overwrite_existing = yes and 'yes'.startswith(yes.lower())
                         if not overwrite_existing:
                             print("Import of lib skipped")
-                            return lib_file_read, lib_file_write
+                            return device, lib_file_read, lib_file_write
                         writefile.write('\n'.join(lib_lines[index_start:index_end]) + '\n')
                         overwrote_existing = True
                     else:
@@ -457,7 +455,7 @@ def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -
                 else:
                     writefile.write(line)
 
-    return lib_file_read, lib_file_write
+    return device, lib_file_read, lib_file_write
 
 
 def import_all(zip_file: pathlib.Path):
@@ -465,18 +463,16 @@ def import_all(zip_file: pathlib.Path):
     if not zipfile.is_zipfile(zip_file):
         return None
 
-    device = zip_file.name[:-4]
-
     with zipfile.ZipFile(zip_file) as zf:
         dcm_path, lib_path, footprint_path, model_path, remote_type = get_remote_info(zf)
+
+        device, lib_file_read, lib_file_write = import_lib(remote_type, lib_path)
 
         dcm_file_read, dcm_file_write = import_dcm(device, remote_type, dcm_path)
 
         found_model = import_model(model_path, remote_type)
 
         footprint_file_read, footprint_file_write = import_footprint(remote_type, footprint_path, found_model)
-
-        lib_file_read, lib_file_write = import_lib(device, remote_type, lib_path)
 
         # replace read files with write files only after all operations succeeded
         dcm_file_write.replace(dcm_file_read)
