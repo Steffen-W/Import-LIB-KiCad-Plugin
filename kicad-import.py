@@ -118,21 +118,23 @@ def exception_handler(e: Exception):
 
 
 def unzip(root, suffix):
-    """return zipfile.Path starting with root ending with suffix"""
+    """
+    return zipfile.Path starting with root ending with suffix else return None
+    """
+    match = None
 
     def zipper(parent):
         if parent.name.endswith(suffix):
-            raise Catch(parent)
+            return parent
         elif parent.is_dir():
             for child in parent.iterdir():
-                zipper(child)
+                match = zipper(child)
+                if match:
+                    return match
 
-    try:
-        zipper(root)
-    except Catch as error:
-        return error.catch
+    match = zipper(root)
 
-    return None
+    return match
 
 
 def get_remote_info(root_path) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
