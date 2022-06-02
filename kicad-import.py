@@ -7,7 +7,6 @@
 import pathlib
 import traceback
 from enum import Enum
-from pathlib import Path
 from zipfile import Path
 from pprint import pprint
 
@@ -277,7 +276,7 @@ def import_model(model_path: pathlib.Path, remote_type: REMOTE_TYPES) -> Union[p
     # --------------------------------------------------------------------------------------------------------
     # 3D Model file extraction
     # --------------------------------------------------------------------------------------------------------
-    write_file = REMOTE_3DMODEL_PATH / "3rd-party" / model_path.name
+    write_file = REMOTE_3DMODEL_PATH / "REMOTE_3DMODEL_PATH" / model_path.name
 
     if write_file.exists():
         overwrite_existing = input("Model already exists at " + str(
