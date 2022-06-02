@@ -24,6 +24,7 @@ class Modification(Enum):
     MKDIR = 0
     TOUCH_FILE = 1
     MODIFIED_FILE = 2
+    EXTRACTED_FILE = 3
 
 
 class ModifiedObject:
@@ -106,10 +107,10 @@ def warning_handler(w: Warning):
     print("So far the following have been modified: " + "\n")
     pprint(modified_objects.dict)
 
-    decision = input("Continue attempting to import remaining items? [No]") or "No"
-    if decision not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+    decision = input("Attempt to undo these modifications? [No]") or "No"
+    if decision in ('y', 'yes', 'Yes', 'Y', 'YES'):
         # todo handle reversing file operations here
-        raise RuntimeError("User prompted abort of import due to warning: ".join(w.args))
+        pass
 
 
 def unzip(root, suffix):
@@ -176,13 +177,15 @@ def get_remote_info(root_path) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
     assert False, 'Unknown library zipfile'
 
 
-def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
+def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path) -> \
+        Tuple[Union[pathlib.Path, None], Union[pathlib.Path, None]]:
     """
     # .dcm file parsing
     # Note this reads in the existing dcm file for the particular remote repo, and tries to catch any duplicates
     # before overwriting or creating duplicates. It reads the existing dcm file line by line and simply copy+paste
     # each line if nothing will be overwritten or duplicated. If something could be overwritten or duplicated, the
     # terminal will prompt whether to overwrite or to keep the existing content and ignore the new file contents.
+    :returns: dcm_file_read, dcm_file_write
     """
 
     # Array of values defining all attributes of .dcm file
@@ -256,7 +259,7 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
                             dcm_file_read) + ', replace it? [Yes]: ') or "Yes"
                         if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
                             print("Import of dcm skipped")
-                            return None
+                            return dcm_file_read, dcm_file_write
                         writefile.write('\n'.join(dcm_attributes[index_start:index_end]) + '\n')
                         overwrote_existing = True
                     else:
@@ -267,7 +270,7 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
                 else:
                     writefile.write(line)
 
-    dcm_file_write.replace(dcm_file_read)
+    return dcm_file_read, dcm_file_write
 
 
 def import_model(model_path: pathlib.Path, zf: zipfile.ZipFile) -> Union[pathlib.Path, None]:
@@ -288,15 +291,21 @@ def import_model(model_path: pathlib.Path, zf: zipfile.ZipFile) -> Union[pathlib
                     return None
 
             zf.extract(model_dir_item.name, REMOTE_3DMODEL_PATH)
+            modified_objects.append(model_dir_item, Modification.EXTRACTED_FILE)
             print("Import of model succeeded")
             return model_dir_item
 
 
-def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, found_model: pathlib.Path):
-    # --------------------------------------------------------------------------------------------------------
+def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, found_model: pathlib.Path) -> \
+        Tuple[Union[pathlib.Path, None], Union[pathlib.Path, None]]:
+    """
     # Footprint file parsing
-    # todo it doesn't look like this handles duplicates like the other parsing sections
-    # --------------------------------------------------------------------------------------------------------
+    :returns: footprint_file_read, footprint_file_write
+    """
+
+    footprint_file_read = None
+    footprint_file_write = None
+
     for footprint_path_item in footprint_path.iterdir():
         if footprint_path_item.name.endswith('.kicad_mod') or footprint_path_item.name.endswith('.mod'):
             footprint = footprint_path_item.read_text()
@@ -318,7 +327,7 @@ def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, fo
                             footprint_file_read) + ". Overwrite existing footprint? [Yes]: ") or "Yes"
                     if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
                         print("Import of footprint skipped")
-                        return None
+                        return footprint_file_read, footprint_file_write
 
                 check_file(footprint_file_read)
 
@@ -349,17 +358,20 @@ def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, fo
                 with footprint_file_read.open('wt') as wr:
                     wr.write(footprint)
 
-            footprint_file_write.replace(footprint_file_read)
+    return footprint_file_read, footprint_file_write
 
 
-def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path):
-    # --------------------------------------------------------------------------------------------------------
-    # .lib file parsing
-    # Note this reads in the existing lib file for the particular remote repo, and tries to catch any duplicates
-    # before overwriting or creating duplicates. It reads the existing dcm file line by line and simply copy+paste
-    # each line if nothing will be overwritten or duplicated. If something could be overwritten or duplicated, the
-    # terminal will prompt whether to overwrite or to keep the existing content and ignore the new file contents.
-    # --------------------------------------------------------------------------------------------------------
+def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -> \
+        Tuple[Union[pathlib.Path, None], Union[pathlib.Path, None]]:
+    """
+    .lib file parsing
+    Note this reads in the existing lib file for the particular remote repo, and tries to catch any duplicates
+    before overwriting or creating duplicates. It reads the existing dcm file line by line and simply copy+paste
+    each line if nothing will be overwritten or duplicated. If something could be overwritten or duplicated, the
+    terminal will prompt whether to overwrite or to keep the existing content and ignore the new file contents.
+    :returns: lib_file_read, lib_file_write
+    """
+
     lib_lines = lib_path.read_text().splitlines()
 
     # Find which lines contain the component information in file to be imported
@@ -434,7 +446,8 @@ def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path):
                             device + ' lib already in ' + str(lib_file_read) + ', replace it? [Yes]: ') or "Yes"
                         overwrite_existing = yes and 'yes'.startswith(yes.lower())
                         if not overwrite_existing:
-                            return 'OK:', device, 'already in', lib_file_read
+                            print("Import of lib skipped")
+                            return lib_file_read, lib_file_write
                         writefile.write('\n'.join(lib_lines[index_start:index_end]) + '\n')
                         overwrote_existing = True
                     else:
@@ -445,7 +458,8 @@ def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path):
                 else:
                     writefile.write(line)
 
-    lib_file_write.replace(lib_file_read)
+    return lib_file_read, lib_file_write
+
 
 def import_all(zip_file: pathlib.Path):
     """zip is a pathlib.Path to import the symbol from"""
@@ -459,13 +473,18 @@ def import_all(zip_file: pathlib.Path):
 
         dcm_path, lib_path, footprint_path, model_path, remote_type = get_remote_info(root)
 
-        import_dcm(device, remote_type, dcm_path)
+        dcm_file_read, dcm_file_write = import_dcm(device, remote_type, dcm_path)
 
         found_model = import_model(model_path, zf)
 
-        import_footprint(remote_type, footprint_path, found_model)
+        footprint_file_read, footprint_file_write = import_footprint(remote_type, footprint_path, found_model)
 
-        import_lib(device, remote_type, lib_path)
+        lib_file_read, lib_file_write = import_lib(device, remote_type, lib_path)
+
+        # replace read files with write files only after all operations succeeded
+        dcm_file_write.replace(dcm_file_read)
+        footprint_file_write.replace(footprint_file_read)
+        lib_file_write.replace(lib_file_read)
 
     return 'OK:',
 
