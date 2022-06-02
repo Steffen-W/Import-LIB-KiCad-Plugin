@@ -5,6 +5,7 @@
 # Samacsys, Ultralibrarian and Snapeda zipfiles. Currently assembles just
 # symbols and footptints. Tested with KiCad 5.1.12 for Ubuntu.
 import pathlib
+import traceback
 from enum import Enum
 from pathlib import Path
 from zipfile import Path
@@ -103,14 +104,17 @@ def check_file(path: pathlib.Path):
 
 
 def warning_handler(w: Warning):
+    traceback.print_exception(type(w), w, w.__traceback__)
+
     print(w.args)
     print("So far the following have been modified: " + "\n")
     pprint(modified_objects.dict)
 
     decision = input("Attempt to undo these modifications? [No]") or "No"
     if decision in ('y', 'yes', 'Yes', 'Y', 'YES'):
-        # todo handle reversing file operations here
+        # todo handle any reversing file operations here
         pass
+
 
 
 def unzip(root, suffix):
@@ -205,14 +209,14 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path) -
             elif attribute.startswith('$CMP '):
                 component_name = attribute[5:].strip()
                 if not component_name.startswith(device):
-                    raise Warning('Unexpected device in' + dcm_path.name)
+                    raise Warning('Unexpected device in ' + dcm_path.name)
                 dcm_attributes[attribute_idx] = attribute.replace(component_name, device, 1)
                 index_start = attribute_idx
             else:
                 index_header_start = None
         elif index_end is None:
             if attribute.startswith('$CMP '):
-                raise Warning('Multiple devices in' + dcm_path.name)
+                raise Warning('Multiple devices in ' + dcm_path.name)
             elif attribute.startswith('$ENDCMP'):
                 index_end = attribute_idx + 1
             elif attribute.startswith('D'):
@@ -225,7 +229,7 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path) -
                 if datasheet:
                     dcm_attributes[attribute_idx] = 'F ' + datasheet
     if index_end is None:
-        raise Warning(device + 'not found in' + dcm_path.name)
+        raise Warning(device + 'not found in ' + dcm_path.name)
 
     dcm_file_read = REMOTE_LIB_PATH / (remote_type.name + '.dcm')
     dcm_file_write = REMOTE_LIB_PATH / (remote_type.name + '.dcm~')
@@ -291,7 +295,7 @@ def import_model(model_path: pathlib.Path, zf: zipfile.ZipFile) -> Union[pathlib
                     return None
 
             zf.extract(model_dir_item.name, REMOTE_3DMODEL_PATH)
-            modified_objects.append(model_dir_item, Modification.EXTRACTED_FILE)
+            modified_objects.append(REMOTE_3DMODEL_PATH / model_dir_item.name, Modification.EXTRACTED_FILE)
             print("Import of model succeeded")
             return model_dir_item
 
@@ -386,7 +390,7 @@ def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -
             elif line.startswith('DEF '):
                 component_name = line.split()[1]
                 if not component_name.startswith(device):
-                    raise Warning('Unexpected device in' + lib_path.name)
+                    raise Warning('Unexpected device in ' + lib_path.name)
                 lib_lines[line_idx] = line.replace(component_name, device, 1)
                 index_start = line_idx
             else:
@@ -402,9 +406,9 @@ def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -
             elif line.startswith('F1 '):
                 lib_lines[line_idx] = line.replace(device, device, 1)
         elif line.startswith('DEF '):
-            raise Warning('Multiple devices in', lib_path.name)
+            raise Warning('Multiple devices in ' + lib_path.name)
     if index_end is None:
-        raise Warning(device + ' not found in ', lib_path.name)
+        raise Warning(device + ' not found in ' + lib_path.name)
 
     lib_file_read = REMOTE_LIB_PATH / (remote_type.name + '.lib')
     lib_file_write = REMOTE_LIB_PATH / (remote_type.name + '.lib~')
