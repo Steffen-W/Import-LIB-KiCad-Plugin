@@ -92,10 +92,10 @@ def get_remote_info(root_path) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
     :type root_path: Path
     :return: dcm_path, lib_path, footprint_path, model_path, remote_type
     """
-    dcm_path = root_path / 'device_name.dcm'
-    lib_path = root_path / 'device_name.lib'
-    footprint_path = root_path / 'device_name.pretty'
-    model_path = root_path / 'device_name.step'
+    dcm_path = root_path / 'device.dcm'
+    lib_path = root_path / 'device.lib'
+    footprint_path = root_path / 'device.pretty'
+    model_path = root_path / 'device.step'
     # todo fill in model path for OCTOPART
     if dcm_path.exists() and lib_path.exists() and footprint_path.exists():
         remote_type = REMOTE_TYPES.OCTOPART
@@ -143,7 +143,7 @@ def check_file(path: pathlib.Path):
         path.touch(mode=0o666)
 
 
-def import_dcm(device: str, device_name: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
+def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
     """
     # .dcm file parsing
     # Note this reads in the existing dcm file for the particular remote repo, and tries to catch any duplicates
@@ -155,7 +155,7 @@ def import_dcm(device: str, device_name: str, remote_type: REMOTE_TYPES, dcm_pat
 
     # Array of values defining all attributes of .dcm file
     dcm_attributes = dcm_path.read_text().splitlines() if dcm_path else [
-        '#', '# ' + device, '#', '$CMP ' + device_name, 'D', 'F', '$ENDCMP']
+        '#', '# ' + device, '#', '$CMP ' + device, 'D', 'F', '$ENDCMP']
 
     # Find which lines contain the component information (ignore the rest).
     index_start = None
@@ -168,9 +168,9 @@ def import_dcm(device: str, device_name: str, remote_type: REMOTE_TYPES, dcm_pat
                     index_header_start = attribute_idx  # header start
             elif attribute.startswith('$CMP '):
                 component_name = attribute[5:].strip()
-                if not component_name.startswith(device_name):
+                if not component_name.startswith(device):
                     return 'Unexpected device in', dcm_path.name
-                dcm_attributes[attribute_idx] = attribute.replace(component_name, device_name, 1)
+                dcm_attributes[attribute_idx] = attribute.replace(component_name, device, 1)
                 index_start = attribute_idx
             else:
                 index_header_start = None
@@ -189,7 +189,7 @@ def import_dcm(device: str, device_name: str, remote_type: REMOTE_TYPES, dcm_pat
                 if datasheet:
                     dcm_attributes[attribute_idx] = 'F ' + datasheet
     if index_end is None:
-        return device_name, 'not found in', dcm_path.name
+        return device, 'not found in', dcm_path.name
 
     dcm_file_read = REMOTE_LIB_PATH / (remote_type.name + '.dcm')
     dcm_file_write = REMOTE_LIB_PATH / (remote_type.name + '.dcm~')
@@ -218,8 +218,8 @@ def import_dcm(device: str, device_name: str, remote_type: REMOTE_TYPES, dcm_pat
                     break
                 elif line.startswith('$CMP '):
                     component_name = line[5:].strip()
-                    if component_name.startswith(device_name):
-                        overwrite_existing = input(device_name + ' definition already exists in ' + str(
+                    if component_name.startswith(device):
+                        overwrite_existing = input(device + ' definition already exists in ' + str(
                             dcm_file_read) + ', replace it? [Yes]: ') or "Yes"
                         if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
                             return None
@@ -314,7 +314,7 @@ def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, fo
             footprint_file_write.replace(footprint_file_read)
 
 
-def import_lib(device: str, device_name: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path):
+def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path):
     # --------------------------------------------------------------------------------------------------------
     # .lib file parsing
     # Note this reads in the existing lib file for the particular remote repo, and tries to catch any duplicates
@@ -335,9 +335,9 @@ def import_lib(device: str, device_name: str, remote_type: REMOTE_TYPES, lib_pat
                     index_header_start = line_idx  # header start
             elif line.startswith('DEF '):
                 component_name = line.split()[1]
-                if not component_name.startswith(device_name):
+                if not component_name.startswith(device):
                     return 'Unexpected device in', lib_path.name
-                lib_lines[line_idx] = line.replace(component_name, device_name, 1)
+                lib_lines[line_idx] = line.replace(component_name, device, 1)
                 index_start = line_idx
             else:
                 index_header_start = None
@@ -350,7 +350,7 @@ def import_lib(device: str, device_name: str, remote_type: REMOTE_TYPES, lib_pat
             elif line.startswith('ENDDEF'):
                 index_end = line_idx + 1
             elif line.startswith('F1 '):
-                lib_lines[line_idx] = line.replace(device, device_name, 1)
+                lib_lines[line_idx] = line.replace(device, device, 1)
         elif line.startswith('DEF '):
             return 'Multiple devices in', lib_path.name
     if index_end is None:
@@ -390,13 +390,13 @@ def import_lib(device: str, device_name: str, remote_type: REMOTE_TYPES, lib_pat
                     component_name = line.split()[1]
                     # Catch if the currently read component matches the name of the component you are planning to
                     # write
-                    if component_name.startswith(device_name):
+                    if component_name.startswith(device):
                         # Ask if you want to overwrite existing component
                         yes = input(
-                            device_name + ' lib already in ' + str(lib_file_read) + ', replace it? [Yes]: ') or "Yes"
+                            device + ' lib already in ' + str(lib_file_read) + ', replace it? [Yes]: ') or "Yes"
                         overwrite_existing = yes and 'yes'.startswith(yes.lower())
                         if not overwrite_existing:
-                            return 'OK:', device_name, 'already in', lib_file_read
+                            return 'OK:', device, 'already in', lib_file_read
                         writefile.write('\n'.join(lib_lines[index_start:index_end]) + '\n')
                         overwrote_existing = True
                     else:
@@ -416,23 +416,19 @@ def import_all(zip_file: pathlib.Path):
         return None
 
     device = zip_file.name[:-4]
-    # Request user input, but default to device if nothing entered
-    device_name = input('Generic device name [{0}]: '.format(device)) or device
-    if device_name == '':
-        return None
 
     with zipfile.ZipFile(zip_file) as zf:
         root: Path = zipfile.Path(zf)
 
         dcm_path, lib_path, footprint_path, model_path, remote_type = get_remote_info(root)
 
-        import_dcm(device, device_name, remote_type, dcm_path)
+        import_dcm(device, remote_type, dcm_path)
 
         found_model = import_model(model_path, zf)
 
         import_footprint(remote_type, footprint_path, found_model)
 
-        import_lib(device, device_name, remote_type, lib_path)
+        import_lib(device, remote_type, lib_path)
 
     return 'OK:',
 
