@@ -137,12 +137,13 @@ def unzip(root, suffix):
     return match
 
 
-def get_remote_info(root_path) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
+def get_remote_info(zf: zipfile.ZipFile) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
     """
     :param root_path:
     :type root_path: Path
     :return: dcm_path, lib_path, footprint_path, model_path, remote_type
     """
+    root_path = zipfile.Path(zf)
     dcm_path = root_path / 'device.dcm'
     lib_path = root_path / 'device.lib'
     footprint_path = root_path / 'device.pretty'
@@ -279,15 +280,13 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path) -
     return dcm_file_read, dcm_file_write
 
 
-def import_model(model_path: pathlib.Path, zf: zipfile.ZipFile) -> Union[pathlib.Path, None]:
+def import_model(model_path: pathlib.Path, remote_type: REMOTE_TYPES) -> Union[pathlib.Path, None]:
     # --------------------------------------------------------------------------------------------------------
     # 3D Model file extraction
     # --------------------------------------------------------------------------------------------------------
-    if not REMOTE_3DMODEL_PATH.is_dir():
-        REMOTE_3DMODEL_PATH.mkdir(parents=True)
-        modified_objects.append(REMOTE_3DMODEL_PATH, Modification.MKDIR)
+    write_file = REMOTE_3DMODEL_PATH / "3rd-party" / model_path.name
 
-    if (REMOTE_3DMODEL_PATH / model_path.name).exists():
+    if write_file.exists():
         overwrite_existing = input("Model already exists at " + str(
             REMOTE_3DMODEL_PATH / model_path.name) + ". Overwrite existing model? [Yes]: ") or "Yes"
         if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
@@ -295,12 +294,12 @@ def import_model(model_path: pathlib.Path, zf: zipfile.ZipFile) -> Union[pathlib
             return None
 
     if model_path.is_file():
-        zf.extract(model_path.name, REMOTE_3DMODEL_PATH)
+        check_file(write_file)
+        write_file.write_bytes(model_path.read_bytes())
         modified_objects.append(REMOTE_3DMODEL_PATH / model_path.name, Modification.EXTRACTED_FILE)
         print("Import of model succeeded")
 
     return model_path
-
 
 
 def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, found_model: pathlib.Path) -> \
@@ -476,13 +475,11 @@ def import_all(zip_file: pathlib.Path):
     device = zip_file.name[:-4]
 
     with zipfile.ZipFile(zip_file) as zf:
-        root: Path = zipfile.Path(zf)
-
-        dcm_path, lib_path, footprint_path, model_path, remote_type = get_remote_info(root)
+        dcm_path, lib_path, footprint_path, model_path, remote_type = get_remote_info(zf)
 
         dcm_file_read, dcm_file_write = import_dcm(device, remote_type, dcm_path)
 
-        found_model = import_model(model_path, zf)
+        found_model = import_model(model_path, remote_type)
 
         footprint_file_read, footprint_file_write = import_footprint(remote_type, footprint_path, found_model)
 
