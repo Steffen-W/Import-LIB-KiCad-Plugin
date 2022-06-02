@@ -8,6 +8,7 @@ import pathlib
 from enum import Enum
 from pathlib import Path
 from zipfile import Path
+from pprint import pprint
 
 from typing import Tuple, Union, Any
 
@@ -17,6 +18,25 @@ import re
 import readline
 import zipfile
 from os import stat
+
+
+class Modification(Enum):
+    MKDIR = 0
+    TOUCH_FILE = 1
+    MODIFIED_FILE = 2
+
+
+class ModifiedObject:
+
+    def __init__(self):
+        self.dict = {}
+
+    def append(self, obj: pathlib.Path, modification: Modification):
+        self.dict[obj] = modification
+
+
+# keeps track of which files were modified in case an error occurs we can revert these changes before exiting
+modified_objects = ModifiedObject()
 
 
 def xinput(prompt):
@@ -66,6 +86,30 @@ class Catch(Exception):
     def __init__(self, value):
         self.catch = value
         super().__init__(self)
+
+
+def check_file(path: pathlib.Path):
+    """
+    Check if file exists, if not create parent directories and touch file
+    :param path:
+    """
+    if not path.exists():
+        if not path.parent.is_dir():
+            path.parent.mkdir(parents=True)
+            modified_objects.append(path.parent, Modification.MKDIR)
+        path.touch(mode=0o666)
+        modified_objects.append(path, Modification.TOUCH_FILE)
+
+
+def warning_handler(w: Warning):
+    print(w.args)
+    print("So far the following have been modified: " + "\n")
+    pprint(modified_objects.dict)
+
+    decision = input("Continue attempting to import remaining items? [No]") or "No"
+    if decision not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+        # todo handle reversing file operations here
+        raise RuntimeError("User prompted abort of import due to warning: ".join(w.args))
 
 
 def unzip(root, suffix):
@@ -132,17 +176,6 @@ def get_remote_info(root_path) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
     assert False, 'Unknown library zipfile'
 
 
-def check_file(path: pathlib.Path):
-    """
-    Check if file exists, if not create parent directories and touch file
-    :param path:
-    """
-    if not path.exists():
-        if not path.parent.is_dir():
-            path.parent.mkdir(parents=True)
-        path.touch(mode=0o666)
-
-
 def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
     """
     # .dcm file parsing
@@ -152,7 +185,6 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
     # terminal will prompt whether to overwrite or to keep the existing content and ignore the new file contents.
     """
 
-
     # Array of values defining all attributes of .dcm file
     dcm_attributes = dcm_path.read_text().splitlines() if dcm_path else [
         '#', '# ' + device, '#', '$CMP ' + device, 'D', 'F', '$ENDCMP']
@@ -161,6 +193,7 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
     index_start = None
     index_end = None
     index_header_start = None
+
     for attribute_idx, attribute in enumerate(dcm_attributes):
         if index_start is None:
             if attribute.startswith('#'):
@@ -169,14 +202,14 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
             elif attribute.startswith('$CMP '):
                 component_name = attribute[5:].strip()
                 if not component_name.startswith(device):
-                    return 'Unexpected device in', dcm_path.name
+                    raise Warning('Unexpected device in' + dcm_path.name)
                 dcm_attributes[attribute_idx] = attribute.replace(component_name, device, 1)
                 index_start = attribute_idx
             else:
                 index_header_start = None
         elif index_end is None:
             if attribute.startswith('$CMP '):
-                return 'Multiple devices in', dcm_path.name
+                raise Warning('Multiple devices in' + dcm_path.name)
             elif attribute.startswith('$ENDCMP'):
                 index_end = attribute_idx + 1
             elif attribute.startswith('D'):
@@ -189,7 +222,7 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
                 if datasheet:
                     dcm_attributes[attribute_idx] = 'F ' + datasheet
     if index_end is None:
-        return device, 'not found in', dcm_path.name
+        raise Warning(device + 'not found in' + dcm_path.name)
 
     dcm_file_read = REMOTE_LIB_PATH / (remote_type.name + '.dcm')
     dcm_file_write = REMOTE_LIB_PATH / (remote_type.name + '.dcm~')
@@ -222,6 +255,7 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path):
                         overwrite_existing = input(device + ' definition already exists in ' + str(
                             dcm_file_read) + ', replace it? [Yes]: ') or "Yes"
                         if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+                            print("Import of dcm skipped")
                             return None
                         writefile.write('\n'.join(dcm_attributes[index_start:index_end]) + '\n')
                         overwrote_existing = True
@@ -242,6 +276,7 @@ def import_model(model_path: pathlib.Path, zf: zipfile.ZipFile) -> Union[pathlib
     # --------------------------------------------------------------------------------------------------------
     if not REMOTE_3DMODEL_PATH.is_dir():
         REMOTE_3DMODEL_PATH.mkdir(parents=True)
+        modified_objects.append(REMOTE_3DMODEL_PATH, Modification.MKDIR)
 
     for model_dir_item in model_path.iterdir():
         if model_dir_item.name.endswith('.step'):
@@ -249,9 +284,11 @@ def import_model(model_path: pathlib.Path, zf: zipfile.ZipFile) -> Union[pathlib
                 overwrite_existing = input("Model already exists at " + str(
                     REMOTE_3DMODEL_PATH / model_dir_item.name) + ". Overwrite existing model? [Yes]: ") or "Yes"
                 if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+                    print("Import of model skipped")
                     return None
 
             zf.extract(model_dir_item.name, REMOTE_3DMODEL_PATH)
+            print("Import of model succeeded")
             return model_dir_item
 
 
@@ -280,6 +317,7 @@ def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, fo
                         "Footprint already exists at " + str(
                             footprint_file_read) + ". Overwrite existing footprint? [Yes]: ") or "Yes"
                     if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+                        print("Import of footprint skipped")
                         return None
 
                 check_file(footprint_file_read)
@@ -336,7 +374,7 @@ def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path):
             elif line.startswith('DEF '):
                 component_name = line.split()[1]
                 if not component_name.startswith(device):
-                    return 'Unexpected device in', lib_path.name
+                    raise Warning('Unexpected device in' + lib_path.name)
                 lib_lines[line_idx] = line.replace(component_name, device, 1)
                 index_start = line_idx
             else:
@@ -352,9 +390,9 @@ def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path):
             elif line.startswith('F1 '):
                 lib_lines[line_idx] = line.replace(device, device, 1)
         elif line.startswith('DEF '):
-            return 'Multiple devices in', lib_path.name
+            raise Warning('Multiple devices in', lib_path.name)
     if index_end is None:
-        return device, 'not found in', lib_path.name
+        raise Warning(device + ' not found in ', lib_path.name)
 
     lib_file_read = REMOTE_LIB_PATH / (remote_type.name + '.lib')
     lib_file_write = REMOTE_LIB_PATH / (remote_type.name + '.lib~')
@@ -409,7 +447,6 @@ def import_lib(device: str, remote_type: REMOTE_TYPES, lib_path: pathlib.Path):
 
     lib_file_write.replace(lib_file_read)
 
-
 def import_all(zip_file: pathlib.Path):
     """zip is a pathlib.Path to import the symbol from"""
     if not zipfile.is_zipfile(zip_file):
@@ -454,6 +491,8 @@ if __name__ == '__main__':
                 chosen_zip.unlink()
     except EOFError:
         print('EOF')
+    except Warning as w:
+        warning_handler(w)
     except Exception as e:
         print(*e.args)
     exit(0)
