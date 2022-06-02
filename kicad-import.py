@@ -84,12 +84,6 @@ class REMOTE_TYPES(Enum):
     Snapeda = 3
 
 
-class Catch(Exception):
-    def __init__(self, value):
-        self.catch = value
-        super().__init__(self)
-
-
 def check_file(path: pathlib.Path):
     """
     Check if file exists, if not create parent directories and touch file
