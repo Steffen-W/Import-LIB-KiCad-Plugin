@@ -163,7 +163,7 @@ def get_remote_info(zf: zipfile.ZipFile) -> Tuple[Path, Path, Path, Path, REMOTE
         footprint_path = unzip(directory, '.pretty')
         model_path = unzip(root_path, '.step')
         assert lib_path and footprint_path, 'Not in ultralibrarian format'
-        remote_type = REMOTE_TYPES.Ulatra_Librarian
+        remote_type = REMOTE_TYPES.Ultra_Librarian
         return dcm_path, lib_path, footprint_path, model_path, remote_type
 
     lib_path = unzip(root_path, '.lib')
