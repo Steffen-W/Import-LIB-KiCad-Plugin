@@ -103,10 +103,10 @@ def check_file(path: pathlib.Path):
         modified_objects.append(path, Modification.TOUCH_FILE)
 
 
-def warning_handler(w: Warning):
-    traceback.print_exception(type(w), w, w.__traceback__)
+def exception_handler(e: Exception):
+    traceback.print_exception(type(e), e, e.__traceback__)
 
-    print(w.args)
+    print(e.args)
     print("So far the following have been modified: " + "\n")
     pprint(modified_objects.dict)
 
@@ -514,8 +514,6 @@ if __name__ == '__main__':
                 chosen_zip.unlink()
     except EOFError:
         print('EOF')
-    except Warning as w:
-        warning_handler(w)
     except Exception as e:
-        print(*e.args)
+        exception_handler(e)
     exit(0)
