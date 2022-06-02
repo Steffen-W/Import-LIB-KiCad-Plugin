@@ -80,7 +80,7 @@ class Select:
 class REMOTE_TYPES(Enum):
     Octopart = 0
     Samacsys = 1
-    Ulatra_Librarian = 2
+    Ultra_Librarian = 2
     Snapeda = 3
 
 
