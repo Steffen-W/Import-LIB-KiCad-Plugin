@@ -108,7 +108,6 @@ def exception_handler(e: Exception):
         pass
 
 
-
 def unzip(root, suffix):
     """
     return zipfile.Path starting with root ending with suffix else return None
@@ -162,7 +161,7 @@ def get_remote_info(zf: zipfile.ZipFile) -> Tuple[Path, Path, Path, Path, REMOTE
         footprint_path = unzip(directory, '.pretty')
         model_path = unzip(root_path, '.step')
         if not model_path:
-             model_path = unzip(root_path, '.stp')
+            model_path = unzip(root_path, '.stp')
         assert lib_path and footprint_path and model_path, 'Not in ultralibrarian format'
         remote_type = REMOTE_TYPES.Ultra_Librarian
         return dcm_path, lib_path, footprint_path, model_path, remote_type
@@ -207,7 +206,8 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path) -
                 component_name = attribute[5:].strip()
                 if not component_name.startswith(device):
                     raise Warning('Unexpected device in ' + dcm_path.name)
-                dcm_attributes[attribute_idx] = attribute.replace(component_name, device, 1)
+                dcm_attributes[attribute_idx] = attribute.replace(
+                    component_name, device, 1)
                 index_start = attribute_idx
             else:
                 index_header_start = None
@@ -218,7 +218,8 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path) -
                 index_end = attribute_idx + 1
             elif attribute.startswith('D'):
                 description = attribute[2:].strip()
-                description = input('Device description [{0}]: '.format(description)) or description
+                description = input('Device description [{0}]: '.format(
+                    description)) or description
                 if description:
                     dcm_attributes[attribute_idx] = 'D ' + description
             elif attribute.startswith('F'):
@@ -241,7 +242,8 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path) -
             if stat(dcm_file_read).st_size == 0:
                 # todo Handle appending to empty file
                 with dcm_file_read.open('wt') as template_file:
-                    template = ["EESchema-DOCLIB  Version 2.0", "#End Doc Library"]
+                    template = ["EESchema-DOCLIB  Version 2.0",
+                                "#End Doc Library"]
                     template_file.writelines(line + '\n' for line in template)
                     template_file.close()
 
@@ -261,7 +263,8 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path) -
                         if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
                             print("Import of dcm skipped")
                             return dcm_file_read, dcm_file_write
-                        writefile.write('\n'.join(dcm_attributes[index_start:index_end]) + '\n')
+                        writefile.write(
+                            '\n'.join(dcm_attributes[index_start:index_end]) + '\n')
                         overwrote_existing = True
                     else:
                         writefile.write(line)
@@ -290,7 +293,8 @@ def import_model(model_path: pathlib.Path, remote_type: REMOTE_TYPES) -> Union[p
     if model_path.is_file():
         check_file(write_file)
         write_file.write_bytes(model_path.read_bytes())
-        modified_objects.append(REMOTE_3DMODEL_PATH / model_path.name, Modification.EXTRACTED_FILE)
+        modified_objects.append(REMOTE_3DMODEL_PATH /
+                                model_path.name, Modification.EXTRACTED_FILE)
         print("Import of model succeeded")
 
     return model_path
@@ -310,9 +314,11 @@ def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, fo
         if footprint_path_item.name.endswith('.kicad_mod') or footprint_path_item.name.endswith('.mod'):
             footprint = footprint_path_item.read_text()
 
-            footprint_write_path = (REMOTE_FOOTPRINTS_PATH / (remote_type.name + '.pretty'))
+            footprint_write_path = (
+                REMOTE_FOOTPRINTS_PATH / (remote_type.name + '.pretty'))
             footprint_file_read = footprint_write_path / footprint_path_item.name
-            footprint_file_write = footprint_write_path / (footprint_path_item.name + "~")
+            footprint_file_write = footprint_write_path / \
+                (footprint_path_item.name + "~")
 
             if found_model:
                 footprint.splitlines()
@@ -348,7 +354,8 @@ def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, fo
 
                         for line_idx, line in enumerate(lines):
                             if line_idx == len(lines) - 1:
-                                writefile.writelines(model_line + '\n' for model_line in model)
+                                writefile.writelines(
+                                    model_line + '\n' for model_line in model)
                                 writefile.write(line)
                                 break
                             else:
@@ -417,7 +424,8 @@ def import_lib(remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -> \
             if stat(lib_file_read).st_size == 0:
                 # todo Handle appending to empty file
                 with lib_file_read.open('wt') as template_file:
-                    template = ["EESchema-LIBRARY Version 2.4", "#encoding utf-8", "# End Library"]
+                    template = ["EESchema-LIBRARY Version 2.4",
+                                "#encoding utf-8", "# End Library"]
                     template_file.writelines(line + '\n' for line in template)
                     template_file.close()
 
@@ -442,11 +450,13 @@ def import_lib(remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -> \
                         # Ask if you want to overwrite existing component
                         yes = input(
                             device + ' lib already in ' + str(lib_file_read) + ', replace it? [Yes]: ') or "Yes"
-                        overwrite_existing = yes and 'yes'.startswith(yes.lower())
+                        overwrite_existing = yes and 'yes'.startswith(
+                            yes.lower())
                         if not overwrite_existing:
                             print("Import of lib skipped")
                             return device, lib_file_read, lib_file_write
-                        writefile.write('\n'.join(lib_lines[index_start:index_end]) + '\n')
+                        writefile.write(
+                            '\n'.join(lib_lines[index_start:index_end]) + '\n')
                         overwrote_existing = True
                     else:
                         writefile.write(line)
@@ -465,15 +475,19 @@ def import_all(zip_file: pathlib.Path):
         return None
 
     with zipfile.ZipFile(zip_file) as zf:
-        dcm_path, lib_path, footprint_path, model_path, remote_type = get_remote_info(zf)
+        dcm_path, lib_path, footprint_path, model_path, remote_type = get_remote_info(
+            zf)
 
-        device, lib_file_read, lib_file_write = import_lib(remote_type, lib_path)
+        device, lib_file_read, lib_file_write = import_lib(
+            remote_type, lib_path)
 
-        dcm_file_read, dcm_file_write = import_dcm(device, remote_type, dcm_path)
+        dcm_file_read, dcm_file_write = import_dcm(
+            device, remote_type, dcm_path)
 
         found_model = import_model(model_path, remote_type)
 
-        footprint_file_read, footprint_file_write = import_footprint(remote_type, footprint_path, found_model)
+        footprint_file_read, footprint_file_write = import_footprint(
+            remote_type, footprint_path, found_model)
 
         # replace read files with write files only after all operations succeeded
         dcm_file_write.replace(dcm_file_read)
@@ -496,7 +510,8 @@ if __name__ == '__main__':
 
     try:
         zips = [zip_file.name for zip_file in SRC_PATH.glob('*.zip')]
-        chosen_zip: pathlib.Path = SRC_PATH / Select(zips)('Library zip file: ')
+        chosen_zip: pathlib.Path = SRC_PATH / \
+            Select(zips)('Library zip file: ')
         response = import_all(chosen_zip)
         if response:
             print(*response)
