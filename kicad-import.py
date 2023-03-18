@@ -310,60 +310,68 @@ def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, fo
     footprint_file_read = None
     footprint_file_write = None
 
-    for footprint_path_item in footprint_path.iterdir():
-        if footprint_path_item.name.endswith('.kicad_mod') or footprint_path_item.name.endswith('.mod'):
-            footprint = footprint_path_item.read_text()
+    footprint_path_item_tmp = None
+    for footprint_path_item in footprint_path.iterdir():  # try to use only newer file
+        if footprint_path_item.name.endswith('.kicad_mod'):
+            footprint_path_item_tmp = footprint_path_item
+            break
+        elif footprint_path_item.name.endswith('.mod'):
+            footprint_path_item_tmp = footprint_path_item
 
-            footprint_write_path = (
-                REMOTE_FOOTPRINTS_PATH / (remote_type.name + '.pretty'))
-            footprint_file_read = footprint_write_path / footprint_path_item.name
-            footprint_file_write = footprint_write_path / \
-                (footprint_path_item.name + "~")
+    footprint_path_item = footprint_path_item_tmp
+    if footprint_path_item.name.endswith('mod'):
+        footprint = footprint_path_item.read_text()
 
-            if found_model:
-                footprint.splitlines()
-                model = ["  (model \"" + "${KICAD6_3RD_PARTY}/" + found_model.name + "\"",
-                         "    (offset (xyz 0 0 0))", "    (scale (xyz 1 1 1))", "    (rotate (xyz 0 0 0))", "  )"]
+        footprint_write_path = (
+            REMOTE_FOOTPRINTS_PATH / (remote_type.name + '.pretty'))
+        footprint_file_read = footprint_write_path / footprint_path_item.name
+        footprint_file_write = footprint_write_path / \
+            (footprint_path_item.name + "~")
 
-                overwrite_existing = overwrote_existing = False
+        if found_model:
+            footprint.splitlines()
+            model = ["  (model \"" + "${KICAD6_3RD_PARTY}/" + found_model.name + "\"",
+                     "    (offset (xyz 0 0 0))", "    (scale (xyz 1 1 1))", "    (rotate (xyz 0 0 0))", "  )"]
 
-                if footprint_file_read.exists():
-                    overwrite_existing = input(
-                        "Footprint already exists at " + str(
-                            footprint_file_read) + ". Overwrite existing footprint? [Yes]: ") or "Yes"
-                    if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
-                        print("Import of footprint skipped")
-                        return footprint_file_read, footprint_file_write
+            overwrite_existing = overwrote_existing = False
 
-                check_file(footprint_file_read)
+            if footprint_file_read.exists():
+                overwrite_existing = input(
+                    "Footprint already exists at " + str(
+                        footprint_file_read) + ". Overwrite existing footprint? [Yes]: ") or "Yes"
+                if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+                    print("Import of footprint skipped")
+                    return footprint_file_read, footprint_file_write
 
-                with footprint_file_read.open('wt') as wr:
-                    wr.write(footprint)
-                    overwrote_existing = True
+            check_file(footprint_file_read)
 
-                check_file(footprint_file_write)
+            with footprint_file_read.open('wt') as wr:
+                wr.write(footprint)
+                overwrote_existing = True
 
-                with footprint_file_read.open('rt') as readfile:
-                    with footprint_file_write.open('wt') as writefile:
+            check_file(footprint_file_write)
 
-                        if stat(footprint_file_read).st_size == 0:
-                            # todo Handle appending to empty file?
-                            pass
+            with footprint_file_read.open('rt') as readfile:
+                with footprint_file_write.open('wt') as writefile:
 
-                        lines = readfile.readlines()
+                    if stat(footprint_file_read).st_size == 0:
+                        # todo Handle appending to empty file?
+                        pass
 
-                        for line_idx, line in enumerate(lines):
-                            if line_idx == len(lines) - 1:
-                                writefile.writelines(
-                                    model_line + '\n' for model_line in model)
-                                writefile.write(line)
-                                break
-                            else:
-                                writefile.write(line)
+                    lines = readfile.readlines()
 
-            else:
-                with footprint_file_read.open('wt') as wr:
-                    wr.write(footprint)
+                    for line_idx, line in enumerate(lines):
+                        if line_idx == len(lines) - 1:
+                            writefile.writelines(
+                                model_line + '\n' for model_line in model)
+                            writefile.write(line)
+                            break
+                        else:
+                            writefile.write(line)
+
+        else:
+            with footprint_file_read.open('wt') as wr:
+                wr.write(footprint)
 
     return footprint_file_read, footprint_file_write
 
