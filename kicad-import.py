@@ -149,7 +149,10 @@ def get_remote_info(zf: zipfile.ZipFile) -> Tuple[Path, Path, Path, Path, REMOTE
         dcm_path = unzip(directory, '.dcm')
         lib_path = unzip(directory, '.lib')
         footprint_path = directory
-        # todo fill in model path for SAMACSYS
+        model_path_tmp = unzip(root_path, '3D')
+        model_path = unzip(model_path_tmp, '.step')
+        if not model_path:
+            model_path = unzip(model_path_tmp, '.stp')
         assert dcm_path and lib_path, 'Not in samacsys format'
         remote_type = REMOTE_TYPES.Samacsys
         return dcm_path, lib_path, footprint_path, model_path, remote_type
@@ -281,7 +284,8 @@ def import_model(model_path: pathlib.Path, remote_type: REMOTE_TYPES) -> Union[p
     # --------------------------------------------------------------------------------------------------------
     # 3D Model file extraction
     # --------------------------------------------------------------------------------------------------------
-    write_file = REMOTE_3DMODEL_PATH / model_path.name
+    write_file = REMOTE_3DMODEL_PATH / \
+        (remote_type.name + '.3dshapes') / model_path.name
 
     if write_file.exists():
         overwrite_existing = input("Model already exists at " + str(
@@ -293,8 +297,7 @@ def import_model(model_path: pathlib.Path, remote_type: REMOTE_TYPES) -> Union[p
     if model_path.is_file():
         check_file(write_file)
         write_file.write_bytes(model_path.read_bytes())
-        modified_objects.append(REMOTE_3DMODEL_PATH /
-                                model_path.name, Modification.EXTRACTED_FILE)
+        modified_objects.append(write_file, Modification.EXTRACTED_FILE)
         print("Import of model succeeded")
 
     return model_path
