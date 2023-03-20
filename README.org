@@ -1,28 +1,7 @@
-#+OPTIONS: toc:nil author:nil email:nil
-
 Assembles KiCad "legacy" format component libraries from downloaded
 [[https://octopart.com/][Octopart]], [[https://componentsearchengine.com/][Samacsys]], [[https://app.ultralibrarian.com/search][Ultralibrarian]] and [[https://www.snapeda.com/home/][Snapeda]] zipfiles. Currently
 assembles only symbols and footprints. Supports component updates. Can
 safely copy multi-lines from the clipboard to update the component
 description and URL. Can be used with KiCad 5 and 6.
 
-* Configure mydirs.py
-
-#+begin_example
-SRC = Path.home() / 'Desktop'
-TGT = Path.home() / 'private/edn/kicad-libs'
-#+end_example
-
-* Usage
-
-#+begin_example
-$ impart -h
-usage: impart [-h] [--init] [--zap]
-
-optional arguments:
-  -h, --help  show this help message and exit
-  --init      initialize library
-  --zap       delete source zipfile after assembly
-
-Copy to clipboard as usual, just hit Enter to paste...
-#+end_example
+* Currently the document is still being edited
