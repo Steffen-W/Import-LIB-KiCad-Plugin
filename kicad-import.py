@@ -12,7 +12,7 @@ from pprint import pprint
 
 from typing import Tuple, Union, Any
 
-from config import SRC_PATH, REMOTE_LIB_PATH, REMOTE_FOOTPRINTS_PATH, REMOTE_3DMODEL_PATH  # *CONFIGURE ME*
+from config import SRC_PATH, DEST_PATH  # *CONFIGURE ME*
 import argparse
 import re
 import readline
@@ -180,7 +180,7 @@ def get_remote_info(zf: zipfile.ZipFile) -> Tuple[Path, Path, Path, Path, REMOTE
     assert False, 'Unknown library zipfile'
 
 
-def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path) -> \
+def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path, overwrite_if_exists='YES') -> \
         Tuple[Union[pathlib.Path, None], Union[pathlib.Path, None]]:
     """
     # .dcm file parsing
@@ -221,8 +221,8 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path) -
                 index_end = attribute_idx + 1
             elif attribute.startswith('D'):
                 description = attribute[2:].strip()
-                description = input('Device description [{0}]: '.format(
-                    description)) or description
+                # description = input('Device description [{0}]: '.format(
+                #     description)) or description
                 if description:
                     dcm_attributes[attribute_idx] = 'D ' + description
             elif attribute.startswith('F'):
@@ -232,8 +232,8 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path) -
     if index_end is None:
         raise Warning(device + 'not found in ' + dcm_path.name)
 
-    dcm_file_read = REMOTE_LIB_PATH / (remote_type.name + '.dcm')
-    dcm_file_write = REMOTE_LIB_PATH / (remote_type.name + '.dcm~')
+    dcm_file_read = DEST_PATH / (remote_type.name + '.dcm')
+    dcm_file_write = DEST_PATH / (remote_type.name + '.dcm~')
     overwrite_existing = overwrote_existing = False
 
     check_file(dcm_file_read)
@@ -261,11 +261,18 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path) -
                 elif line.startswith('$CMP '):
                     component_name = line[5:].strip()
                     if component_name.startswith(device):
-                        overwrite_existing = input(device + ' definition already exists in ' + str(
-                            dcm_file_read) + ', replace it? [Yes]: ') or "Yes"
-                        if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+                        if (overwrite_if_exists == 'YES'):
+                            overwrite_existing = True
+                        elif (overwrite_if_exists == 'NO'):
+                            overwrite_existing = False
                             print("Import of dcm skipped")
                             return dcm_file_read, dcm_file_write
+                        else:
+                            overwrite_existing = input(device + ' definition already exists in ' + str(
+                                dcm_file_read) + ', replace it? [Yes]: ') or "Yes"
+                            if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+                                print("Import of dcm skipped")
+                                return dcm_file_read, dcm_file_write
                         writefile.write(
                             '\n'.join(dcm_attributes[index_start:index_end]) + '\n')
                         overwrote_existing = True
@@ -280,30 +287,36 @@ def import_dcm(device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path) -
     return dcm_file_read, dcm_file_write
 
 
-def import_model(model_path: pathlib.Path, remote_type: REMOTE_TYPES) -> Union[pathlib.Path, None]:
+def import_model(model_path: pathlib.Path, remote_type: REMOTE_TYPES, overwrite_if_exists='YES') -> Union[pathlib.Path, None]:
     # --------------------------------------------------------------------------------------------------------
     # 3D Model file extraction
     # --------------------------------------------------------------------------------------------------------
-    write_file = REMOTE_3DMODEL_PATH / \
+    write_file = DEST_PATH / \
         (remote_type.name + '.3dshapes') / model_path.name
 
     if write_file.exists():
-        overwrite_existing = input("Model already exists at " + str(
-            REMOTE_3DMODEL_PATH / model_path.name) + ". Overwrite existing model? [Yes]: ") or "Yes"
-        if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
-            print("Import of model skipped")
+        if (overwrite_if_exists == 'YES'):
+            overwrite_existing = True
+            print("Overwrite existing 3d model")
+        elif (overwrite_if_exists == 'NO'):
+            print("Import of 3d model skipped")
             return None
+        else:
+            overwrite_existing = input("Model already exists at " + str(
+                DEST_PATH / model_path.name) + ". Overwrite existing model? [Yes]: ") or "Yes"
+            if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+                print("Import of 3d model skipped")
+                return None
 
     if model_path.is_file():
         check_file(write_file)
         write_file.write_bytes(model_path.read_bytes())
         modified_objects.append(write_file, Modification.EXTRACTED_FILE)
-        print("Import of model succeeded")
 
     return model_path
 
 
-def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, found_model: pathlib.Path) -> \
+def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, found_model: pathlib.Path, overwrite_if_exists='YES') -> \
         Tuple[Union[pathlib.Path, None], Union[pathlib.Path, None]]:
     """
     # Footprint file parsing
@@ -326,7 +339,7 @@ def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, fo
         footprint = footprint_path_item.read_text()
 
         footprint_write_path = (
-            REMOTE_FOOTPRINTS_PATH / (remote_type.name + '.pretty'))
+            DEST_PATH / (remote_type.name + '.pretty'))
         footprint_file_read = footprint_write_path / footprint_path_item.name
         footprint_file_write = footprint_write_path / \
             (footprint_path_item.name + "~")
@@ -339,12 +352,19 @@ def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, fo
             overwrite_existing = overwrote_existing = False
 
             if footprint_file_read.exists():
-                overwrite_existing = input(
-                    "Footprint already exists at " + str(
-                        footprint_file_read) + ". Overwrite existing footprint? [Yes]: ") or "Yes"
-                if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+                if (overwrite_if_exists == 'YES'):
+                    overwrite_existing = True
+                    print("Overwrite existing footprint")
+                elif (overwrite_if_exists == 'NO'):
                     print("Import of footprint skipped")
                     return footprint_file_read, footprint_file_write
+                else:
+                    overwrite_existing = input(
+                        "Footprint already exists at " + str(
+                            footprint_file_read) + ". Overwrite existing footprint? [Yes]: ") or "Yes"
+                    if overwrite_existing not in ('y', 'yes', 'Yes', 'Y', 'YES'):
+                        print("Import of footprint skipped")
+                        return footprint_file_read, footprint_file_write
 
             check_file(footprint_file_read)
 
@@ -379,7 +399,7 @@ def import_footprint(remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, fo
     return footprint_file_read, footprint_file_write
 
 
-def import_lib(remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -> \
+def import_lib(remote_type: REMOTE_TYPES, lib_path: pathlib.Path, overwrite_if_exists='YES') -> \
         Tuple[str, Union[pathlib.Path, None], Union[pathlib.Path, None]]:
     """
     .lib file parsing
@@ -422,8 +442,8 @@ def import_lib(remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -> \
     if index_end is None:
         raise Warning(device + ' not found in ' + lib_path.name)
 
-    lib_file_read = REMOTE_LIB_PATH / (remote_type.name + '.lib')
-    lib_file_write = REMOTE_LIB_PATH / (remote_type.name + '.lib~')
+    lib_file_read = DEST_PATH / (remote_type.name + '.lib')
+    lib_file_write = DEST_PATH / (remote_type.name + '.lib~')
     overwrite_existing = overwrote_existing = False
 
     check_file(lib_file_read)
@@ -459,13 +479,22 @@ def import_lib(remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -> \
                     # write
                     if component_name.startswith(device):
                         # Ask if you want to overwrite existing component
-                        yes = input(
-                            device + ' lib already in ' + str(lib_file_read) + ', replace it? [Yes]: ') or "Yes"
-                        overwrite_existing = yes and 'yes'.startswith(
-                            yes.lower())
-                        if not overwrite_existing:
+
+                        if (overwrite_if_exists == 'YES'):
+                            overwrite_existing = True
+                            print("Overwrite existing lib")
+                        elif (overwrite_if_exists == 'NO'):
+                            overwrite_existing = False
                             print("Import of lib skipped")
                             return device, lib_file_read, lib_file_write
+                        else:
+                            yes = input(device + ' lib already in ' +
+                                        str(lib_file_read) + ', replace it? [Yes]: ') or "Yes"
+                            overwrite_existing = yes and 'yes'.startswith(
+                                yes.lower())
+                            if not overwrite_existing:
+                                print("Import of lib skipped")
+                                return device, lib_file_read, lib_file_write
                         writefile.write(
                             '\n'.join(lib_lines[index_start:index_end]) + '\n')
                         overwrote_existing = True
@@ -480,7 +509,7 @@ def import_lib(remote_type: REMOTE_TYPES, lib_path: pathlib.Path) -> \
     return device, lib_file_read, lib_file_write
 
 
-def import_all(zip_file: pathlib.Path):
+def import_all(zip_file: pathlib.Path, overwrite_if_exists='YES'):
     """zip is a pathlib.Path to import the symbol from"""
     if not zipfile.is_zipfile(zip_file):
         return None
@@ -490,20 +519,22 @@ def import_all(zip_file: pathlib.Path):
             zf)
 
         device, lib_file_read, lib_file_write = import_lib(
-            remote_type, lib_path)
+            remote_type, lib_path, overwrite_if_exists)
 
         dcm_file_read, dcm_file_write = import_dcm(
-            device, remote_type, dcm_path)
+            device, remote_type, dcm_path, overwrite_if_exists)
 
-        found_model = import_model(model_path, remote_type)
+        found_model = import_model(
+            model_path, remote_type, overwrite_if_exists)
 
         footprint_file_read, footprint_file_write = import_footprint(
-            remote_type, footprint_path, found_model)
+            remote_type, footprint_path, found_model, overwrite_if_exists)
 
         # replace read files with write files only after all operations succeeded
         dcm_file_write.replace(dcm_file_read)
-        footprint_file_write.replace(footprint_file_read)
         lib_file_write.replace(lib_file_read)
+        if footprint_file_write.exists():
+            footprint_file_write.replace(footprint_file_read)
 
     return 'OK:',
 
