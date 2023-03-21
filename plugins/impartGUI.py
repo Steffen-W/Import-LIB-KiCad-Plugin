@@ -17,7 +17,15 @@ import wx.xrc
 import configparser
 import os
 from pathlib import Path
-import KiCadImport
+
+try:
+    # relative import is required in kicad
+    from .KiCadImport import SRC_PATH, DEST_PATH, import_all
+except:
+    try:
+        from KiCadImport import SRC_PATH, DEST_PATH, import_all
+    except:
+        print("Error: can not import KiCadImport")
 
 
 class GUI_functions():
@@ -50,19 +58,19 @@ class GUI_functions():
         self.m_text.AppendText(str(text)+"\n")
 
     def BottonClick(self, event):
-        KiCadImport.SRC_PATH = Path(self.config['config']['SRC_PATH'])
-        KiCadImport.DEST_PATH = Path(self.config['config']['DEST_PATH'])
+        SRC_PATH = Path(self.config['config']['SRC_PATH'])
+        DEST_PATH = Path(self.config['config']['DEST_PATH'])
 
         for lib in os.listdir(self.config['config']['SRC_PATH']):
             if lib.startswith('LIB') and lib.endswith('.zip'):
                 lib = os.path.join(self.config['config']['SRC_PATH'], lib)
-                res, = KiCadImport.import_all(lib, 'YES')
+                res, = import_all(lib, 'YES')
                 print(res)
         event.Skip()
 
     def DirChange(self, event):
-        self.config['config']['SRC_PATH'] = self.m_dirPicker_librarypath.GetPath()
-        self.config['config']['DEST_PATH'] = self.m_dirPicker_sourcepath.GetPath()
+        self.config['config']['SRC_PATH'] = self.m_dirPicker_sourcepath.GetPath()
+        self.config['config']['DEST_PATH'] = self.m_dirPicker_librarypath.GetPath()
         with open(self.config_path, 'w') as configfile:
             self.config.write(configfile)
         event.Skip()
@@ -99,7 +107,7 @@ class impartGUI (wx.Frame, GUI_functions):
 
         fgSizer1.SetMinSize(wx.Size(-1, 0))
         self.m_staticText_sourcepath = wx.StaticText(
-            self, wx.ID_ANY, u"Library source path:", wx.DefaultPosition, wx.DefaultSize, 0)
+            self, wx.ID_ANY, u"Folder of the library to import:", wx.DefaultPosition, wx.DefaultSize, 0)
         self.m_staticText_sourcepath.Wrap(-1)
 
         fgSizer1.Add(self.m_staticText_sourcepath, 0, wx.ALL |
@@ -117,7 +125,7 @@ class impartGUI (wx.Frame, GUI_functions):
         bSizer1.Add(self.m_dirPicker_sourcepath, 0, wx.ALL | wx.EXPAND, 5)
 
         self.m_staticText_librarypath = wx.StaticText(
-            self, wx.ID_ANY, u"Save to library path:", wx.DefaultPosition, wx.DefaultSize, 0)
+            self, wx.ID_ANY, u"Library save location:", wx.DefaultPosition, wx.DefaultSize, 0)
         self.m_staticText_librarypath.Wrap(-1)
 
         bSizer1.Add(self.m_staticText_librarypath, 0, wx.ALL, 5)
