@@ -12,12 +12,16 @@ from pprint import pprint
 
 from typing import Tuple, Union, Any
 
-from config import SRC_PATH, DEST_PATH  # *CONFIGURE ME*
 import argparse
 import re
 import readline
 import zipfile
 from os import stat
+
+# from config import SRC_PATH, DEST_PATH  # *CONFIGURE ME*
+from pathlib import Path
+SRC_PATH = Path.home() / 'Downloads'
+DEST_PATH = Path.home() / 'KiCad'
 
 
 class Modification(Enum):
@@ -513,6 +517,7 @@ def import_all(zip_file: pathlib.Path, overwrite_if_exists='YES'):
     """zip is a pathlib.Path to import the symbol from"""
     if not zipfile.is_zipfile(zip_file):
         return None
+    print("Import: " + zip_file)
 
     with zipfile.ZipFile(zip_file) as zf:
         dcm_path, lib_path, footprint_path, model_path, remote_type = get_remote_info(

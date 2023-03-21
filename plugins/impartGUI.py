@@ -14,14 +14,67 @@ import wx.xrc
 # Class impartGUI
 ###########################################################################
 
+import configparser
+import os
+from pathlib import Path
+import KiCadImport
 
-class impartGUI (wx.Frame):
+
+class GUI_functions():
+
+    def init(self):
+        print("start")
+        self.config = configparser.ConfigParser()
+        self.config_path = os.path.join(
+            os.path.dirname(__file__), 'config.ini')
+        try:
+            self.config.read(self.config_path)
+            self.config['config']['SRC_PATH']  # only for check
+            self.config['config']['DEST_PATH']  # only for check
+        except:
+            print("An exception occurred during import " + self.config_path)
+            self.config = configparser.ConfigParser()
+            self.config.add_section("config")
+            self.config.set("config", "SRC_PATH", "")
+            self.config.set("config", "DEST_PATH", "")
+
+        if self.config['config']['SRC_PATH'] == "":
+            self.config['config']['SRC_PATH'] = str(Path.home() / 'Downloads')
+        if self.config['config']['DEST_PATH'] == "":
+            self.config['config']['DEST_PATH'] = str(Path.home() / 'KiCad')
+        self.m_dirPicker_sourcepath.SetPath(self.config['config']['SRC_PATH'])
+        self.m_dirPicker_librarypath.SetPath(
+            self.config['config']['DEST_PATH'])
+
+    def print(self, text):
+        self.m_text.AppendText(str(text)+"\n")
+
+    def BottonClick(self, event):
+        KiCadImport.SRC_PATH = Path(self.config['config']['SRC_PATH'])
+        KiCadImport.DEST_PATH = Path(self.config['config']['DEST_PATH'])
+
+        for lib in os.listdir(self.config['config']['SRC_PATH']):
+            if lib.startswith('LIB') and lib.endswith('.zip'):
+                lib = os.path.join(self.config['config']['SRC_PATH'], lib)
+                res, = KiCadImport.import_all(lib, 'YES')
+                print(res)
+        event.Skip()
+
+    def DirChange(self, event):
+        self.config['config']['SRC_PATH'] = self.m_dirPicker_librarypath.GetPath()
+        self.config['config']['DEST_PATH'] = self.m_dirPicker_sourcepath.GetPath()
+        with open(self.config_path, 'w') as configfile:
+            self.config.write(configfile)
+        event.Skip()
+
+
+class impartGUI (wx.Frame, GUI_functions):
 
     def __init__(self, parent):
         wx.Frame.__init__(self, parent, id=wx.ID_ANY, title=u"impartGUI", pos=wx.DefaultPosition, size=wx.Size(
             600, 600), style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
 
-        self.SetSizeHints(wx.Size(150, 150), wx.Size(600, 600))
+        self.SetSizeHints(wx.Size(150, 150), wx.Size(600, 1000))
         self.SetFont(wx.Font(wx.NORMAL_FONT.GetPointSize(), wx.FONTFAMILY_DEFAULT,
                      wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, False, wx.EmptyString))
         self.SetForegroundColour(
@@ -31,19 +84,14 @@ class impartGUI (wx.Frame):
 
         bSizer1 = wx.BoxSizer(wx.VERTICAL)
 
-        self.m_button1 = wx.Button(
-            self, wx.ID_ANY, u"Button1", wx.DefaultPosition, wx.DefaultSize, 0)
-        bSizer1.Add(self.m_button1, 0, wx.ALL |
+        self.m_button = wx.Button(
+            self, wx.ID_ANY, u"Start", wx.DefaultPosition, wx.DefaultSize, 0)
+        bSizer1.Add(self.m_button, 0, wx.ALL |
                     wx.ALIGN_CENTER_HORIZONTAL | wx.EXPAND, 5)
 
-        self.m_staticText6 = wx.StaticText(
-            self, wx.ID_ANY, u"MyLabel", wx.DefaultPosition, wx.DefaultSize, 0)
-        self.m_staticText6.Wrap(-1)
-
-        self.m_staticText6.SetBackgroundColour(
-            wx.SystemSettings.GetColour(wx.SYS_COLOUR_INFOTEXT))
-
-        bSizer1.Add(self.m_staticText6, 1, wx.ALL | wx.EXPAND, 5)
+        self.m_text = wx.TextCtrl(self, wx.ID_ANY, u"output:\n", wx.DefaultPosition,
+                                  wx.DefaultSize, wx.HSCROLL | wx.TE_LEFT | wx.TE_MULTILINE | wx.TE_READONLY)
+        bSizer1.Add(self.m_text, 1, wx.ALL | wx.EXPAND, 5)
 
         fgSizer1 = wx.FlexGridSizer(0, 2, 0, 0)
         fgSizer1.SetFlexibleDirection(wx.BOTH)
@@ -99,12 +147,12 @@ class impartGUI (wx.Frame):
         self.Centre(wx.BOTH)
 
         # Connect Events
-        self.m_button1.Bind(wx.EVT_BUTTON, self.Botton1Click)
+        self.m_button.Bind(wx.EVT_BUTTON, self.BottonClick)
+        self.m_dirPicker_sourcepath.Bind(
+            wx.EVT_DIRPICKER_CHANGED, self.DirChange)
+        self.m_dirPicker_librarypath.Bind(
+            wx.EVT_DIRPICKER_CHANGED, self.DirChange)
+        self.init()
 
     def __del__(self):
-        print('by')
         pass
-
-    # Virtual event handlers, override them in your derived class
-    def Botton1Click(self, event):
-        event.Skip()
