@@ -20,10 +20,10 @@ from pathlib import Path
 
 try:
     # relative import is required in kicad
-    from .KiCadImport import SRC_PATH, DEST_PATH, import_all
+    from .KiCadImport import changePath, import_all
 except:
     try:
-        from KiCadImport import SRC_PATH, DEST_PATH, import_all
+        from KiCadImport import changePath, import_all
     except:
         print("Error: can not import KiCadImport")
 
@@ -61,6 +61,7 @@ class GUI_functions():
     def BottonClick(self, event):
         SRC_PATH = Path(self.config['config']['SRC_PATH'])
         DEST_PATH = Path(self.config['config']['DEST_PATH'])
+        changePath(SRC_PATH, DEST_PATH)
 
         print(str(SRC_PATH) + " --> " + str(DEST_PATH))
 
