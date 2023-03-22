@@ -40,7 +40,8 @@ class GUI_functions():
             self.config['config']['SRC_PATH']  # only for check
             self.config['config']['DEST_PATH']  # only for check
         except:
-            print("An exception occurred during import " + self.config_path)
+            self.print("An exception occurred during import " +
+                       self.config_path)
             self.config = configparser.ConfigParser()
             self.config.add_section("config")
             self.config.set("config", "SRC_PATH", "")
@@ -61,11 +62,28 @@ class GUI_functions():
         SRC_PATH = Path(self.config['config']['SRC_PATH'])
         DEST_PATH = Path(self.config['config']['DEST_PATH'])
 
+        print(str(SRC_PATH) + " --> " + str(DEST_PATH))
+
+        lib_to_import = []
+
         for lib in os.listdir(self.config['config']['SRC_PATH']):
             if lib.startswith('LIB') and lib.endswith('.zip'):
-                lib = os.path.join(self.config['config']['SRC_PATH'], lib)
-                res, = import_all(lib, 'YES')
-                print(res)
+                lib_to_import.append(os.path.join(
+                    self.config['config']['SRC_PATH'], lib))
+
+        overwrite_if_existing = "NO"
+        if (self.m_overwrite.IsChecked()):
+            overwrite_if_existing = "YES"
+
+        for lib in lib_to_import:
+            try:
+                res, = import_all(lib, overwrite_if_existing)
+                self.print(res + " " + lib)
+            except Exception as e:
+                self.print(e)
+
+        if (len(lib_to_import) == 0):
+            self.print("nothing to import")
         event.Skip()
 
     def DirChange(self, event):
@@ -101,7 +119,7 @@ class impartGUI (wx.Frame, GUI_functions):
                                   wx.DefaultSize, wx.HSCROLL | wx.TE_LEFT | wx.TE_MULTILINE | wx.TE_READONLY)
         bSizer1.Add(self.m_text, 1, wx.ALL | wx.EXPAND, 5)
 
-        fgSizer1 = wx.FlexGridSizer(0, 2, 0, 0)
+        fgSizer1 = wx.FlexGridSizer(0, 3, 0, 0)
         fgSizer1.SetFlexibleDirection(wx.BOTH)
         fgSizer1.SetNonFlexibleGrowMode(wx.FLEX_GROWMODE_SPECIFIED)
 
@@ -110,15 +128,21 @@ class impartGUI (wx.Frame, GUI_functions):
             self, wx.ID_ANY, u"Folder of the library to import:", wx.DefaultPosition, wx.DefaultSize, 0)
         self.m_staticText_sourcepath.Wrap(-1)
 
-        fgSizer1.Add(self.m_staticText_sourcepath, 0, wx.ALL |
-                     wx.EXPAND | wx.ALIGN_CENTER_VERTICAL, 5)
-
-        self.m_checkBox_autoImport = wx.CheckBox(
-            self, wx.ID_ANY, u"Import library automatically", wx.DefaultPosition, wx.DefaultSize, 0)
-        fgSizer1.Add(self.m_checkBox_autoImport, 0,
+        fgSizer1.Add(self.m_staticText_sourcepath, 0,
                      wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
-        bSizer1.Add(fgSizer1, 0, 0, 5)
+        self.m_autoImport = wx.CheckBox(
+            self, wx.ID_ANY, u"automatic import (TODO)", wx.DefaultPosition, wx.DefaultSize, 0)
+        self.m_autoImport.Enable(False)
+
+        fgSizer1.Add(self.m_autoImport, 0, wx.ALL |
+                     wx.ALIGN_CENTER_VERTICAL, 5)
+
+        self.m_overwrite = wx.CheckBox(
+            self, wx.ID_ANY, u"overwrite if existing", wx.DefaultPosition, wx.DefaultSize, 0)
+        fgSizer1.Add(self.m_overwrite, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        bSizer1.Add(fgSizer1, 0, wx.EXPAND, 5)
 
         self.m_dirPicker_sourcepath = wx.DirPickerCtrl(
             self, wx.ID_ANY, u".", u"Select a folder", wx.DefaultPosition, wx.DefaultSize, wx.DIRP_DEFAULT_STYLE)
