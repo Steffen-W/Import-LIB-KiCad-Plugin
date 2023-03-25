@@ -10,7 +10,7 @@ from zipfile import Path
 from typing import Tuple, Union, Any
 import re
 import zipfile
-from os import stat
+from os import stat, remove
 
 
 class Modification(Enum):
@@ -146,6 +146,8 @@ class import_lib:
         :returns: dcm_file_read, dcm_file_write
         """
 
+        self.dcm_skipped = False
+
         # Array of values defining all attributes of .dcm file
         dcm_attributes = dcm_path.read_text().splitlines() if dcm_path else [
             '#', '# ' + device, '#', '$CMP ' + device, 'D', 'F', '$ENDCMP']
@@ -217,9 +219,11 @@ class import_lib:
                         if component_name.startswith(device):
                             if (overwrite_if_exists):
                                 overwrite_existing = True
+                                self.print("Overwrite existing dcm")
                             else:
                                 overwrite_existing = False
                                 self.print("Import of dcm skipped")
+                                self.dcm_skipped = True
                                 return dcm_file_read, dcm_file_write
                             writefile.write(
                                 '\n'.join(dcm_attributes[index_start:index_end]) + '\n')
@@ -241,13 +245,16 @@ class import_lib:
         write_file = self.DEST_PATH / \
             (remote_type.name + '.3dshapes') / model_path.name
 
+        self.model_skipped = False
+
         if write_file.exists():
             if (overwrite_if_exists):
                 overwrite_existing = True
                 self.print("Overwrite existing 3d model")
             else:
                 self.print("Import of 3d model skipped")
-                return None
+                self.model_skipped = True
+                return model_path
 
         if model_path.is_file():
             check_file(write_file)
@@ -265,6 +272,7 @@ class import_lib:
 
         footprint_file_read = None
         footprint_file_write = None
+        self.footprint_skipped = False
 
         footprint_path_item_tmp = None
         for footprint_path_item in footprint_path.iterdir():  # try to use only newer file
@@ -286,7 +294,7 @@ class import_lib:
 
             if found_model:
                 footprint.splitlines()
-                model = ["  (model \"" + "${KICAD6_3RD_PARTY}/" + found_model.name + "\"",
+                model = ["  (model \"" + "${KICAD6_3RD_PARTY}/" + remote_type.name + '.3dshapes/' + found_model.name + "\"",
                          "    (offset (xyz 0 0 0))", "    (scale (xyz 1 1 1))", "    (rotate (xyz 0 0 0))", "  )"]
 
                 overwrite_existing = overwrote_existing = False
@@ -297,6 +305,7 @@ class import_lib:
                         self.print("Overwrite existing footprint")
                     else:
                         self.print("Import of footprint skipped")
+                        self.footprint_skipped = True
                         return footprint_file_read, footprint_file_write
 
                 check_file(footprint_file_read)
@@ -341,6 +350,8 @@ class import_lib:
         terminal will prompt whether to overwrite or to keep the existing content and ignore the new file contents.
         :returns: device, lib_file_read, lib_file_write
         """
+
+        self.lib_skipped = False
 
         device = None
         lib_lines = lib_path.read_text().splitlines()
@@ -419,6 +430,7 @@ class import_lib:
                             else:
                                 overwrite_existing = False
                                 self.print("Import of lib skipped")
+                                self.lib_skipped = True
                                 return device, lib_file_read, lib_file_write
                             writefile.write(
                                 '\n'.join(lib_lines[index_start:index_end]) + '\n')
@@ -456,9 +468,19 @@ class import_lib:
                 remote_type, footprint_path, found_model, overwrite_if_exists)
 
             # replace read files with write files only after all operations succeeded
-            dcm_file_write.replace(dcm_file_read)
-            lib_file_write.replace(lib_file_read)
-            if footprint_file_write.exists():
+            if dcm_file_write.exists() and not self.dcm_skipped:
+                dcm_file_write.replace(dcm_file_read)
+            elif dcm_file_write.exists():
+                remove(dcm_file_write)
+
+            if lib_file_write.exists() and not self.lib_skipped:
+                lib_file_write.replace(lib_file_read)
+            elif lib_file_write.exists():
+                remove(lib_file_write)
+
+            if footprint_file_write.exists() and not self.footprint_skipped:
                 footprint_file_write.replace(footprint_file_read)
+            elif footprint_file_write.exists():
+                remove(footprint_file_write)
 
         return 'OK',
