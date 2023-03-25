@@ -10,3 +10,16 @@ A very basic 3D model integration has been implemented to extract the 3D model, 
 # Warranty
 **None. Zero. Zilch. Use at your own risk, and please be sure to use git or some other means of backing up/reverting changes caused by this script. This script will modify existing lib, dcm, footprint or 3D model files. It is your responsiblity to back them up or have a way to revert changes should you inadvertantly mess something up using this tool** 
 
+Umgebungsvarioablen
+KICAD_3RD_PARTY ~/KiCad
+
+Symbol:
+1	1	Samacsys	${KICAD_3RD_PARTY}/Samacsys.lib	Legacy		
+1	1	Snapeda	${KICAD_3RD_PARTY}/Snapeda.lib	Legacy		
+1	1	UltraLibrarian	${KICAD_3RD_PARTY}/UltraLibrarian.lib	Legacy		
+
+
+Footprint
+1	Samacsys	${KICAD_3RD_PARTY}/Samacsys.pretty	KiCad	
+1	Snapeda	${KICAD_3RD_PARTY}/Snapeda.pretty	KiCad		
+1	UltraLibrarian	${KICAD_3RD_PARTY}/UltraLibrarian.pretty	KiCad		

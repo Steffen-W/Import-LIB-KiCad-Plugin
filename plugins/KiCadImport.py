@@ -69,7 +69,7 @@ def unzip(root, suffix):
 class REMOTE_TYPES(Enum):
     Octopart = 0
     Samacsys = 1
-    Ultra_Librarian = 2
+    UltraLibrarian = 2
     Snapeda = 3
 
 
@@ -121,8 +121,8 @@ class import_lib:
             self.model_path = unzip(root_path, '.step')
             if not self.model_path:
                 self.model_path = unzip(root_path, '.stp')
-            assert self.lib_path and self.footprint_path and self.model_path, 'Not in ultralibrarian format'
-            remote_type = REMOTE_TYPES.Ultra_Librarian
+            assert self.lib_path and self.footprint_path, 'Not in ultralibrarian format'
+            remote_type = REMOTE_TYPES.UltraLibrarian
             return self.dcm_path, self.lib_path, self.footprint_path, self.model_path, remote_type
 
         self.lib_path = unzip(root_path, '.lib')
@@ -132,6 +132,8 @@ class import_lib:
             self.model_path = unzip(root_path, '.step')
             remote_type = REMOTE_TYPES.Snapeda
             return self.dcm_path, self.lib_path, self.footprint_path, self.model_path, remote_type
+        elif (unzip(root_path, '.kicad_sym').exists()):
+            assert False, 'Not in Snapeda format (only KiCad v4 format is supported)'
 
         assert False, 'Unknown library zipfile'
 
@@ -242,6 +244,10 @@ class import_lib:
         # --------------------------------------------------------------------------------------------------------
         # 3D Model file extraction
         # --------------------------------------------------------------------------------------------------------
+
+        if not model_path:
+            return False
+
         write_file = self.DEST_PATH / \
             (remote_type.name + '.3dshapes') / model_path.name
 
@@ -292,9 +298,10 @@ class import_lib:
             footprint_file_write = footprint_write_path / \
                 (footprint_path_item.name + "~")
 
+            check_file(footprint_file_read)
             if found_model:
                 footprint.splitlines()
-                model = ["  (model \"" + "${KICAD6_3RD_PARTY}/" + remote_type.name + '.3dshapes/' + found_model.name + "\"",
+                model = ["  (model \"" + "${KICAD_3RD_PARTY}/" + remote_type.name + '.3dshapes/' + found_model.name + "\"",
                          "    (offset (xyz 0 0 0))", "    (scale (xyz 1 1 1))", "    (rotate (xyz 0 0 0))", "  )"]
 
                 overwrite_existing = overwrote_existing = False
@@ -307,8 +314,6 @@ class import_lib:
                         self.print("Import of footprint skipped")
                         self.footprint_skipped = True
                         return footprint_file_read, footprint_file_write
-
-                check_file(footprint_file_read)
 
                 with footprint_file_read.open('wt') as wr:
                     wr.write(footprint)

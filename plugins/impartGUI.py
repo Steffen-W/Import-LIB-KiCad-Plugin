@@ -67,9 +67,10 @@ class GUI_functions():
 
         lib_to_import = []
         for lib in os.listdir(self.config['config']['SRC_PATH']):
-            if lib.startswith('LIB') and lib.endswith('.zip'):
-                lib_to_import.append(os.path.join(
-                    self.config['config']['SRC_PATH'], lib))
+            if lib.endswith('.zip'):
+                filename = os.path.join(self.config['config']['SRC_PATH'], lib)
+                if (os.path.getsize(filename) < 1000*1000*10):  # the file is less than 10 MB
+                    lib_to_import.append(filename)
 
         for lib in lib_to_import:
             try:
