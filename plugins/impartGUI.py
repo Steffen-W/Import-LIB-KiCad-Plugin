@@ -20,17 +20,20 @@ from pathlib import Path
 
 try:
     # relative import is required in kicad
-    from .KiCadImport import changePath, import_all
+    from .KiCadImport import import_lib
 except:
     try:
-        from KiCadImport import changePath, import_all
+        from KiCadImport import import_lib
     except:
         print("Error: can not import KiCadImport")
 
 
 class GUI_functions():
 
+    importer = import_lib()
+
     def init(self):
+
         print("start")
         self.config = configparser.ConfigParser()
         self.config_path = os.path.join(
@@ -59,27 +62,20 @@ class GUI_functions():
         self.m_text.AppendText(str(text)+"\n")
 
     def BottonClick(self, event):
-        SRC_PATH = Path(self.config['config']['SRC_PATH'])
-        DEST_PATH = Path(self.config['config']['DEST_PATH'])
-        changePath(SRC_PATH, DEST_PATH)
-
-        print(str(SRC_PATH) + " --> " + str(DEST_PATH))
+        self.importer.set_DEST_PATH(self.config['config']['DEST_PATH'])
+        self.importer.print = self.print
 
         lib_to_import = []
-
         for lib in os.listdir(self.config['config']['SRC_PATH']):
             if lib.startswith('LIB') and lib.endswith('.zip'):
                 lib_to_import.append(os.path.join(
                     self.config['config']['SRC_PATH'], lib))
 
-        overwrite_if_existing = "NO"
-        if (self.m_overwrite.IsChecked()):
-            overwrite_if_existing = "YES"
-
         for lib in lib_to_import:
             try:
-                res, = import_all(lib, overwrite_if_existing)
-                self.print(res + " " + lib)
+                res, = self.importer.import_all(
+                    lib, overwrite_if_exists=self.m_overwrite.IsChecked())
+                self.print(res)
             except Exception as e:
                 self.print(e)
 
