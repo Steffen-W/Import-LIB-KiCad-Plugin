@@ -17,13 +17,11 @@ import re
 import zipfile
 from os import stat
 
-# from config import SRC_PATH, DEST_PATH  # *CONFIGURE ME*
-from pathlib import Path
-SRC_PATH = Path.home() / 'Downloads'
-DEST_PATH = Path.home() / 'KiCad'
+SRC_PATH = pathlib.Path.home() / 'Downloads'
+DEST_PATH = pathlib.Path.home() / 'KiCad'
 
 
-def changePath(SRC_PATH_=Path.home() / 'Downloads', DEST_PATH_=Path.home() / 'KiCad'):
+def changePath(SRC_PATH_=pathlib.Path.home() / 'Downloads', DEST_PATH_=pathlib.Path.home() / 'KiCad'):
     global SRC_PATH, DEST_PATH
     SRC_PATH = SRC_PATH_
     DEST_PATH = DEST_PATH_
@@ -49,13 +47,6 @@ class ModifiedObject:
 modified_objects = ModifiedObject()
 
 
-def xinput(prompt):
-    # extended input to allow Emacs input backspace
-    reply = input(prompt)
-    index = reply.find('~') + 1
-    return reply[index:]
-
-
 class REMOTE_TYPES(Enum):
     Octopart = 0
     Samacsys = 1
@@ -74,18 +65,6 @@ def check_file(path: pathlib.Path):
             modified_objects.append(path.parent, Modification.MKDIR)
         path.touch(mode=0o666)
         modified_objects.append(path, Modification.TOUCH_FILE)
-
-
-def exception_handler(e: Exception):
-    traceback.print_exception(type(e), e, e.__traceback__)
-
-    print("So far the following have been modified: " + "\n")
-    pprint(modified_objects.dict)
-
-    decision = input("Attempt to undo these modifications? [No]") or "No"
-    if decision in ('y', 'yes', 'Yes', 'Y', 'YES'):
-        # todo handle any reversing file operations here
-        pass
 
 
 def unzip(root, suffix):
@@ -518,64 +497,3 @@ def import_all(zip_file: pathlib.Path, overwrite_if_exists='YES'):
             footprint_file_write.replace(footprint_file_read)
 
     return 'OK:',
-
-
-try:
-    if __name__ == '__main__':
-        import readline
-
-        class Select:
-            """input() from select completions """
-
-            def __init__(self, select):
-                self._select = select
-                readline.set_completer(self.complete)
-                readline.set_pre_input_hook(None)
-
-            def __call__(self, prompt):
-                reply = xinput(prompt)
-                readline.set_completer(lambda: None)
-                return reply.strip()
-
-            def complete(self, text, state):
-                if state == 0:
-                    if text:
-                        self._pre = [s for s in self._select
-                                     if s and s.startswith(text)]
-                    else:
-                        self._pre = self._select[:]
-
-                try:
-                    echo = self._pre[state]
-                except IndexError:
-                    echo = None
-
-                return echo
-
-        parser = argparse.ArgumentParser(
-            epilog='Note, empty input: invites clipboard content, if available.')
-        parser.add_argument('--zap', action='store_true',
-                            help='delete source zipfile after assembly')
-        arg = parser.parse_args()
-
-        readline.set_completer_delims('\t')
-        readline.parse_and_bind('tab: complete')
-        readline.set_auto_history(False)
-
-        try:
-            zips = [zip_file.name for zip_file in SRC_PATH.glob('*.zip')]
-            chosen_zip: pathlib.Path = SRC_PATH / \
-                Select(zips)('Library zip file: ')
-            response = import_all(chosen_zip)
-            if response:
-                print(*response)
-                if arg.zap and response[0] == 'OK:':
-                    chosen_zip.unlink()
-        except EOFError:
-            print('EOF')
-        except Exception as e:
-            exception_handler(e)
-        exit(0)
-
-except Exception as e:
-    self.print(e)
