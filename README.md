@@ -1,25 +1,55 @@
+# Import-LIB-KiCad-Plugin
+
 Assembles KiCad "legacy" format component libraries from downloaded
-[Octopart](https://octopart.com/), [Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search) and [Snapeda](https://www.snapeda.com/home/) zipfiles. 
+[Octopart](https://octopart.com/), [Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search) and [Snapeda](https://www.snapeda.com/home/) zipfiles. Imports symbol, footprint, description and if available 3D file. Normally, when you select the imported symbol in KiCad 7, the appropriate footprint and the 3D file should also be linked. Provided, of course, that the libraries have been included as specified below. 
 
-Octopart and Samacsys still need updating, though several UltraLibrarian and Snapeda components have been tested and working. Major to-dos are listed in issues. Any help on these is apprecaited and collaboration via forking and PRs is appreciated. 
-
-A very basic 3D model integration has been implemented to extract the 3D model, and inject a reference to this in the footprint. The main issue here is there is no gaurantee for the correct orientation, so some manual rotating/offset adjustments are typically necessary. Any FreeCAD scripting wizards willing to help automate that somehow would be greatly apprecaited. 
-
-* Currently the document is still being edited
-
-# Warranty
+## Warranty
 **None. Zero. Zilch. Use at your own risk, and please be sure to use git or some other means of backing up/reverting changes caused by this script. This script will modify existing lib, dcm, footprint or 3D model files. It is your responsiblity to back them up or have a way to revert changes should you inadvertantly mess something up using this tool** 
 
-Umgebungsvarioablen
-KICAD_3RD_PARTY ~/KiCad
+## Installation
+The easiest way to install is to open **KiCad** -> **Plugin And Content Manager**. Select **Import-LIB-KiCad-Plugin** in the Plugins tab, press **Install** and then **Apply Pending Changes**.
 
-Symbol:
-1	1	Samacsys	${KICAD_3RD_PARTY}/Samacsys.lib	Legacy		
-1	1	Snapeda	${KICAD_3RD_PARTY}/Snapeda.lib	Legacy		
-1	1	UltraLibrarian	${KICAD_3RD_PARTY}/UltraLibrarian.lib	Legacy		
+## Including the imported libraries in KiCad
 
+**Preferences** -> **Configure paths** -> **Environment Variables** -> Add the following entry
+|Name            |Path    |
+|----------------|--------|
+|KICAD_3RD_PARTY |**YourLibraryFolder**/KiCad |
 
-Footprint
-1	Samacsys	${KICAD_3RD_PARTY}/Samacsys.pretty	KiCad	
-1	Snapeda	${KICAD_3RD_PARTY}/Snapeda.pretty	KiCad		
-1	UltraLibrarian	${KICAD_3RD_PARTY}/UltraLibrarian.pretty	KiCad		
+**Preferences** -> **Manage Symbol Libraries** -> **Global Libraries** -> Add the following entries
+|Active            |Visible           |Nickname       |Library Path                           | Library Format|
+|------------------|------------------|---------------|---------------------------------------|---------------|
+|:heavy_check_mark:|:heavy_check_mark:|Samacsys       |${KICAD_3RD_PARTY}/Samacsys.lib        | Legacy        |
+|:heavy_check_mark:|:heavy_check_mark:|Snapeda        |${KICAD_3RD_PARTY}/Snapeda.lib         | Legacy        |
+|:heavy_check_mark:|:heavy_check_mark:|UltraLibrarian |${KICAD_3RD_PARTY}/UltraLibrarian.lib  | Legacy        |
+
+**Preferences** -> **Manage Footprint Libraries** -> **Global Libraries** -> Add the following entries
+|Active             |Nickname       |Library Path                             | Library Format|
+|-------------------|---------------|-----------------------------------------|---------------|
+|:heavy_check_mark: |Samacsys       | ${KICAD_3RD_PARTY}/Samacsys.pretty      | KiCad         |
+|:heavy_check_mark: |Snapeda        | ${KICAD_3RD_PARTY}/Snapeda.pretty       | KiCad         |
+|:heavy_check_mark: |UltraLibrarian | ${KICAD_3RD_PARTY}/UltraLibrarian.pretty| KiCad         |
+
+## Library sources tested
+- [x] [Samacsys](https://componentsearchengine.com/) (COMPONENT SEARCH ENGINE)
+- [x] [Ultralibrarian](https://app.ultralibrarian.com/search)
+- [x] [Snapeda](https://www.snapeda.com/home/) (KiCad V4 Setting)
+- [ ] [Snapeda](https://www.snapeda.com/home/) (KiCad V6 Setting)
+- [ ] [Octopart](https://octopart.com/)
+
+Operating systems
+- [x] Windows
+- [x] Linux
+- [ ] Mac
+
+KiCad versions
+- [x] KiCad 6
+- [x] KiCad 7
+
+Please write an issues if an import does not work as requested.
+
+## To DO
+- [ ] Automatic background import
+- [ ] Testing all library formats
+- [ ] Test on a Mac
+- [ ] Using the new KiCad format
