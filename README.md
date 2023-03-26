@@ -9,6 +9,12 @@ Assembles KiCad "legacy" format component libraries from downloaded
 ## Installation
 The easiest way to install is to open **KiCad** -> **Plugin And Content Manager**. Select **Import-LIB-KiCad-Plugin** in the Plugins tab, press **Install** and then **Apply Pending Changes**.
 
+## Use of the application
+
+![Screenshot_GUI](Screenshot_GUI.png)
+
+The libraries to import must be located in the folder specified as **Folder of the library** to import". After pressing Start, the libraries will be imported into the specified folder (**LiBrary save location**). Provided that the paths have been [added correctly in KiCad](#including-the-imported-libraries-in-kicad), the parts can be used immediately in KiCad.
+
 ## Including the imported libraries in KiCad
 
 **Preferences** -> **Configure paths** -> **Environment Variables** -> Add the following entry
