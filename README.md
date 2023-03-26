@@ -4,9 +4,11 @@ Assembles KiCad "legacy" format component libraries from downloaded
 [Octopart](https://octopart.com/), [Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search) and [Snapeda](https://www.snapeda.com/home/) zipfiles. Imports symbol, footprint, description and if available 3D file. Normally, when you select the imported symbol in KiCad 7, the appropriate footprint and the 3D file should also be linked. Provided, of course, that the libraries have been included as specified below. 
 
 ## Warranty
+
 **None. Zero. Zilch. Use at your own risk, and please be sure to use git or some other means of backing up/reverting changes caused by this script. This script will modify existing lib, dcm, footprint or 3D model files. It is your responsiblity to back them up or have a way to revert changes should you inadvertantly mess something up using this tool** 
 
 ## Installation
+
 The easiest way to install is to open **KiCad** -> **Plugin And Content Manager**. Select **Import-LIB-KiCad-Plugin** in the Plugins tab, press **Install** and then **Apply Pending Changes**.
 
 ## Use of the application
@@ -55,7 +57,12 @@ KiCad versions
 Please write an issues if an import does not work as requested.
 
 ## To DO
+
 - [ ] Automatic background import
 - [ ] Testing all library formats
 - [ ] Test on a Mac
 - [ ] Using the new KiCad format
+
+## Many thanks to
+
+[wexi with impart](https://github.com/wexi/impart) and [topherbuckley](https://github.com/topherbuckley/kicad_remote_import) for the code on which the GUI is based.

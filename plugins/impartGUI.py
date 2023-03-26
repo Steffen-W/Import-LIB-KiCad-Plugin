@@ -95,10 +95,10 @@ class GUI_functions():
 class impartGUI (wx.Frame, GUI_functions):
 
     def __init__(self, parent):
-        wx.Frame.__init__(self, parent, id=wx.ID_ANY, title=u"impartGUI", pos=wx.DefaultPosition, size=wx.Size(
+        wx.Frame.__init__(self, parent, id=wx.ID_ANY, title=u"Import Lib", pos=wx.DefaultPosition, size=wx.Size(
             600, 600), style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
 
-        self.SetSizeHints(wx.Size(150, 150), wx.Size(600, 1000))
+        self.SetSizeHints(wx.Size(150, 150), wx.Size(-1, -1))
         self.SetFont(wx.Font(wx.NORMAL_FONT.GetPointSize(), wx.FONTFAMILY_DEFAULT,
                      wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, False, wx.EmptyString))
         self.SetForegroundColour(
@@ -113,7 +113,7 @@ class impartGUI (wx.Frame, GUI_functions):
         bSizer1.Add(self.m_button, 0, wx.ALL |
                     wx.ALIGN_CENTER_HORIZONTAL | wx.EXPAND, 5)
 
-        self.m_text = wx.TextCtrl(self, wx.ID_ANY, u"output:\n", wx.DefaultPosition,
+        self.m_text = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition,
                                   wx.DefaultSize, wx.HSCROLL | wx.TE_LEFT | wx.TE_MULTILINE | wx.TE_READONLY)
         bSizer1.Add(self.m_text, 1, wx.ALL | wx.EXPAND, 5)
 
@@ -166,7 +166,7 @@ class impartGUI (wx.Frame, GUI_functions):
         bSizer1.Add(self.m_staticline1, 0, wx.EXPAND | wx.ALL, 5)
 
         self.m_staticText5 = wx.StaticText(
-            self, wx.ID_ANY, u"There is no guarantee for faultless function. Use only at your own risk.\n\nAuthor:\nSteffen-W and mweizel\n\nMany thanks to:\nwexi with impart @ github.com\ntopherbuckley @ github.com", wx.DefaultPosition, wx.DefaultSize, 0)
+            self, wx.ID_ANY, u"There is no guarantee for faultless function. Use only at your own risk. Should there be any errors please write an issue.\n\nAuthor: Steffen-W \n", wx.DefaultPosition, wx.DefaultSize, 0)
         self.m_staticText5.Wrap(-1)
 
         bSizer1.Add(self.m_staticText5, 0, wx.ALL | wx.EXPAND, 5)

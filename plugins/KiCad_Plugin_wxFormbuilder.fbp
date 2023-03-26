@@ -43,14 +43,14 @@
             <property name="font">,90,90,-1,70,0</property>
             <property name="hidden">0</property>
             <property name="id">wxID_ANY</property>
-            <property name="maximum_size">600,1000</property>
+            <property name="maximum_size">-1,-1</property>
             <property name="minimum_size">150,150</property>
-            <property name="name">impartGUI</property>
+            <property name="name">Import Lib</property>
             <property name="pos"></property>
             <property name="size">600,600</property>
             <property name="style">wxDEFAULT_FRAME_STYLE</property>
             <property name="subclass">; ; forward_declare</property>
-            <property name="title">impartGUI</property>
+            <property name="title">Import Lib</property>
             <property name="tooltip"></property>
             <property name="two_step_creation">0</property>
             <property name="window_extra_style"></property>
@@ -194,7 +194,7 @@
                         <property name="validator_style">wxFILTER_NONE</property>
                         <property name="validator_type">wxDefaultValidator</property>
                         <property name="validator_variable"></property>
-                        <property name="value">output:&#x0A;</property>
+                        <property name="value"></property>
                         <property name="window_extra_style"></property>
                         <property name="window_name"></property>
                         <property name="window_style"></property>
@@ -688,7 +688,7 @@
                         <property name="gripper">0</property>
                         <property name="hidden">0</property>
                         <property name="id">wxID_ANY</property>
-                        <property name="label">There is no guarantee for faultless function. Use only at your own risk.&#x0A;&#x0A;Author:&#x0A;Steffen-W and mweizel&#x0A;&#x0A;Many thanks to:&#x0A;wexi with impart @ github.com&#x0A;topherbuckley @ github.com</property>
+                        <property name="label">There is no guarantee for faultless function. Use only at your own risk. Should there be any errors please write an issue.&#x0A;&#x0A;Author: Steffen-W &#x0A;</property>
                         <property name="markup">0</property>
                         <property name="max_size"></property>
                         <property name="maximize_button">0</property>
