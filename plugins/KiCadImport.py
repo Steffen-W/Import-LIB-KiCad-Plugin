@@ -90,6 +90,8 @@ class import_lib:
         :type root_path: Path
         :return: dcm_path, lib_path, footprint_path, model_path, remote_type
         """
+        self.footprint_name = None
+
         root_path = zipfile.Path(zf)
         self.dcm_path = root_path / 'device.dcm'
         self.lib_path = root_path / 'device.lib'
@@ -256,7 +258,6 @@ class import_lib:
         if write_file.exists():
             if (overwrite_if_exists):
                 overwrite_existing = True
-                self.print("Overwrite existing 3d model")
             else:
                 self.print("Import of 3d model skipped")
                 self.model_skipped = True
@@ -266,6 +267,10 @@ class import_lib:
             check_file(write_file)
             write_file.write_bytes(model_path.read_bytes())
             modified_objects.append(write_file, Modification.EXTRACTED_FILE)
+            if (overwrite_if_exists):
+                self.print("Overwrite existing 3d model")
+            else:
+                self.print("import 3d model")
 
         return model_path
 
@@ -298,7 +303,6 @@ class import_lib:
             footprint_file_write = footprint_write_path / \
                 (footprint_path_item.name + "~")
 
-            check_file(footprint_file_read)
             if found_model:
                 footprint.splitlines()
                 model = ["  (model \"" + "${KICAD_3RD_PARTY}/" + remote_type.name + '.3dshapes/' + found_model.name + "\"",
@@ -315,6 +319,7 @@ class import_lib:
                         self.footprint_skipped = True
                         return footprint_file_read, footprint_file_write
 
+                check_file(footprint_file_read)
                 with footprint_file_read.open('wt') as wr:
                     wr.write(footprint)
                     overwrote_existing = True
@@ -340,8 +345,10 @@ class import_lib:
                                 writefile.write(line)
 
             else:
-                with footprint_file_read.open('wt') as wr:
+                check_file(footprint_file_write)
+                with footprint_file_write.open('wt') as wr:
                     wr.write(footprint)
+                    self.print("Import footprint")
 
         return footprint_file_read, footprint_file_write
 
@@ -379,6 +386,7 @@ class import_lib:
                 if line.startswith("F2"):
                     footprint = line.split()[1]
                     footprint = footprint.strip("\"")
+                    self.footprint_name = footprint
                     lib_lines[line_idx] = line.replace(
                         footprint, remote_type.name + ":" + footprint, 1)
                 elif line.startswith('ENDDEF'):
@@ -444,21 +452,26 @@ class import_lib:
                             writefile.write(line)
                     elif overwrite_existing:
                         if line.startswith('ENDDEF'):
-                            overwrite_existing = False
+                            pass
+                            # overwrite_existing = False
                     else:
                         writefile.write(line)
-
+        if not overwrite_existing:
+            self.print("Import lib")
         return device, lib_file_read, lib_file_write
 
     def import_all(self, zip_file: pathlib.Path, overwrite_if_exists=True):
         """zip is a pathlib.Path to import the symbol from"""
         if not zipfile.is_zipfile(zip_file):
             return None
+
         self.print("Import: " + zip_file)
 
         with zipfile.ZipFile(zip_file) as zf:
             dcm_path, lib_path, footprint_path, model_path, remote_type = self.get_remote_info(
                 zf)
+
+            self.print("Identify " + remote_type.name)
 
             device, lib_file_read, lib_file_write = self.import_lib(
                 remote_type, lib_path, overwrite_if_exists)
@@ -482,6 +495,12 @@ class import_lib:
                 lib_file_write.replace(lib_file_read)
             elif lib_file_write.exists():
                 remove(lib_file_write)
+
+            if (self.footprint_name != footprint_file_read.stem):
+                self.print('Warning renaming footprint file "' +
+                           footprint_file_read.stem + '" to "' + self.footprint_name + '"')
+                footprint_file_read = footprint_file_read.parent / \
+                    (self.footprint_name + footprint_file_read.suffix)
 
             if footprint_file_write.exists() and not self.footprint_skipped:
                 footprint_file_write.replace(footprint_file_read)

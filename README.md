@@ -1,4 +1,4 @@
-# Import-LIB-KiCad-Plugin
+# Import-LIB-KiCad-Plugin ![icon](plugins/icon_small.png)
 
 Assembles KiCad "legacy" format component libraries from downloaded
 [Octopart](https://octopart.com/), [Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search) and [Snapeda](https://www.snapeda.com/home/) zipfiles. Imports symbol, footprint, description and if available 3D file. Normally, when you select the imported symbol in KiCad 7, the appropriate footprint and the 3D file should also be linked. Provided, of course, that the libraries have been included as specified below. 
@@ -9,13 +9,13 @@ Assembles KiCad "legacy" format component libraries from downloaded
 
 ## Installation
 
-The easiest way to install is to open **KiCad** -> **Plugin And Content Manager**. Select **Import-LIB-KiCad-Plugin** in the Plugins tab, press **Install** and then **Apply Pending Changes**.
+The easiest way to install is to open **KiCad** -> **Plugin And Content Manager**. Select ![icon](plugins/icon_small.png) **Import-LIB-KiCad-Plugin** in the Plugins tab, press **Install** and then **Apply Pending Changes**.
 
 ## Use of the application
 
 ![Screenshot_GUI](Screenshot_GUI.png)
 
-The libraries to import must be located in the folder specified as **Folder of the library** to import". After pressing Start, the libraries will be imported into the specified folder (**LiBrary save location**). Provided that the paths have been [added correctly in KiCad](#including-the-imported-libraries-in-kicad), the parts can be used immediately in KiCad.
+The libraries to import must be located in the folder specified as **Folder of the library** to import". After pressing Start, the libraries will be imported into the specified folder (**Library save location**). Provided that the paths have been [added correctly in KiCad](#including-the-imported-libraries-in-kicad), the parts can be used immediately in KiCad.
 
 ## Including the imported libraries in KiCad
 
