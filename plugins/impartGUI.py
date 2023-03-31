@@ -17,6 +17,8 @@ import wx.xrc
 import configparser
 import os
 from pathlib import Path
+import time
+import threading
 
 try:
     # relative import is required in kicad
@@ -58,12 +60,33 @@ class GUI_functions():
         self.m_dirPicker_librarypath.SetPath(
             self.config['config']['DEST_PATH'])
 
+        self.m_button.Label = "Start"
+        self.runThread = False
+
+    def __find_new_file__(self, folder='.'):
+        if not os.path.isdir(folder):
+            return 0
+        filelistOld = os.listdir(folder)
+        while (self.runThread):
+            filelist = os.listdir(folder)
+            for i in filelist:
+                if i not in filelistOld:
+                    print(i)
+            filelistOld = filelist
+            time.sleep(1)
+            # print("test")
+
     def print(self, text):
         self.m_text.AppendText(str(text)+"\n")
 
     def BottonClick(self, event):
         self.importer.set_DEST_PATH(self.config['config']['DEST_PATH'])
         self.importer.print = self.print
+
+        if self.runThread:
+            self.runThread = False
+            self.m_button.Label = "Start"
+            return
 
         lib_to_import = []
         for lib in os.listdir(self.config['config']['SRC_PATH']):
@@ -74,14 +97,25 @@ class GUI_functions():
 
         for lib in lib_to_import:
             try:
+                self.m_button.Label = "running"
                 res, = self.importer.import_all(
                     lib, overwrite_if_exists=self.m_overwrite.IsChecked())
                 self.print(res)
+                self.m_button.Label = "Start"
             except Exception as e:
                 self.print(e)
+                self.m_button.Label = "ERROR / try to restart"
 
         if (len(lib_to_import) == 0):
             self.print("nothing to import")
+
+        if self.m_autoImport.IsChecked():
+            self.runThread = True
+            self.m_button.Label = "automatic import / press to stop"
+            x = threading.Thread(target=self.__find_new_file__, args=(
+                self.config['config']['SRC_PATH'],))
+            x.start()
+
         event.Skip()
 
     def DirChange(self, event):
@@ -130,9 +164,7 @@ class impartGUI (wx.Frame, GUI_functions):
                      wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
         self.m_autoImport = wx.CheckBox(
-            self, wx.ID_ANY, u"automatic import (TODO)", wx.DefaultPosition, wx.DefaultSize, 0)
-        self.m_autoImport.Enable(False)
-
+            self, wx.ID_ANY, u"automatic import", wx.DefaultPosition, wx.DefaultSize, 0)
         fgSizer1.Add(self.m_autoImport, 0, wx.ALL |
                      wx.ALIGN_CENTER_VERTICAL, 5)
 
@@ -183,6 +215,12 @@ class impartGUI (wx.Frame, GUI_functions):
         self.m_dirPicker_librarypath.Bind(
             wx.EVT_DIRPICKER_CHANGED, self.DirChange)
         self.init()
+
+        self.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
+
+    def OnCloseFrame(self, event):
+        self.runThread = False
+        self.Destroy()
 
     def __del__(self):
         pass
