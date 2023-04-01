@@ -3,7 +3,10 @@
 # sudo apt-get install python-wxtools
 from impartGUI import *
 
-app = wx.App()
-frame = impartGUI(None)
-frame.Show()
-app.MainLoop()
+try:
+    app = wx.App()
+    frame = impartGUI(None)
+    frame.Show()
+    app.MainLoop()
+except Exception as e:
+    print(e)

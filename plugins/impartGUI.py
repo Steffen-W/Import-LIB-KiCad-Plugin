@@ -30,6 +30,35 @@ except:
         print("Error: can not import KiCadImport")
 
 
+class filehandler ():
+    def __init__(self, path):
+        self.path = ''
+        self.filelist = []
+        self.change_path(path)
+
+    def change_path(self, newpath):
+        if not os.path.isdir(newpath):
+            newpath = '.'
+        if newpath != self.path:
+            self.filelist = []
+        self.path = newpath
+
+    def GetNewFiles(self, path):
+        if path != self.path:
+            self.change_path(path)
+
+        filelist = os.listdir(self.path)
+        newFiles = []
+        for i in filelist:
+            if i not in self.filelist and i.endswith('.zip'):
+                pathtemp = os.path.join(self.path, i)
+                # the file is less than 10 MB and larger 1kB
+                if (os.path.getsize(pathtemp) < 1000*1000*10) and (os.path.getsize(pathtemp) > 1000):
+                    newFiles.append(pathtemp)
+        self.filelist = filelist
+        return newFiles
+
+
 class GUI_functions():
 
     importer = import_lib()
@@ -62,19 +91,27 @@ class GUI_functions():
 
         self.m_button.Label = "Start"
         self.runThread = False
+        self.folderhandler = filehandler('.')
 
-    def __find_new_file__(self, folder='.'):
-        if not os.path.isdir(folder):
+    def __find_new_file__(self, path='.'):
+        if not os.path.isdir(path):
             return 0
-        filelistOld = os.listdir(folder)
-        while (self.runThread):
-            filelist = os.listdir(folder)
-            for i in filelist:
-                if i not in filelistOld:
-                    print(i)
-            filelistOld = filelist
+
+        while True:
+            newfilelist = self.folderhandler.GetNewFiles(path)
+            for lib in newfilelist:
+                print(lib)
+                try:
+                    res, = self.importer.import_all(
+                        lib, overwrite_if_exists=self.m_overwrite.IsChecked())
+                    self.print(res)
+                except Exception as e:
+                    self.print(e)
+                    self.m_button.Label = "ERROR / try to restart"
+
+            if not self.runThread:
+                break
             time.sleep(1)
-            # print("test")
 
     def print(self, text):
         self.m_text.AppendText(str(text)+"\n")
@@ -88,26 +125,9 @@ class GUI_functions():
             self.m_button.Label = "Start"
             return
 
-        lib_to_import = []
-        for lib in os.listdir(self.config['config']['SRC_PATH']):
-            if lib.endswith('.zip'):
-                filename = os.path.join(self.config['config']['SRC_PATH'], lib)
-                if (os.path.getsize(filename) < 1000*1000*10):  # the file is less than 10 MB
-                    lib_to_import.append(filename)
-
-        for lib in lib_to_import:
-            try:
-                self.m_button.Label = "running"
-                res, = self.importer.import_all(
-                    lib, overwrite_if_exists=self.m_overwrite.IsChecked())
-                self.print(res)
-                self.m_button.Label = "Start"
-            except Exception as e:
-                self.print(e)
-                self.m_button.Label = "ERROR / try to restart"
-
-        if (len(lib_to_import) == 0):
-            self.print("nothing to import")
+        self.runThread = False
+        self.__find_new_file__(self.config['config']['SRC_PATH'])
+        self.m_button.Label = "Start"
 
         if self.m_autoImport.IsChecked():
             self.runThread = True
