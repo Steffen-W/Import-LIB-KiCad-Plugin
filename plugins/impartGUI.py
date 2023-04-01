@@ -97,21 +97,31 @@ class GUI_functions():
         if not os.path.isdir(path):
             return 0
 
+        self.importer.print = self.print2buffer
+
         while True:
+            self.print_buffer = ""
             newfilelist = self.folderhandler.GetNewFiles(path)
             for lib in newfilelist:
-                print(lib)
                 try:
                     res, = self.importer.import_all(
                         lib, overwrite_if_exists=self.m_overwrite.IsChecked())
-                    self.print(res)
+                    self.print2buffer(res)
                 except Exception as e:
-                    self.print(e)
-                    self.m_button.Label = "ERROR / try to restart"
+                    self.print2buffer(e)
+
+                if not self.runThread and self.print_buffer != "":
+                    self.print(self.print_buffer)
+                    self.print_buffer = ""
 
             if not self.runThread:
                 break
+            if self.print_buffer != "":
+                self.print(self.print_buffer)
             time.sleep(1)
+
+    def print2buffer(self, text):
+        self.print_buffer = self.print_buffer + str(text) + "\n"
 
     def print(self, text):
         self.m_text.AppendText(str(text)+"\n")

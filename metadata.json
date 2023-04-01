@@ -25,10 +25,10 @@
     ],
     "versions": [
         {
-            "version": "0.1.0",
+            "version": "0.2.0",
             "status": "stable",
             "kicad_version": "6.00",
-            "download_url": "https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/download/v0.1.0/Import-LIB-KiCad-Plugin.zip"
+            "download_url": "https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/download/v0.2.0/Import-LIB-KiCad-Plugin.zip"
         }
     ]
 }
