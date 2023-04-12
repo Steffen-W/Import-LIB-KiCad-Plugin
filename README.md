@@ -60,10 +60,13 @@ Please write an issues if an import does not work as requested.
 
 ## To DO
 
-- [ ] Automatic background import
 - [ ] Testing all library formats
 - [ ] Test on a Mac
 - [ ] Using the new KiCad format
+
+## Done
+
+- [x] Automatic background import
 
 ## Many thanks to
 
