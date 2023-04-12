@@ -390,8 +390,13 @@ class import_lib:
                     footprint = line.split()[1]
                     footprint = footprint.strip("\"")
                     self.footprint_name = footprint
+                    invalid = '<>:"/\|?* '
+                    for char in invalid:  # remove invalid characters
+                        self.footprint_name = self.footprint_name.replace(
+                            char, '_')
+
                     lib_lines[line_idx] = line.replace(
-                        footprint, remote_type.name + ":" + footprint, 1)
+                        footprint, remote_type.name + ":" + self.footprint_name, 1)
                 elif line.startswith('ENDDEF'):
                     index_end = line_idx + 1
                 elif line.startswith('F1 '):
@@ -403,7 +408,7 @@ class import_lib:
 
         lib_file_read = self.DEST_PATH / (remote_type.name + '.lib')
         lib_file_write = self.DEST_PATH / (remote_type.name + '.lib~')
-        overwrite_existing = overwrote_existing = False
+        overwrite_existing = overwrote_existing = overwritten = False
 
         check_file(lib_file_read)
         check_file(lib_file_write)
@@ -442,9 +447,9 @@ class import_lib:
 
                             if (overwrite_if_exists):
                                 overwrite_existing = True
+                                overwritten = True
                                 self.print("Overwrite existing lib")
                             else:
-                                overwrite_existing = False
                                 self.print("Import of lib skipped")
                                 self.lib_skipped = True
                                 return device, lib_file_read, lib_file_write
@@ -455,11 +460,10 @@ class import_lib:
                             writefile.write(line)
                     elif overwrite_existing:
                         if line.startswith('ENDDEF'):
-                            pass
-                            # overwrite_existing = False
+                            overwrite_existing = False
                     else:
                         writefile.write(line)
-        if not overwrite_existing:
+        if not overwritten:
             self.print("Import lib")
         return device, lib_file_read, lib_file_write
 
@@ -498,10 +502,6 @@ class import_lib:
                 lib_file_write.replace(lib_file_read)
             elif lib_file_write.exists():
                 remove(lib_file_write)
-
-            invalid = '<>:"/\|?* '
-            for char in invalid:
-                self.footprint_name = self.footprint_name.replace(char, '_')
 
             if footprint_file_read and (self.footprint_name != footprint_file_read.stem):
                 self.print('Warning renaming footprint file "' +
