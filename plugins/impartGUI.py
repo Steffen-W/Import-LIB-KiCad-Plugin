@@ -48,6 +48,7 @@ class filehandler ():
             self.change_path(path)
 
         filelist = os.listdir(self.path)
+        filelist.sort()
         newFiles = []
         for i in filelist:
             if i not in self.filelist and i.endswith('.zip'):
