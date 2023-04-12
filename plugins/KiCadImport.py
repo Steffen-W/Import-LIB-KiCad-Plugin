@@ -107,10 +107,9 @@ class import_lib:
             self.dcm_path = unzip(directory, '.dcm')
             self.lib_path = unzip(directory, '.lib')
             self.footprint_path = directory
-            model_path_tmp = unzip(root_path, '3D')
-            self.model_path = unzip(model_path_tmp, '.step')
+            self.model_path = unzip(root_path, '.step')
             if not self.model_path:
-                self.model_path = unzip(model_path_tmp, '.stp')
+                self.model_path = unzip(root_path, '.stp')
             assert self.dcm_path and self.lib_path, 'Not in samacsys format'
             remote_type = REMOTE_TYPES.Samacsys
             return self.dcm_path, self.lib_path, self.footprint_path, self.model_path, remote_type
@@ -270,7 +269,7 @@ class import_lib:
             if (overwrite_if_exists):
                 self.print("Overwrite existing 3d model")
             else:
-                self.print("import 3d model")
+                self.print("Import 3d model")
 
         return model_path
 
@@ -294,6 +293,10 @@ class import_lib:
                 footprint_path_item_tmp = footprint_path_item
 
         footprint_path_item = footprint_path_item_tmp
+        if not footprint_path_item:
+            self.print("No footprint found")
+            return footprint_file_read, footprint_file_write
+
         if footprint_path_item.name.endswith('mod'):
             footprint = footprint_path_item.read_text()
 
@@ -496,15 +499,19 @@ class import_lib:
             elif lib_file_write.exists():
                 remove(lib_file_write)
 
-            if (self.footprint_name != footprint_file_read.stem):
+            invalid = '<>:"/\|?* '
+            for char in invalid:
+                self.footprint_name = self.footprint_name.replace(char, '_')
+
+            if footprint_file_read and (self.footprint_name != footprint_file_read.stem):
                 self.print('Warning renaming footprint file "' +
                            footprint_file_read.stem + '" to "' + self.footprint_name + '"')
                 footprint_file_read = footprint_file_read.parent / \
                     (self.footprint_name + footprint_file_read.suffix)
 
-            if footprint_file_write.exists() and not self.footprint_skipped:
+            if footprint_file_write and footprint_file_write.exists() and not self.footprint_skipped:
                 footprint_file_write.replace(footprint_file_read)
-            elif footprint_file_write.exists():
+            elif footprint_file_write and footprint_file_write.exists():
                 remove(footprint_file_write)
 
         return 'OK',
