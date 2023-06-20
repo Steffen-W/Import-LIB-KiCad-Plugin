@@ -3,7 +3,7 @@
     "name": "impart GUI for KiCad",
     "description": "Import library files from Octopart, Samacsys, Ultralibrarian and Snapeda",
     "description_full": "Import library files from Octopart, Samacsys, Ultralibrarian and Snapeda.\n For usage and correct setup please read the Readme: \n https://github.com/Steffen-W/Import-LIB-KiCad-Plugin#use-of-the-application",
-    "identifier": "com.github.Steffen-W.impartGUI",
+    "identifier": "com.github.Steffen-W.Import-LIB-KiCad-Plugin",
     "type": "plugin",
     "author": {
         "name": "Steffen Wittemeier",
@@ -13,7 +13,7 @@
     },
     "license": "open-source",
     "resources": {
-        "homepage": "https://github.com/Steffen-W/impartGUI"
+        "homepage": "https://github.com/Steffen-W/Import-LIB-KiCad-Plugin"
     },
     "tags": [
         "import",
@@ -25,10 +25,10 @@
     ],
     "versions": [
         {
-            "version": "0.2.0",
+            "version": "0.3.0",
             "status": "stable",
             "kicad_version": "6.00",
-            "download_url": "https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/download/v0.2.0/Import-LIB-KiCad-Plugin.zip"
+            "download_url": "https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/download/v0.3.0/Import-LIB-KiCad-Plugin.zip"
         }
     ]
 }
