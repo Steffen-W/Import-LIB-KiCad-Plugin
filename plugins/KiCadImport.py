@@ -126,6 +126,7 @@ class import_lib:
             remote_type = REMOTE_TYPES.UltraLibrarian
             return self.dcm_path, self.lib_path, self.footprint_path, self.model_path, remote_type
 
+        footprint_temp = unzip(root_path, '.kicad_sym')
         self.lib_path = unzip(root_path, '.lib')
         if self.lib_path:
             self.dcm_path = unzip(root_path, '.dcm')
@@ -133,7 +134,7 @@ class import_lib:
             self.model_path = unzip(root_path, '.step')
             remote_type = REMOTE_TYPES.Snapeda
             return self.dcm_path, self.lib_path, self.footprint_path, self.model_path, remote_type
-        elif (unzip(root_path, '.kicad_sym').exists()):
+        elif footprint_temp and footprint_temp.exists():
             assert False, 'Not in Snapeda format (only KiCad v4 format is supported)'
 
         assert False, 'Unknown library zipfile'
