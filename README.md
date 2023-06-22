@@ -50,7 +50,7 @@ The libraries to import must be located in the folder specified as **Folder of t
 Operating systems
 - [x] Windows
 - [x] Linux
-- [ ] Mac
+- [x] Mac
 
 KiCad versions
 - [x] KiCad 6
@@ -61,12 +61,12 @@ Please write an issues if an import does not work as requested.
 ## To DO
 
 - [ ] Testing all library formats
-- [ ] Test on a Mac
 - [ ] Using the new KiCad format
 
 ## Done
 
 - [x] Automatic background import
+- [x] Test on a Mac
 
 ## Many thanks to
 
