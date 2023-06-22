@@ -29,7 +29,7 @@ class filehandler():
                 # the file is less than 10 MB and larger 1kB
                 if (os.path.getsize(pathtemp) < 1000*1000*10) and (os.path.getsize(pathtemp) > 1000):
                     newFiles.append(pathtemp)
-        self.filelist = filelist
+                    self.filelist.append(i)
         return newFiles
 
 
