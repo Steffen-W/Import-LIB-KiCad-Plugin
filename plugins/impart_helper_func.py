@@ -1,5 +1,6 @@
+import os.path
+import json
 import configparser
-import os
 from pathlib import Path
 
 
@@ -74,3 +75,75 @@ class config_handler():
 
     def print(self, text):
         print(text)
+
+
+class KiCad_Settings:
+    def __init__(self, SettingPath):
+        self.SettingPath = SettingPath
+
+    def get_sym_table(self):
+        path = os.path.join(self.SettingPath, 'sym-lib-table')
+        return self.__parse_table__(path)
+
+    def get_lib_table(self):
+        path = os.path.join(self.SettingPath, 'fp-lib-table')
+        return self.__parse_table__(path)
+
+    def __parse_table__(self, path):
+
+        with open(path, 'r') as file:
+            data = file.read()
+
+        def get_value(line, key):
+            start = line.find("(" + key)
+            if start == -1:
+                return None
+            start = line.find("(" + key)
+            end = line.find(")", start)
+            value = line[start + len(key)+2:end].strip('"')
+            return value
+
+        entries = {}
+        lines = data.split("\n")
+        for line in lines:
+            line = line.strip()
+            if line.startswith("(lib"):
+                entry = {}
+                entry["name"] = get_value(line, "name")
+                entry["type"] = get_value(line, "type")
+                entry["uri"] = get_value(line, "uri")
+                entry["options"] = get_value(line, "options")
+                entry["descr"] = get_value(line, "descr")
+                entries[entry["name"]] = entry
+        return entries
+
+    def get_kicad_json(self):
+        path = os.path.join(self.SettingPath, 'kicad.json')
+
+        with open(path) as json_data:
+            data = json.load(json_data)
+
+        return data
+
+    def get_kicad_common(self):
+        path = os.path.join(self.SettingPath, 'kicad_common.json')
+
+        with open(path) as json_data:
+            data = json.load(json_data)
+
+        return data
+
+    def get_kicad_GlobalVars(self):
+        KiCadjson = self.get_kicad_common()
+        return KiCadjson['environment']['vars']
+
+# Manager = pcbnew.SETTINGS_MANAGER()
+# Setting = KiCad_Settings(Manager.GetUserSettingsPath())
+
+# Setting = KiCad_Settings(
+#     "/home/steffen/.var/app/org.kicad.KiCad/config/kicad/7.0")
+
+# pprint(Setting.get_lib_table())
+# pprint(Setting.get_sym_table())
+
+# print(Setting.get_kicad_GlobalVars())
