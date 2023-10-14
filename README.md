@@ -44,7 +44,7 @@ The libraries to import must be located in the folder specified as **Folder of t
 - [x] [Samacsys](https://componentsearchengine.com/) (COMPONENT SEARCH ENGINE)
 - [x] [Ultralibrarian](https://app.ultralibrarian.com/search)
 - [x] [Snapeda](https://www.snapeda.com/home/) (KiCad V4 Setting)
-- [ ] [Snapeda](https://www.snapeda.com/home/) (KiCad V6 Setting)
+- [x] [Snapeda](https://www.snapeda.com/home/) (KiCad V6 Setting)
 - [ ] [Octopart](https://octopart.com/)
 
 Operating systems
@@ -60,13 +60,13 @@ Please write an issues if an import does not work as requested.
 
 ## To DO
 
-- [ ] Testing all library formats
-- [ ] Using the new KiCad format
 
 ## Done
 
 - [x] Automatic background import
 - [x] Test on a Mac
+- [x] Testing all library formats
+- [x] Using the new KiCad format
 
 ## Many thanks to
 
