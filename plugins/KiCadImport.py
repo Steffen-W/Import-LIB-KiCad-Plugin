@@ -347,12 +347,16 @@ class import_lib:
 
                         lines = readfile.readlines()
 
+                        write_3d_into_file = False
                         for line_idx, line in enumerate(lines):
-                            if line_idx == len(lines) - 1:
+                            if not write_3d_into_file and line_idx == len(lines) - 1:
                                 writefile.writelines(
                                     model_line + '\n' for model_line in model)
                                 writefile.write(line)
                                 break
+                            elif line.strip().startswith(r"(model"):
+                                writefile.write(model[0] + '\n')
+                                write_3d_into_file = True
                             else:
                                 writefile.write(line)
                     self.print("Import footprint")
