@@ -102,6 +102,8 @@ class import_lib:
             remote_type = REMOTE_TYPES.Octopart
             return self.dcm_path, self.lib_path, self.footprint_path, self.model_path, remote_type
 
+        self.lib_path_new = unzip(root_path, ".kicad_sym")
+
         directory = unzip(root_path, 'KiCad')
         if directory:
             self.dcm_path = unzip(directory, '.dcm')
@@ -110,7 +112,8 @@ class import_lib:
             self.model_path = unzip(root_path, '.step')
             if not self.model_path:
                 self.model_path = unzip(root_path, '.stp')
-            assert self.dcm_path and self.lib_path, 'Not in samacsys format'
+            assert self.dcm_path and (
+                self.lib_path or self.lib_path_new), 'Not in samacsys format'
             remote_type = REMOTE_TYPES.Samacsys
             return self.dcm_path, self.lib_path, self.footprint_path, self.model_path, remote_type
 
@@ -122,22 +125,27 @@ class import_lib:
             self.model_path = unzip(root_path, '.step')
             if not self.model_path:
                 self.model_path = unzip(root_path, '.stp')
-            assert self.lib_path and self.footprint_path, 'Not in ultralibrarian format'
+            assert (
+                self.lib_path or self.lib_path_new) and self.footprint_path, 'Not in ultralibrarian format'
             remote_type = REMOTE_TYPES.UltraLibrarian
             return self.dcm_path, self.lib_path, self.footprint_path, self.model_path, remote_type
 
-        footprint_temp = unzip(root_path, '.kicad_sym')
+        footprint = unzip(root_path, ".kicad_mod")
         self.lib_path = unzip(root_path, '.lib')
-        if self.lib_path:
+        if self.lib_path or self.lib_path_new:
             self.dcm_path = unzip(root_path, '.dcm')
-            self.footprint_path = root_path
+            # self.footprint_path = root_path
+            self.footprint_path = footprint.parent
             self.model_path = unzip(root_path, '.step')
             remote_type = REMOTE_TYPES.Snapeda
+            assert (
+                self.lib_path or self.lib_path_new) and self.footprint_path, 'Not in Snapeda format'
             return self.dcm_path, self.lib_path, self.footprint_path, self.model_path, remote_type
-        elif footprint_temp and footprint_temp.exists():
-            assert False, 'Not in Snapeda format (only KiCad v4 format is supported)'
 
-        assert False, 'Unknown library zipfile'
+        if footprint or self.lib_path_new:
+            assert False, 'Unknown library zipfile'
+        else:
+            assert False, 'zipfile is probably not a library to import'
 
     def import_dcm(self, device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path, overwrite_if_exists=True) -> \
             Tuple[Union[pathlib.Path, None], Union[pathlib.Path, None]]:
@@ -226,7 +234,7 @@ class import_lib:
                                 self.print("Overwrite existing dcm")
                             else:
                                 overwrite_existing = False
-                                self.print("Import of dcm skipped")
+                                # self.print("Import of dcm skipped")
                                 self.dcm_skipped = True
                                 return dcm_file_read, dcm_file_write
                             writefile.write(
@@ -347,7 +355,7 @@ class import_lib:
                                 break
                             else:
                                 writefile.write(line)
-
+                    self.print("Import footprint")
             else:
                 check_file(footprint_file_write)
                 with footprint_file_write.open('wt') as wr:
@@ -468,6 +476,96 @@ class import_lib:
             self.print("Import lib")
         return device, lib_file_read, lib_file_write
 
+    def import_lib_new(self, remote_type: REMOTE_TYPES, lib_path: pathlib.Path, overwrite_if_exists=True) -> \
+            Tuple[str, Union[pathlib.Path, None], Union[pathlib.Path, None]]:
+
+        device = None
+
+        def extract_symbol_names(input_text):
+            pattern = r'"(.*?)"'  # Searches for text in quotes
+            # Searches for "(symbol" followed by text in quotes
+            pattern = r'\(symbol\s+"(.*?)"'
+            matches = re.findall(pattern, input_text)
+            return matches
+
+        def extract_symbol_section(input_text):
+            start_index = input_text.find("(symbol")  # Search for "(symbol"
+            if start_index == -1:
+                return None
+            open_brackets = 1
+            end_index = start_index + len("(symbol")
+            for i in range(start_index + len("(symbol"), len(input_text)):
+                if input_text[i] == '(':
+                    open_brackets += 1
+                elif input_text[i] == ')':
+                    open_brackets -= 1
+                    if open_brackets == 0:
+                        end_index = i + 1
+                        break
+            symbol_section = input_text[start_index:end_index]
+            return symbol_section, start_index, end_index
+
+        def extract_footprint_name(string):
+            pattern = r'\(property "Footprint" "(.*?)"'
+            match = re.search(pattern, string)
+            if match:
+                original_name = match.group(1)
+                name = original_name
+                invalid = '<>:"/\|?* '
+                for char in invalid:  # remove invalid characters
+                    name = name.replace(char, '_')
+
+                modified_string = re.sub(
+                    pattern, f'(property "Footprint" "{remote_type.name}:{name}"', string)
+                return name, modified_string
+            else:
+                return None
+
+        # lib_lines[line_idx] = line.replace(footprint, remote_type.name + ":" + self.footprint_name, 1)
+
+        symbol_section, _, _ = extract_symbol_section(lib_path.read_text())
+        device = extract_symbol_names(symbol_section)[0]
+
+        lib_file_read = self.DEST_PATH / (remote_type.name + '.kicad_sym')
+        lib_file_write = self.DEST_PATH / (remote_type.name + '.kicad_sym~')
+
+        self.footprint_name, symbol_section_mod = extract_footprint_name(
+            symbol_section)
+        symbol_section = symbol_section_mod
+
+        if not lib_file_read.exists():  # library does not yet exist
+            with lib_file_write.open('wt') as writefile:
+                text = lib_path.read_text()
+                writefile.write(text)
+            check_file(lib_file_read)
+            self.print("Import kicad_sym")
+            return device, lib_file_read, lib_file_write
+
+        check_file(lib_file_read)
+
+        lib_file_txt = lib_file_read.read_text()
+        existing_libs = extract_symbol_names(lib_file_txt)
+
+        if device in existing_libs:
+            if overwrite_if_exists:
+                self.print(
+                    "Overwrite existing kicad_sym is not implemented")  # TODO
+            else:
+                self.print("Import of kicad_sym skipped")
+
+            return device, lib_file_read, lib_file_write
+
+        closing_bracket = lib_file_txt.rfind(')')
+
+        with lib_file_write.open('wt') as writefile:
+            writefile.write(lib_file_txt[:closing_bracket])
+            writefile.write(symbol_section + '\n')
+            writefile.write(lib_file_txt[closing_bracket:])
+
+        self.print("Import kicad_sym")
+
+        return device, lib_file_read, lib_file_write
+
     def import_all(self, zip_file: pathlib.Path, overwrite_if_exists=True):
         """zip is a pathlib.Path to import the symbol from"""
         if not zipfile.is_zipfile(zip_file):
@@ -481,8 +579,13 @@ class import_lib:
 
             self.print("Identify " + remote_type.name)
 
-            device, lib_file_read, lib_file_write = self.import_lib(
-                remote_type, lib_path, overwrite_if_exists)
+            if lib_path:
+                device, lib_file_read, lib_file_write = self.import_lib(
+                    remote_type, lib_path, overwrite_if_exists)
+
+            if self.lib_path_new:
+                device, lib_file_new_read, lib_file_new_write = self.import_lib_new(
+                    remote_type, self.lib_path_new, overwrite_if_exists)
 
             dcm_file_read, dcm_file_write = self.import_dcm(
                 device, remote_type, dcm_path, overwrite_if_exists)
@@ -494,17 +597,21 @@ class import_lib:
                 remote_type, footprint_path, found_model, overwrite_if_exists)
 
             # replace read files with write files only after all operations succeeded
+            if self.lib_path_new and lib_file_new_write.exists():
+                lib_file_new_write.replace(lib_file_new_read)
+
             if dcm_file_write.exists() and not self.dcm_skipped:
                 dcm_file_write.replace(dcm_file_read)
             elif dcm_file_write.exists():
                 remove(dcm_file_write)
 
-            if lib_file_write.exists() and not self.lib_skipped:
-                lib_file_write.replace(lib_file_read)
-            elif lib_file_write.exists():
-                remove(lib_file_write)
+            if lib_path:
+                if lib_file_write.exists() and not self.lib_skipped:
+                    lib_file_write.replace(lib_file_read)
+                elif lib_file_write.exists():
+                    remove(lib_file_write)
 
-            if footprint_file_read and (self.footprint_name != footprint_file_read.stem):
+            if footprint_file_read and (self.footprint_name != footprint_file_read.stem) and not self.footprint_skipped:
                 self.print('Warning renaming footprint file "' +
                            footprint_file_read.stem + '" to "' + self.footprint_name + '"')
                 footprint_file_read = footprint_file_read.parent / \
