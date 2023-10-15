@@ -137,13 +137,49 @@ class KiCad_Settings:
         KiCadjson = self.get_kicad_common()
         return KiCadjson['environment']['vars']
 
-# Manager = pcbnew.SETTINGS_MANAGER()
-# Setting = KiCad_Settings(Manager.GetUserSettingsPath())
+    def check_footprintlib(self, SearchLib):
+        FootprintLibs = self.get_lib_table()
+        temp_path = "${KICAD_3RD_PARTY}/" + SearchLib + ".pretty"
+        if SearchLib in FootprintLibs:
+            # print(footprintLibs[SearchLib]["uri"])
+            if not FootprintLibs[SearchLib]["uri"] == temp_path:
+                print(SearchLib, "in the Footprint Libraries is not imported correctly")
+                print("You have to import the library", "'" + SearchLib +
+                      "'", "with the path", "'" + temp_path + "'", "in Footprint Libraries.")
+        else:
+            print(SearchLib, "is not in the Footprint Libraries")
+            print("You have to import the library", "'" + SearchLib + "'",
+                  "with the path", "'" + temp_path + "'", "in Footprint Libraries.")
 
-# Setting = KiCad_Settings(
-#     "/home/steffen/.var/app/org.kicad.KiCad/config/kicad/7.0")
+    def check_symbollib(self, SearchLib):
+        SymbolLibs = Setting.get_sym_table()
+        temp_path = "${KICAD_3RD_PARTY}/" + \
+            SearchLib + ".lib"  # ".lib" or ".kicad_sym"
+        SymbolLibsUri = [SymbolLibs[lib]["uri"] for lib in SymbolLibs]
+        if not temp_path in SymbolLibsUri:
+            print("'" + temp_path + "'",
+                  "is not imported into the Symbol Libraries")
 
-# pprint(Setting.get_lib_table())
-# pprint(Setting.get_sym_table())
+    def check_GlobalVar(self, LocalLibFolder):
+        LocalLibFolder = "/home/steffen/Fraunhofer/Messtechnik_unison/KiCad"
+        GlobalVars = Setting.get_kicad_GlobalVars()
+        if GlobalVars and "KICAD_3RD_PARTY" in GlobalVars:
+            # print("KICAD_3RD_PARTY", GlobalVars["KICAD_3RD_PARTY"])
+            if not GlobalVars["KICAD_3RD_PARTY"] == LocalLibFolder:
+                print("KICAD_3RD_PARTY is defined as",
+                      GlobalVars["KICAD_3RD_PARTY"], "and not", LocalLibFolder)
+        else:
+            print("KICAD_3RD_PARTY", "is not defined in Environment Variables.")
 
-# print(Setting.get_kicad_GlobalVars())
+
+if __name__ == "__main__":
+    import pcbnew
+    Manager = pcbnew.SETTINGS_MANAGER()
+    Setting = KiCad_Settings(Manager.GetUserSettingsPath())
+
+    SearchLib = "Samacsys"
+    LocalLibFolder = "~/KiCad"
+
+    Setting.check_footprintlib(SearchLib)
+    Setting.check_symbollib(SearchLib)
+    Setting.check_GlobalVar(SearchLib)

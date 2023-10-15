@@ -7,12 +7,12 @@ from threading import Thread
 if __name__ == "__main__":
     from impart_gui import impartGUI
     from KiCadImport import import_lib
-    from impart_helper_func import filehandler, config_handler
+    from impart_helper_func import filehandler, config_handler, KiCad_Settings
 else:
     # relative import is required in kicad
     from .impart_gui import impartGUI
     from .KiCadImport import import_lib
-    from .impart_helper_func import filehandler, config_handler
+    from .impart_helper_func import filehandler, config_handler, KiCad_Settings
 
 
 EVT_UPDATE_ID = wx.NewId()
@@ -55,6 +55,8 @@ class impart_backend():
     def __init__(self):
         path2config = os.path.join(os.path.dirname(__file__), 'config.ini')
         self.config = config_handler(path2config)
+        path_seting = pcbnew.SETTINGS_MANAGER().GetUserSettingsPath()
+        self.KiCad_Settings = KiCad_Settings(path_seting)
         self.runThread = False
         self.autoImport = False
         self.overwriteImport = False
