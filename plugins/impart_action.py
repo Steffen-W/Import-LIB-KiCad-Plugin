@@ -95,6 +95,29 @@ class impart_backend():
 backend_h = impart_backend()
 
 
+def checkImport():
+    libnames = ["Octopart",    "Samacsys",    "UltraLibrarian",    "Snapeda"]
+    setting = backend_h.KiCad_Settings
+    DEST_PATH = backend_h.config.get_DEST_PATH()
+
+    msg = ""
+    msg += setting.check_GlobalVar(DEST_PATH)
+
+    for name in libnames:
+        libname = os.path.join(DEST_PATH, name + ".lib")
+        if os.path.isfile(libname):
+            msg += setting.check_symbollib(name + ".lib")
+
+        libname = os.path.join(DEST_PATH, name + ".kicad_sym")
+        if os.path.isfile(libname):
+            msg += setting.check_symbollib(name + ".kicad_sym")
+
+        libdir = os.path.join(DEST_PATH, name + ".pretty")
+        if os.path.isdir(libdir):
+            msg += setting.check_footprintlib(name)
+    return msg
+
+
 class impart_frontend(impartGUI):
 
     global backend_h
@@ -163,6 +186,20 @@ class impart_frontend(impartGUI):
             self.m_button.Label = "automatic import / press to stop"
             x = Thread(target=backend_h.__find_new_file__, args=[])
             x.start()
+
+        msg = checkImport()
+        if msg:
+            msg += "\n\nMore information can be found in the README for the integration into KiCad.\n"
+            msg += u"github.com/Steffen-W/Import-LIB-KiCad-Plugin"
+
+            temp_text = wx.StaticText(None, label=msg)
+
+            dlg = wx.MessageDialog(
+                None, msg, "WARNING",
+                wx.KILL_OK | wx.ICON_WARNING)
+
+            if dlg.ShowModal() != wx.ID_OK:
+                return
         event.Skip()
 
     def DirChange(self, event):

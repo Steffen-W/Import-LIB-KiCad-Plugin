@@ -138,38 +138,42 @@ class KiCad_Settings:
         return KiCadjson['environment']['vars']
 
     def check_footprintlib(self, SearchLib):
+        msg = ""
         FootprintLibs = self.get_lib_table()
         temp_path = "${KICAD_3RD_PARTY}/" + SearchLib + ".pretty"
         if SearchLib in FootprintLibs:
             # print(footprintLibs[SearchLib]["uri"])
             if not FootprintLibs[SearchLib]["uri"] == temp_path:
-                print(SearchLib, "in the Footprint Libraries is not imported correctly")
-                print("You have to import the library", "'" + SearchLib +
-                      "'", "with the path", "'" + temp_path + "'", "in Footprint Libraries.")
+                msg += "\n" + SearchLib + " in the Footprint Libraries is not imported correctly."
+                msg += "\nYou have to import the library '" + SearchLib
+                msg += "' with the path '" + temp_path + "' in Footprint Libraries."
         else:
-            print(SearchLib, "is not in the Footprint Libraries")
-            print("You have to import the library", "'" + SearchLib + "'",
-                  "with the path", "'" + temp_path + "'", "in Footprint Libraries.")
+            msg += "\n" + SearchLib + " is not in the Footprint Libraries."
+            msg += "\nYou have to import the library '" + SearchLib
+            msg += "' with the path '" + temp_path + "' in the Footprint Libraries."
+        return msg
 
     def check_symbollib(self, SearchLib):
-        SymbolLibs = Setting.get_sym_table()
-        temp_path = "${KICAD_3RD_PARTY}/" + \
-            SearchLib + ".lib"  # ".lib" or ".kicad_sym"
+        msg = ""
+        SymbolLibs = self.get_sym_table()
+        temp_path = "${KICAD_3RD_PARTY}/" + SearchLib
         SymbolLibsUri = [SymbolLibs[lib]["uri"] for lib in SymbolLibs]
         if not temp_path in SymbolLibsUri:
-            print("'" + temp_path + "'",
-                  "is not imported into the Symbol Libraries")
+            msg += "\n'" + temp_path + "' is not imported into the Symbol Libraries."
+        return msg
 
     def check_GlobalVar(self, LocalLibFolder):
-        LocalLibFolder = "/home/steffen/Fraunhofer/Messtechnik_unison/KiCad"
-        GlobalVars = Setting.get_kicad_GlobalVars()
+        msg = ""
+        GlobalVars = self.get_kicad_GlobalVars()
         if GlobalVars and "KICAD_3RD_PARTY" in GlobalVars:
             # print("KICAD_3RD_PARTY", GlobalVars["KICAD_3RD_PARTY"])
             if not GlobalVars["KICAD_3RD_PARTY"] == LocalLibFolder:
-                print("KICAD_3RD_PARTY is defined as",
-                      GlobalVars["KICAD_3RD_PARTY"], "and not", LocalLibFolder)
+                msg += "\nKICAD_3RD_PARTY is defined as '"
+                msg += GlobalVars["KICAD_3RD_PARTY"]
+                msg += "' and not '" + LocalLibFolder + "'."
         else:
-            print("KICAD_3RD_PARTY", "is not defined in Environment Variables.")
+            msg += "\nKICAD_3RD_PARTY" + " is not defined in Environment Variables."
+        return msg
 
 
 if __name__ == "__main__":
