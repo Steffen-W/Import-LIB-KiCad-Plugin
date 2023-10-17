@@ -31,10 +31,9 @@
     ],
     "versions": [
         {
-            "version": "2023.10.15",
+            "version": "2023.xx.xx",
             "status": "stable",
-            "kicad_version": "6.00",
-            "download_url": "https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/download/v0.3.0/Import-LIB-KiCad-Plugin.zip"
+            "kicad_version": "6.00"
         }
     ]
 }

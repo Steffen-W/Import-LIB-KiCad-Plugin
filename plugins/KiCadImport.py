@@ -84,6 +84,14 @@ class import_lib:
     def set_DEST_PATH(self, DEST_PATH_=pathlib.Path.home() / 'KiCad'):
         self.DEST_PATH = pathlib.Path(DEST_PATH_)
 
+    def cleanName(self, name):
+        invalid = '<>:"/\|?* '
+        name = name.strip()
+        for char in invalid:  # remove invalid characters
+            name = name.replace(
+                char, '_')
+        return name
+
     def get_remote_info(self, zf: zipfile.ZipFile) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
         """
         :param root_path:
@@ -176,7 +184,7 @@ class import_lib:
                         index_header_start = attribute_idx  # header start
                 elif attribute.startswith('$CMP '):
                     component_name = attribute[5:].strip()
-                    if not component_name.startswith(device):
+                    if not self.cleanName(component_name) == self.cleanName(device):
                         raise Warning('Unexpected device in ' + dcm_path.name)
                     dcm_attributes[attribute_idx] = attribute.replace(
                         component_name, device, 1)
@@ -402,12 +410,7 @@ class import_lib:
                 if line.startswith("F2"):
                     footprint = line.split()[1]
                     footprint = footprint.strip("\"")
-                    self.footprint_name = footprint
-                    invalid = '<>:"/\|?* '
-                    for char in invalid:  # remove invalid characters
-                        self.footprint_name = self.footprint_name.replace(
-                            char, '_')
-
+                    self.footprint_name = self.cleanName(footprint)
                     lib_lines[line_idx] = line.replace(
                         footprint, remote_type.name + ":" + self.footprint_name, 1)
                 elif line.startswith('ENDDEF'):
@@ -514,11 +517,7 @@ class import_lib:
             match = re.search(pattern, string)
             if match:
                 original_name = match.group(1)
-                name = original_name
-                invalid = '<>:"/\|?* '
-                for char in invalid:  # remove invalid characters
-                    name = name.replace(char, '_')
-
+                name = self.cleanName(original_name)
                 modified_string = re.sub(
                     pattern, f'(property "Footprint" "{remote_type.name}:{name}"', string)
                 return name, modified_string
@@ -539,8 +538,11 @@ class import_lib:
 
         if not lib_file_read.exists():  # library does not yet exist
             with lib_file_write.open('wt') as writefile:
-                text = lib_path.read_text()
-                writefile.write(text)
+                text = lib_path.read_text().strip().split("\n")
+                writefile.write(text[0] + '\n')
+                writefile.write(symbol_section + '\n')
+                writefile.write(text[-1])
+
             check_file(lib_file_read)
             self.print("Import kicad_sym")
             return device, lib_file_read, lib_file_write
