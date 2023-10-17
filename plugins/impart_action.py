@@ -134,6 +134,11 @@ class impart_frontend(impartGUI):
         self.m_autoImport.SetValue(backend_h.autoImport)
         self.m_overwrite.SetValue(backend_h.overwriteImport)
 
+        self.m_staticText_info.SetValue(
+            "Important information: If you have already used the previous version"
+            + " you should note that the current one supports all library versions."
+        )
+
         if backend_h.runThread:
             self.m_button.Label = "automatic import / press to stop"
         else:
