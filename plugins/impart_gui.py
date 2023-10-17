@@ -28,12 +28,7 @@ class impartGUI ( wx.Dialog ):
         self.m_button = wx.Button( self, wx.ID_ANY, u"Start", wx.DefaultPosition, wx.DefaultSize, 0 )
         bSizer1.Add( self.m_button, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL|wx.EXPAND, 5 )
 
-        self.m_staticText_info = wx.TextCtrl( self, wx.ID_ANY, u"Info", wx.DefaultPosition, wx.DefaultSize, wx.TE_MULTILINE|wx.TE_READONLY|wx.BORDER_NONE )
-        self.m_staticText_info.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
-
-        bSizer1.Add( self.m_staticText_info, 0, wx.ALL|wx.EXPAND, 5 )
-
-        self.m_text = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.HSCROLL|wx.TE_LEFT|wx.TE_MULTILINE|wx.TE_READONLY )
+        self.m_text = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_BESTWRAP|wx.TE_MULTILINE )
         bSizer1.Add( self.m_text, 1, wx.ALL|wx.EXPAND, 5 )
 
         fgSizer1 = wx.FlexGridSizer( 0, 3, 0, 0 )
@@ -41,19 +36,22 @@ class impartGUI ( wx.Dialog ):
         fgSizer1.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
 
         fgSizer1.SetMinSize( wx.Size( -1,0 ) )
-        self.m_staticText_sourcepath = wx.StaticText( self, wx.ID_ANY, u"Folder of the library to import:", wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_staticText_sourcepath.Wrap( -1 )
-
-        fgSizer1.Add( self.m_staticText_sourcepath, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5 )
-
         self.m_autoImport = wx.CheckBox( self, wx.ID_ANY, u"automatic import", wx.DefaultPosition, wx.DefaultSize, 0 )
         fgSizer1.Add( self.m_autoImport, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5 )
 
         self.m_overwrite = wx.CheckBox( self, wx.ID_ANY, u"overwrite if existing", wx.DefaultPosition, wx.DefaultSize, 0 )
         fgSizer1.Add( self.m_overwrite, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5 )
 
+        self.m_check_import_all = wx.CheckBox( self, wx.ID_ANY, u"import also old format", wx.DefaultPosition, wx.DefaultSize, 0 )
+        fgSizer1.Add( self.m_check_import_all, 0, wx.ALL, 5 )
+
 
         bSizer1.Add( fgSizer1, 0, wx.EXPAND, 5 )
+
+        self.m_staticText_sourcepath = wx.StaticText( self, wx.ID_ANY, u"Folder of the library to import:", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_staticText_sourcepath.Wrap( -1 )
+
+        bSizer1.Add( self.m_staticText_sourcepath, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5 )
 
         self.m_dirPicker_sourcepath = wx.DirPickerCtrl( self, wx.ID_ANY, u".", u"Select a folder", wx.DefaultPosition, wx.DefaultSize, wx.DIRP_DEFAULT_STYLE )
         bSizer1.Add( self.m_dirPicker_sourcepath, 0, wx.ALL|wx.EXPAND, 5 )

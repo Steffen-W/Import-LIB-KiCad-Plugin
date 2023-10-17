@@ -60,6 +60,7 @@ class impart_backend:
         self.runThread = False
         self.autoImport = False
         self.overwriteImport = False
+        self.import_old_format = True
         self.folderhandler = filehandler(".")
         self.print_buffer = ""
         self.importer.print = self.print2buffer
@@ -78,7 +79,9 @@ class impart_backend:
             for lib in newfilelist:
                 try:
                     (res,) = self.importer.import_all(
-                        lib, overwrite_if_exists=self.overwriteImport
+                        lib,
+                        overwrite_if_exists=self.overwriteImport,
+                        import_old_format=self.import_old_format,
                     )
                     self.print2buffer(res)
                 except Exception as e:
@@ -132,10 +135,14 @@ class impart_frontend(impartGUI):
 
         self.m_autoImport.SetValue(backend_h.autoImport)
         self.m_overwrite.SetValue(backend_h.overwriteImport)
+        self.m_check_import_all.SetValue(backend_h.import_old_format)
 
-        self.m_staticText_info.SetValue(
-            "Important information: If you have already used the previous version"
-            + " you should note that the current one supports all library versions."
+        self.m_text.SetValue(
+            "Important information: "
+            + "\nIf you have already used the previous version of the plugin, you should"
+            + "note that the current version supports all library files. Files with the new "
+            + "format are imported as *_kicad_sym and must be included in the "
+            + "settings (only Symbol Lib). The settings are checked at the end of the import process."
         )
 
         if backend_h.runThread:
@@ -148,6 +155,7 @@ class impart_frontend(impartGUI):
 
     def updateDisplay(self, status):
         self.m_text.SetValue(status.data)
+        self.m_text.SetInsertionPointEnd()
 
     # def print(self, text):
     #     self.m_text.AppendText(str(text)+"\n")
@@ -167,6 +175,7 @@ class impart_frontend(impartGUI):
 
         backend_h.autoImport = self.m_autoImport.IsChecked()
         backend_h.overwriteImport = self.m_overwrite.IsChecked()
+        backend_h.import_old_format = self.m_check_import_all.IsChecked()
         # backend_h.runThread = False
         self.Thread.stopThread = True  # only for text output
         event.Skip()
@@ -176,6 +185,7 @@ class impart_frontend(impartGUI):
 
         backend_h.autoImport = self.m_autoImport.IsChecked()
         backend_h.overwriteImport = self.m_overwrite.IsChecked()
+        backend_h.import_old_format = self.m_check_import_all.IsChecked()
 
         if backend_h.runThread:
             backend_h.runThread = False
@@ -196,6 +206,7 @@ class impart_frontend(impartGUI):
         if msg:
             msg += "\n\nMore information can be found in the README for the integration into KiCad.\n"
             msg += "github.com/Steffen-W/Import-LIB-KiCad-Plugin"
+            msg += "\nSome configurations require a kicad restart to be detected correctly."
 
             temp_text = wx.StaticText(None, label=msg)
 

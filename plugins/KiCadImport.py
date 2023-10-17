@@ -656,7 +656,9 @@ class import_lib:
 
         return device, lib_file_read, lib_file_write
 
-    def import_all(self, zip_file: pathlib.Path, overwrite_if_exists=True):
+    def import_all(
+        self, zip_file: pathlib.Path, overwrite_if_exists=True, import_old_format=True
+    ):
         """zip is a pathlib.Path to import the symbol from"""
         if not zipfile.is_zipfile(zip_file):
             return None
@@ -674,15 +676,6 @@ class import_lib:
 
             self.print("Identify " + remote_type.name)
 
-            if lib_path:
-                device, lib_file_read, lib_file_write = self.import_lib(
-                    remote_type, lib_path, overwrite_if_exists
-                )
-
-                dcm_file_read, dcm_file_write = self.import_dcm(
-                    device, remote_type, dcm_path, overwrite_if_exists
-                )
-
             if self.lib_path_new:
                 device, lib_file_new_read, lib_file_new_write = self.import_lib_new(
                     remote_type, self.lib_path_new, overwrite_if_exists
@@ -694,6 +687,17 @@ class import_lib:
                     dcm_path,
                     overwrite_if_exists,
                     file_ending="_kicad_sym",
+                )
+                if not import_old_format:
+                    lib_path = None
+
+            if lib_path:
+                device, lib_file_read, lib_file_write = self.import_lib(
+                    remote_type, lib_path, overwrite_if_exists
+                )
+
+                dcm_file_read, dcm_file_write = self.import_dcm(
+                    device, remote_type, dcm_path, overwrite_if_exists
                 )
 
             found_model = self.import_model(
