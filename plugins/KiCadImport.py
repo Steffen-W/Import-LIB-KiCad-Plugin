@@ -155,7 +155,7 @@ class import_lib:
         else:
             assert False, 'zipfile is probably not a library to import'
 
-    def import_dcm(self, device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path, overwrite_if_exists=True) -> \
+    def import_dcm(self, device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path, overwrite_if_exists=True, file_ending="") -> \
             Tuple[Union[pathlib.Path, None], Union[pathlib.Path, None]]:
         """
         # .dcm file parsing
@@ -207,8 +207,10 @@ class import_lib:
         if index_end is None:
             raise Warning(device + 'not found in ' + dcm_path.name)
 
-        dcm_file_read = self.DEST_PATH / (remote_type.name + '.dcm')
-        dcm_file_write = self.DEST_PATH / (remote_type.name + '.dcm~')
+        dcm_file_read = self.DEST_PATH / \
+            (remote_type.name + file_ending + '.dcm')
+        dcm_file_write = self.DEST_PATH / \
+            (remote_type.name + file_ending + '.dcm~')
         overwrite_existing = overwrote_existing = False
 
         check_file(dcm_file_read)
@@ -529,8 +531,10 @@ class import_lib:
         symbol_section, _, _ = extract_symbol_section(lib_path.read_text())
         device = extract_symbol_names(symbol_section)[0]
 
-        lib_file_read = self.DEST_PATH / (remote_type.name + '.kicad_sym')
-        lib_file_write = self.DEST_PATH / (remote_type.name + '.kicad_sym~')
+        lib_file_read = self.DEST_PATH / \
+            (remote_type.name + '_kicad_sym.kicad_sym')
+        lib_file_write = self.DEST_PATH / \
+            (remote_type.name + '_kicad_sym.kicad_sym~')
 
         self.footprint_name, symbol_section_mod = extract_footprint_name(
             symbol_section)
@@ -589,12 +593,15 @@ class import_lib:
                 device, lib_file_read, lib_file_write = self.import_lib(
                     remote_type, lib_path, overwrite_if_exists)
 
+                dcm_file_read, dcm_file_write = self.import_dcm(
+                    device, remote_type, dcm_path, overwrite_if_exists)
+
             if self.lib_path_new:
                 device, lib_file_new_read, lib_file_new_write = self.import_lib_new(
                     remote_type, self.lib_path_new, overwrite_if_exists)
 
-            dcm_file_read, dcm_file_write = self.import_dcm(
-                device, remote_type, dcm_path, overwrite_if_exists)
+                dcm_file_read, dcm_file_write = self.import_dcm(
+                    device, remote_type, dcm_path, overwrite_if_exists, file_ending="_kicad_sym")
 
             found_model = self.import_model(
                 model_path, remote_type, overwrite_if_exists)

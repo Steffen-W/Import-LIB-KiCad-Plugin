@@ -108,9 +108,9 @@ def checkImport():
         if os.path.isfile(libname):
             msg += setting.check_symbollib(name + ".lib")
 
-        libname = os.path.join(DEST_PATH, name + ".kicad_sym")
+        libname = os.path.join(DEST_PATH, name + "_kicad_sym.kicad_sym")
         if os.path.isfile(libname):
-            msg += setting.check_symbollib(name + ".kicad_sym")
+            msg += setting.check_symbollib(name + "_kicad_sym.kicad_sym")
 
         libdir = os.path.join(DEST_PATH, name + ".pretty")
         if os.path.isdir(libdir):
