@@ -4,15 +4,15 @@ import configparser
 from pathlib import Path
 
 
-class filehandler():
+class filehandler:
     def __init__(self, path):
-        self.path = ''
+        self.path = ""
         self.filelist = []
         self.change_path(path)
 
     def change_path(self, newpath):
         if not os.path.isdir(newpath):
-            newpath = '.'
+            newpath = "."
         if newpath != self.path:
             self.filelist = []
         self.path = newpath
@@ -25,52 +25,53 @@ class filehandler():
         filelist.sort()
         newFiles = []
         for i in filelist:
-            if i not in self.filelist and i.endswith('.zip'):
+            if i not in self.filelist and i.endswith(".zip"):
                 pathtemp = os.path.join(self.path, i)
                 # the file is less than 10 MB and larger 1kB
-                if (os.path.getsize(pathtemp) < 1000*1000*10) and (os.path.getsize(pathtemp) > 1000):
+                if (os.path.getsize(pathtemp) < 1000 * 1000 * 10) and (
+                    os.path.getsize(pathtemp) > 1000
+                ):
                     newFiles.append(pathtemp)
                     self.filelist.append(i)
         return newFiles
 
 
-class config_handler():
+class config_handler:
     def __init__(self, config_path):
         self.config = configparser.ConfigParser()
         self.config_path = config_path
         try:
             self.config.read(self.config_path)
-            self.config['config']['SRC_PATH']  # only for check
-            self.config['config']['DEST_PATH']  # only for check
+            self.config["config"]["SRC_PATH"]  # only for check
+            self.config["config"]["DEST_PATH"]  # only for check
         except:
-            self.print("An exception occurred during import " +
-                       self.config_path)
+            self.print("An exception occurred during import " + self.config_path)
             self.config = configparser.ConfigParser()
             self.config.add_section("config")
             self.config.set("config", "SRC_PATH", "")
             self.config.set("config", "DEST_PATH", "")
 
-        if self.config['config']['SRC_PATH'] == "":
-            self.config['config']['SRC_PATH'] = str(Path.home() / 'Downloads')
-        if self.config['config']['DEST_PATH'] == "":
-            self.config['config']['DEST_PATH'] = str(Path.home() / 'KiCad')
+        if self.config["config"]["SRC_PATH"] == "":
+            self.config["config"]["SRC_PATH"] = str(Path.home() / "Downloads")
+        if self.config["config"]["DEST_PATH"] == "":
+            self.config["config"]["DEST_PATH"] = str(Path.home() / "KiCad")
 
     def get_SRC_PATH(self):
-        return self.config['config']['SRC_PATH']
+        return self.config["config"]["SRC_PATH"]
 
     def set_SRC_PATH(self, var):
-        self.config['config']['SRC_PATH'] = var
+        self.config["config"]["SRC_PATH"] = var
         self.save_config()
 
     def get_DEST_PATH(self):
-        return self.config['config']['DEST_PATH']
+        return self.config["config"]["DEST_PATH"]
 
     def set_DEST_PATH(self, var):
-        self.config['config']['DEST_PATH'] = var
+        self.config["config"]["DEST_PATH"] = var
         self.save_config()
 
     def save_config(self):
-        with open(self.config_path, 'w') as configfile:
+        with open(self.config_path, "w") as configfile:
             self.config.write(configfile)
 
     def print(self, text):
@@ -82,16 +83,15 @@ class KiCad_Settings:
         self.SettingPath = SettingPath
 
     def get_sym_table(self):
-        path = os.path.join(self.SettingPath, 'sym-lib-table')
+        path = os.path.join(self.SettingPath, "sym-lib-table")
         return self.__parse_table__(path)
 
     def get_lib_table(self):
-        path = os.path.join(self.SettingPath, 'fp-lib-table')
+        path = os.path.join(self.SettingPath, "fp-lib-table")
         return self.__parse_table__(path)
 
     def __parse_table__(self, path):
-
-        with open(path, 'r') as file:
+        with open(path, "r") as file:
             data = file.read()
 
         def get_value(line, key):
@@ -100,7 +100,7 @@ class KiCad_Settings:
                 return None
             start = line.find("(" + key)
             end = line.find(")", start)
-            value = line[start + len(key)+2:end].strip('"')
+            value = line[start + len(key) + 2 : end].strip('"')
             return value
 
         entries = {}
@@ -118,7 +118,7 @@ class KiCad_Settings:
         return entries
 
     def get_kicad_json(self):
-        path = os.path.join(self.SettingPath, 'kicad.json')
+        path = os.path.join(self.SettingPath, "kicad.json")
 
         with open(path) as json_data:
             data = json.load(json_data)
@@ -126,7 +126,7 @@ class KiCad_Settings:
         return data
 
     def get_kicad_common(self):
-        path = os.path.join(self.SettingPath, 'kicad_common.json')
+        path = os.path.join(self.SettingPath, "kicad_common.json")
 
         with open(path) as json_data:
             data = json.load(json_data)
@@ -135,7 +135,7 @@ class KiCad_Settings:
 
     def get_kicad_GlobalVars(self):
         KiCadjson = self.get_kicad_common()
-        return KiCadjson['environment']['vars']
+        return KiCadjson["environment"]["vars"]
 
     def check_footprintlib(self, SearchLib):
         msg = ""
@@ -144,7 +144,11 @@ class KiCad_Settings:
         if SearchLib in FootprintLibs:
             # print(footprintLibs[SearchLib]["uri"])
             if not FootprintLibs[SearchLib]["uri"] == temp_path:
-                msg += "\n" + SearchLib + " in the Footprint Libraries is not imported correctly."
+                msg += (
+                    "\n"
+                    + SearchLib
+                    + " in the Footprint Libraries is not imported correctly."
+                )
                 msg += "\nYou have to import the library '" + SearchLib
                 msg += "' with the path '" + temp_path + "' in Footprint Libraries."
         else:
@@ -178,6 +182,7 @@ class KiCad_Settings:
 
 if __name__ == "__main__":
     import pcbnew
+
     Manager = pcbnew.SETTINGS_MANAGER()
     Setting = KiCad_Settings(Manager.GetUserSettingsPath())
 

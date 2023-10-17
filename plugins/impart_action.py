@@ -39,7 +39,7 @@ class PluginThread(Thread):
     def run(self):
         lenStr = 0
         global backend_h
-        while (not self.stopThread):
+        while not self.stopThread:
             if lenStr != len(backend_h.print_buffer):
                 self.report(backend_h.print_buffer)
                 lenStr = len(backend_h.print_buffer)
@@ -49,18 +49,18 @@ class PluginThread(Thread):
         wx.PostEvent(self.wxObject, ResultEvent(status))
 
 
-class impart_backend():
+class impart_backend:
     importer = import_lib()
 
     def __init__(self):
-        path2config = os.path.join(os.path.dirname(__file__), 'config.ini')
+        path2config = os.path.join(os.path.dirname(__file__), "config.ini")
         self.config = config_handler(path2config)
         path_seting = pcbnew.SETTINGS_MANAGER().GetUserSettingsPath()
         self.KiCad_Settings = KiCad_Settings(path_seting)
         self.runThread = False
         self.autoImport = False
         self.overwriteImport = False
-        self.folderhandler = filehandler('.')
+        self.folderhandler = filehandler(".")
         self.print_buffer = ""
         self.importer.print = self.print2buffer
 
@@ -77,8 +77,9 @@ class impart_backend():
             newfilelist = self.folderhandler.GetNewFiles(path)
             for lib in newfilelist:
                 try:
-                    res, = self.importer.import_all(
-                        lib, overwrite_if_exists=self.overwriteImport)
+                    (res,) = self.importer.import_all(
+                        lib, overwrite_if_exists=self.overwriteImport
+                    )
                     self.print2buffer(res)
                 except Exception as e:
                     self.print2buffer(e)
@@ -96,7 +97,7 @@ backend_h = impart_backend()
 
 
 def checkImport():
-    libnames = ["Octopart",    "Samacsys",    "UltraLibrarian",    "Snapeda"]
+    libnames = ["Octopart", "Samacsys", "UltraLibrarian", "Snapeda"]
     setting = backend_h.KiCad_Settings
     DEST_PATH = backend_h.config.get_DEST_PATH()
 
@@ -119,11 +120,9 @@ def checkImport():
 
 
 class impart_frontend(impartGUI):
-
     global backend_h
 
     def __init__(self, board, action):
-
         super(impart_frontend, self).__init__(None)
         self.board = board
         self.action = action
@@ -157,11 +156,12 @@ class impart_frontend(impartGUI):
         if backend_h.runThread:
             dlg = wx.MessageDialog(
                 None,
-                "The automatic import process continues in the background. " +
-                "If this is not desired, it must be stopped.\n" +
-                "As soon as the PCB Editor window is closed, the import process also ends.",
+                "The automatic import process continues in the background. "
+                + "If this is not desired, it must be stopped.\n"
+                + "As soon as the PCB Editor window is closed, the import process also ends.",
                 "WARNING: impart background process",
-                wx.KILL_OK | wx.ICON_WARNING)
+                wx.KILL_OK | wx.ICON_WARNING,
+            )
             if dlg.ShowModal() != wx.ID_OK:
                 return
 
@@ -195,13 +195,11 @@ class impart_frontend(impartGUI):
         msg = checkImport()
         if msg:
             msg += "\n\nMore information can be found in the README for the integration into KiCad.\n"
-            msg += u"github.com/Steffen-W/Import-LIB-KiCad-Plugin"
+            msg += "github.com/Steffen-W/Import-LIB-KiCad-Plugin"
 
             temp_text = wx.StaticText(None, label=msg)
 
-            dlg = wx.MessageDialog(
-                None, msg, "WARNING",
-                wx.KILL_OK | wx.ICON_WARNING)
+            dlg = wx.MessageDialog(None, msg, "WARNING", wx.KILL_OK | wx.ICON_WARNING)
 
             if dlg.ShowModal() != wx.ID_OK:
                 return
@@ -220,15 +218,19 @@ class ActionImpartPlugin(pcbnew.ActionPlugin):
     def set_LOGO(self, is_red=False):
         self.name = "impartGUI"
         self.category = "Import library files"
-        self.description = "Import library files from Octopart, Samacsys, Ultralibrarian and Snapeda"
+        self.description = (
+            "Import library files from Octopart, Samacsys, Ultralibrarian and Snapeda"
+        )
         self.show_toolbar_button = True
 
         if not is_red:
             self.icon_file_name = os.path.join(
-                os.path.dirname(__file__), 'icon_small.png')
+                os.path.dirname(__file__), "icon_small.png"
+            )
         else:
             self.icon_file_name = os.path.join(
-                os.path.dirname(__file__), 'icon_small_red.png')
+                os.path.dirname(__file__), "icon_small_red.png"
+            )
         self.dark_icon_file_name = self.icon_file_name
 
     def Run(self):

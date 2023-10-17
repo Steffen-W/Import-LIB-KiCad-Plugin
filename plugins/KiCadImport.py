@@ -21,7 +21,6 @@ class Modification(Enum):
 
 
 class ModifiedObject:
-
     def __init__(self):
         self.dict = {}
 
@@ -74,25 +73,25 @@ class REMOTE_TYPES(Enum):
 
 
 class import_lib:
-
     def print(self, txt):
         print("->" + txt)
 
     def __init__(self):
-        DEST_PATH = pathlib.Path.home() / 'KiCad'
+        DEST_PATH = pathlib.Path.home() / "KiCad"
 
-    def set_DEST_PATH(self, DEST_PATH_=pathlib.Path.home() / 'KiCad'):
+    def set_DEST_PATH(self, DEST_PATH_=pathlib.Path.home() / "KiCad"):
         self.DEST_PATH = pathlib.Path(DEST_PATH_)
 
     def cleanName(self, name):
         invalid = '<>:"/\|?* '
         name = name.strip()
         for char in invalid:  # remove invalid characters
-            name = name.replace(
-                char, '_')
+            name = name.replace(char, "_")
         return name
 
-    def get_remote_info(self, zf: zipfile.ZipFile) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
+    def get_remote_info(
+        self, zf: zipfile.ZipFile
+    ) -> Tuple[Path, Path, Path, Path, REMOTE_TYPES]:
         """
         :param root_path:
         :type root_path: Path
@@ -101,62 +100,102 @@ class import_lib:
         self.footprint_name = None
 
         root_path = zipfile.Path(zf)
-        self.dcm_path = root_path / 'device.dcm'
-        self.lib_path = root_path / 'device.lib'
-        self.footprint_path = root_path / 'device.pretty'
-        self.model_path = root_path / 'device.step'
+        self.dcm_path = root_path / "device.dcm"
+        self.lib_path = root_path / "device.lib"
+        self.footprint_path = root_path / "device.pretty"
+        self.model_path = root_path / "device.step"
         # todo fill in model path for OCTOPART
-        if self.dcm_path.exists() and self.lib_path.exists() and self.footprint_path.exists():
+        if (
+            self.dcm_path.exists()
+            and self.lib_path.exists()
+            and self.footprint_path.exists()
+        ):
             remote_type = REMOTE_TYPES.Octopart
-            return self.dcm_path, self.lib_path, self.footprint_path, self.model_path, remote_type
+            return (
+                self.dcm_path,
+                self.lib_path,
+                self.footprint_path,
+                self.model_path,
+                remote_type,
+            )
 
         self.lib_path_new = unzip(root_path, ".kicad_sym")
 
-        directory = unzip(root_path, 'KiCad')
+        directory = unzip(root_path, "KiCad")
         if directory:
-            self.dcm_path = unzip(directory, '.dcm')
-            self.lib_path = unzip(directory, '.lib')
+            self.dcm_path = unzip(directory, ".dcm")
+            self.lib_path = unzip(directory, ".lib")
             self.footprint_path = directory
-            self.model_path = unzip(root_path, '.step')
+            self.model_path = unzip(root_path, ".step")
             if not self.model_path:
-                self.model_path = unzip(root_path, '.stp')
-            assert self.dcm_path and (
-                self.lib_path or self.lib_path_new), 'Not in samacsys format'
-            remote_type = REMOTE_TYPES.Samacsys
-            return self.dcm_path, self.lib_path, self.footprint_path, self.model_path, remote_type
+                self.model_path = unzip(root_path, ".stp")
 
-        directory = root_path / 'KiCAD'
+            assert self.dcm_path and (
+                self.lib_path or self.lib_path_new
+            ), "Not in samacsys format"
+            remote_type = REMOTE_TYPES.Samacsys
+            return (
+                self.dcm_path,
+                self.lib_path,
+                self.footprint_path,
+                self.model_path,
+                remote_type,
+            )
+
+        directory = root_path / "KiCAD"
         if directory.exists():
-            self.dcm_path = unzip(directory, '.dcm')
-            self.lib_path = unzip(directory, '.lib')
-            self.footprint_path = unzip(directory, '.pretty')
-            self.model_path = unzip(root_path, '.step')
+            self.dcm_path = unzip(directory, ".dcm")
+            self.lib_path = unzip(directory, ".lib")
+            self.footprint_path = unzip(directory, ".pretty")
+            self.model_path = unzip(root_path, ".step")
             if not self.model_path:
-                self.model_path = unzip(root_path, '.stp')
+                self.model_path = unzip(root_path, ".stp")
+
             assert (
-                self.lib_path or self.lib_path_new) and self.footprint_path, 'Not in ultralibrarian format'
+                self.lib_path or self.lib_path_new
+            ) and self.footprint_path, "Not in ultralibrarian format"
             remote_type = REMOTE_TYPES.UltraLibrarian
-            return self.dcm_path, self.lib_path, self.footprint_path, self.model_path, remote_type
+            return (
+                self.dcm_path,
+                self.lib_path,
+                self.footprint_path,
+                self.model_path,
+                remote_type,
+            )
 
         footprint = unzip(root_path, ".kicad_mod")
-        self.lib_path = unzip(root_path, '.lib')
+        self.lib_path = unzip(root_path, ".lib")
         if self.lib_path or self.lib_path_new:
-            self.dcm_path = unzip(root_path, '.dcm')
+            self.dcm_path = unzip(root_path, ".dcm")
             # self.footprint_path = root_path
             self.footprint_path = footprint.parent
-            self.model_path = unzip(root_path, '.step')
+            self.model_path = unzip(root_path, ".step")
             remote_type = REMOTE_TYPES.Snapeda
+
             assert (
-                self.lib_path or self.lib_path_new) and self.footprint_path, 'Not in Snapeda format'
-            return self.dcm_path, self.lib_path, self.footprint_path, self.model_path, remote_type
+                self.lib_path or self.lib_path_new
+            ) and self.footprint_path, "Not in Snapeda format"
+            return (
+                self.dcm_path,
+                self.lib_path,
+                self.footprint_path,
+                self.model_path,
+                remote_type,
+            )
 
         if footprint or self.lib_path_new:
-            assert False, 'Unknown library zipfile'
+            assert False, "Unknown library zipfile"
         else:
-            assert False, 'zipfile is probably not a library to import'
+            assert False, "zipfile is probably not a library to import"
 
-    def import_dcm(self, device: str, remote_type: REMOTE_TYPES, dcm_path: pathlib.Path, overwrite_if_exists=True, file_ending="") -> \
-            Tuple[Union[pathlib.Path, None], Union[pathlib.Path, None]]:
+    def import_dcm(
+        self,
+        device: str,
+        remote_type: REMOTE_TYPES,
+        dcm_path: pathlib.Path,
+        overwrite_if_exists=True,
+        file_ending="",
+    ) -> Tuple[Union[pathlib.Path, None], Union[pathlib.Path, None]]:
         """
         # .dcm file parsing
         # Note this reads in the existing dcm file for the particular remote repo, and tries to catch any duplicates
@@ -169,8 +208,11 @@ class import_lib:
         self.dcm_skipped = False
 
         # Array of values defining all attributes of .dcm file
-        dcm_attributes = dcm_path.read_text().splitlines() if dcm_path else [
-            '#', '# ' + device, '#', '$CMP ' + device, 'D', 'F', '$ENDCMP']
+        dcm_attributes = (
+            dcm_path.read_text().splitlines()
+            if dcm_path
+            else ["#", "# " + device, "#", "$CMP " + device, "D", "F", "$ENDCMP"]
+        )
 
         # Find which lines contain the component information (ignore the rest).
         index_start = None
@@ -179,67 +221,70 @@ class import_lib:
 
         for attribute_idx, attribute in enumerate(dcm_attributes):
             if index_start is None:
-                if attribute.startswith('#'):
-                    if attribute.strip() == '#' and index_header_start is None:
+                if attribute.startswith("#"):
+                    if attribute.strip() == "#" and index_header_start is None:
                         index_header_start = attribute_idx  # header start
-                elif attribute.startswith('$CMP '):
+                elif attribute.startswith("$CMP "):
                     component_name = attribute[5:].strip()
                     if not self.cleanName(component_name) == self.cleanName(device):
-                        raise Warning('Unexpected device in ' + dcm_path.name)
+                        raise Warning("Unexpected device in " + dcm_path.name)
                     dcm_attributes[attribute_idx] = attribute.replace(
-                        component_name, device, 1)
+                        component_name, device, 1
+                    )
                     index_start = attribute_idx
                 else:
                     index_header_start = None
             elif index_end is None:
-                if attribute.startswith('$CMP '):
-                    raise Warning('Multiple devices in ' + dcm_path.name)
-                elif attribute.startswith('$ENDCMP'):
+                if attribute.startswith("$CMP "):
+                    raise Warning("Multiple devices in " + dcm_path.name)
+                elif attribute.startswith("$ENDCMP"):
                     index_end = attribute_idx + 1
-                elif attribute.startswith('D'):
+                elif attribute.startswith("D"):
                     description = attribute[2:].strip()
                     if description:
-                        dcm_attributes[attribute_idx] = 'D ' + description
-                elif attribute.startswith('F'):
+                        dcm_attributes[attribute_idx] = "D " + description
+                elif attribute.startswith("F"):
                     datasheet = attribute[2:].strip()
                     if datasheet:
-                        dcm_attributes[attribute_idx] = 'F ' + datasheet
+                        dcm_attributes[attribute_idx] = "F " + datasheet
         if index_end is None:
-            raise Warning(device + 'not found in ' + dcm_path.name)
+            raise Warning(device + "not found in " + dcm_path.name)
 
-        dcm_file_read = self.DEST_PATH / \
-            (remote_type.name + file_ending + '.dcm')
-        dcm_file_write = self.DEST_PATH / \
-            (remote_type.name + file_ending + '.dcm~')
+        dcm_file_read = self.DEST_PATH / (remote_type.name + file_ending + ".dcm")
+        dcm_file_write = self.DEST_PATH / (remote_type.name + file_ending + ".dcm~")
         overwrite_existing = overwrote_existing = False
 
         check_file(dcm_file_read)
         check_file(dcm_file_write)
 
-        with dcm_file_read.open('rt') as readfile:
-            with dcm_file_write.open('wt') as writefile:
-
+        with dcm_file_read.open("rt") as readfile:
+            with dcm_file_write.open("wt") as writefile:
                 if stat(dcm_file_read).st_size == 0:
                     # todo Handle appending to empty file
-                    with dcm_file_read.open('wt') as template_file:
-                        template = ["EESchema-DOCLIB  Version 2.0",
-                                    "#End Doc Library"]
-                        template_file.writelines(
-                            line + '\n' for line in template)
+                    with dcm_file_read.open("wt") as template_file:
+                        template = ["EESchema-DOCLIB  Version 2.0", "#End Doc Library"]
+                        template_file.writelines(line + "\n" for line in template)
                         template_file.close()
 
                 for line in readfile:
-                    if re.match('# *end ', line, re.IGNORECASE):
+                    if re.match("# *end ", line, re.IGNORECASE):
                         if not overwrote_existing:
-                            writefile.write('\n'.join(
-                                dcm_attributes[index_start if index_header_start is None else index_header_start:
-                                            index_end]) + '\n')
+                            writefile.write(
+                                "\n".join(
+                                    dcm_attributes[
+                                        index_start
+                                        if index_header_start is None
+                                        else index_header_start : index_end
+                                    ]
+                                )
+                                + "\n"
+                            )
                         writefile.write(line)
                         break
-                    elif line.startswith('$CMP '):
+                    elif line.startswith("$CMP "):
                         component_name = line[5:].strip()
                         if component_name.startswith(device):
-                            if (overwrite_if_exists):
+                            if overwrite_if_exists:
                                 overwrite_existing = True
                                 self.print("Overwrite existing dcm")
                             else:
@@ -248,19 +293,22 @@ class import_lib:
                                 self.dcm_skipped = True
                                 return dcm_file_read, dcm_file_write
                             writefile.write(
-                                '\n'.join(dcm_attributes[index_start:index_end]) + '\n')
+                                "\n".join(dcm_attributes[index_start:index_end]) + "\n"
+                            )
                             overwrote_existing = True
                         else:
                             writefile.write(line)
                     elif overwrite_existing:
-                        if line.startswith('$ENDCMP'):
+                        if line.startswith("$ENDCMP"):
                             overwrite_existing = False
                     else:
                         writefile.write(line)
 
         return dcm_file_read, dcm_file_write
 
-    def import_model(self, model_path: pathlib.Path, remote_type: REMOTE_TYPES, overwrite_if_exists) -> Union[pathlib.Path, None]:
+    def import_model(
+        self, model_path: pathlib.Path, remote_type: REMOTE_TYPES, overwrite_if_exists
+    ) -> Union[pathlib.Path, None]:
         # --------------------------------------------------------------------------------------------------------
         # 3D Model file extraction
         # --------------------------------------------------------------------------------------------------------
@@ -268,13 +316,12 @@ class import_lib:
         if not model_path:
             return False
 
-        write_file = self.DEST_PATH / \
-            (remote_type.name + '.3dshapes') / model_path.name
+        write_file = self.DEST_PATH / (remote_type.name + ".3dshapes") / model_path.name
 
         self.model_skipped = False
 
         if write_file.exists():
-            if (overwrite_if_exists):
+            if overwrite_if_exists:
                 overwrite_existing = True
             else:
                 self.print("Import of 3d model skipped")
@@ -285,15 +332,20 @@ class import_lib:
             check_file(write_file)
             write_file.write_bytes(model_path.read_bytes())
             modified_objects.append(write_file, Modification.EXTRACTED_FILE)
-            if (overwrite_if_exists):
+            if overwrite_if_exists:
                 self.print("Overwrite existing 3d model")
             else:
                 self.print("Import 3d model")
 
         return model_path
 
-    def import_footprint(self, remote_type: REMOTE_TYPES, footprint_path: pathlib.Path, found_model: pathlib.Path, overwrite_if_exists=True) -> \
-            Tuple[Union[pathlib.Path, None], Union[pathlib.Path, None]]:
+    def import_footprint(
+        self,
+        remote_type: REMOTE_TYPES,
+        footprint_path: pathlib.Path,
+        found_model: pathlib.Path,
+        overwrite_if_exists=True,
+    ) -> Tuple[Union[pathlib.Path, None], Union[pathlib.Path, None]]:
         """
         # Footprint file parsing
         :returns: footprint_file_read, footprint_file_write
@@ -304,11 +356,13 @@ class import_lib:
         self.footprint_skipped = False
 
         footprint_path_item_tmp = None
-        for footprint_path_item in footprint_path.iterdir():  # try to use only newer file
-            if footprint_path_item.name.endswith('.kicad_mod'):
+        for (
+            footprint_path_item
+        ) in footprint_path.iterdir():  # try to use only newer file
+            if footprint_path_item.name.endswith(".kicad_mod"):
                 footprint_path_item_tmp = footprint_path_item
                 break
-            elif footprint_path_item.name.endswith('.mod'):
+            elif footprint_path_item.name.endswith(".mod"):
                 footprint_path_item_tmp = footprint_path_item
 
         footprint_path_item = footprint_path_item_tmp
@@ -316,24 +370,34 @@ class import_lib:
             self.print("No footprint found")
             return footprint_file_read, footprint_file_write
 
-        if footprint_path_item.name.endswith('mod'):
+        if footprint_path_item.name.endswith("mod"):
             footprint = footprint_path_item.read_text()
 
-            footprint_write_path = (
-                self.DEST_PATH / (remote_type.name + '.pretty'))
+            footprint_write_path = self.DEST_PATH / (remote_type.name + ".pretty")
             footprint_file_read = footprint_write_path / footprint_path_item.name
-            footprint_file_write = footprint_write_path / \
-                (footprint_path_item.name + "~")
+            footprint_file_write = footprint_write_path / (
+                footprint_path_item.name + "~"
+            )
 
             if found_model:
                 footprint.splitlines()
-                model = ["  (model \"" + "${KICAD_3RD_PARTY}/" + remote_type.name + '.3dshapes/' + found_model.name + "\"",
-                         "    (offset (xyz 0 0 0))", "    (scale (xyz 1 1 1))", "    (rotate (xyz 0 0 0))", "  )"]
+                model = [
+                    '  (model "'
+                    + "${KICAD_3RD_PARTY}/"
+                    + remote_type.name
+                    + ".3dshapes/"
+                    + found_model.name
+                    + '"',
+                    "    (offset (xyz 0 0 0))",
+                    "    (scale (xyz 1 1 1))",
+                    "    (rotate (xyz 0 0 0))",
+                    "  )",
+                ]
 
                 overwrite_existing = overwrote_existing = False
 
                 if footprint_file_read.exists():
-                    if (overwrite_if_exists):
+                    if overwrite_if_exists:
                         overwrite_existing = True
                         self.print("Overwrite existing footprint")
                     else:
@@ -342,15 +406,14 @@ class import_lib:
                         return footprint_file_read, footprint_file_write
 
                 check_file(footprint_file_read)
-                with footprint_file_read.open('wt') as wr:
+                with footprint_file_read.open("wt") as wr:
                     wr.write(footprint)
                     overwrote_existing = True
 
                 check_file(footprint_file_write)
 
-                with footprint_file_read.open('rt') as readfile:
-                    with footprint_file_write.open('wt') as writefile:
-
+                with footprint_file_read.open("rt") as readfile:
+                    with footprint_file_write.open("wt") as writefile:
                         if stat(footprint_file_read).st_size == 0:
                             # todo Handle appending to empty file?
                             pass
@@ -361,25 +424,30 @@ class import_lib:
                         for line_idx, line in enumerate(lines):
                             if not write_3d_into_file and line_idx == len(lines) - 1:
                                 writefile.writelines(
-                                    model_line + '\n' for model_line in model)
+                                    model_line + "\n" for model_line in model
+                                )
                                 writefile.write(line)
                                 break
                             elif line.strip().startswith(r"(model"):
-                                writefile.write(model[0] + '\n')
+                                writefile.write(model[0] + "\n")
                                 write_3d_into_file = True
                             else:
                                 writefile.write(line)
                     self.print("Import footprint")
             else:
                 check_file(footprint_file_write)
-                with footprint_file_write.open('wt') as wr:
+                with footprint_file_write.open("wt") as wr:
                     wr.write(footprint)
                     self.print("Import footprint")
 
         return footprint_file_read, footprint_file_write
 
-    def import_lib(self, remote_type: REMOTE_TYPES, lib_path: pathlib.Path, overwrite_if_exists=True) -> \
-            Tuple[str, Union[pathlib.Path, None], Union[pathlib.Path, None]]:
+    def import_lib(
+        self,
+        remote_type: REMOTE_TYPES,
+        lib_path: pathlib.Path,
+        overwrite_if_exists=True,
+    ) -> Tuple[str, Union[pathlib.Path, None], Union[pathlib.Path, None]]:
         """
         .lib file parsing
         Note this reads in the existing lib file for the particular remote repo, and tries to catch any duplicates
@@ -400,10 +468,10 @@ class import_lib:
         index_header_start = None
         for line_idx, line in enumerate(lib_lines):
             if index_start is None:
-                if line.startswith('#'):
-                    if line.strip() == '#' and index_header_start is None:
+                if line.startswith("#"):
+                    if line.strip() == "#" and index_header_start is None:
                         index_header_start = line_idx  # header start
-                elif line.startswith('DEF '):
+                elif line.startswith("DEF "):
                     device = line.split()[1]
                     index_start = line_idx
                 else:
@@ -411,59 +479,68 @@ class import_lib:
             elif index_end is None:
                 if line.startswith("F2"):
                     footprint = line.split()[1]
-                    footprint = footprint.strip("\"")
+                    footprint = footprint.strip('"')
                     self.footprint_name = self.cleanName(footprint)
                     lib_lines[line_idx] = line.replace(
-                        footprint, remote_type.name + ":" + self.footprint_name, 1)
-                elif line.startswith('ENDDEF'):
+                        footprint, remote_type.name + ":" + self.footprint_name, 1
+                    )
+                elif line.startswith("ENDDEF"):
                     index_end = line_idx + 1
-                elif line.startswith('F1 '):
+                elif line.startswith("F1 "):
                     lib_lines[line_idx] = line.replace(device, device, 1)
-            elif line.startswith('DEF '):
-                raise Warning('Multiple devices in ' + lib_path.name)
+            elif line.startswith("DEF "):
+                raise Warning("Multiple devices in " + lib_path.name)
         if index_end is None:
-            raise Warning(device + ' not found in ' + lib_path.name)
+            raise Warning(device + " not found in " + lib_path.name)
 
-        lib_file_read = self.DEST_PATH / (remote_type.name + '.lib')
-        lib_file_write = self.DEST_PATH / (remote_type.name + '.lib~')
+        lib_file_read = self.DEST_PATH / (remote_type.name + ".lib")
+        lib_file_write = self.DEST_PATH / (remote_type.name + ".lib~")
         overwrite_existing = overwrote_existing = overwritten = False
 
         check_file(lib_file_read)
         check_file(lib_file_write)
 
-        with lib_file_read.open('rt') as readfile:
-            with lib_file_write.open('wt') as writefile:
-
+        with lib_file_read.open("rt") as readfile:
+            with lib_file_write.open("wt") as writefile:
                 if stat(lib_file_read).st_size == 0:
                     # todo Handle appending to empty file
-                    with lib_file_read.open('wt') as template_file:
-                        template = ["EESchema-LIBRARY Version 2.4",
-                                    "#encoding utf-8", "# End Library"]
-                        template_file.writelines(
-                            line + '\n' for line in template)
+                    with lib_file_read.open("wt") as template_file:
+                        template = [
+                            "EESchema-LIBRARY Version 2.4",
+                            "#encoding utf-8",
+                            "# End Library",
+                        ]
+                        template_file.writelines(line + "\n" for line in template)
                         template_file.close()
 
                 # For each line in the existing lib file (not the file being read from the zip. The lib file you will
                 # add it to.)
                 for line in readfile:
                     # Is this trying to match ENDDRAW, ENDDEF, End Library or any of the above?
-                    if re.match('# *end ', line, re.IGNORECASE):
+                    if re.match("# *end ", line, re.IGNORECASE):
                         # If you already overwrote the new info don't add it to the end
                         if not overwrote_existing:
                             writefile.write(
-                                '\n'.join(lib_lines[index_start if index_header_start is None else index_header_start:
-                                                    index_end]) + '\n')
+                                "\n".join(
+                                    lib_lines[
+                                        index_start
+                                        if index_header_start is None
+                                        else index_header_start : index_end
+                                    ]
+                                )
+                                + "\n"
+                            )
                         writefile.write(line)
                         break
                     # Catch start of new component definition
-                    elif line.startswith('DEF '):
+                    elif line.startswith("DEF "):
                         component_name = line.split()[1]
                         # Catch if the currently read component matches the name of the component you are planning to
                         # write
                         if component_name.startswith(device):
                             # Ask if you want to overwrite existing component
 
-                            if (overwrite_if_exists):
+                            if overwrite_if_exists:
                                 overwrite_existing = True
                                 overwritten = True
                                 self.print("Overwrite existing lib")
@@ -472,12 +549,13 @@ class import_lib:
                                 self.lib_skipped = True
                                 return device, lib_file_read, lib_file_write
                             writefile.write(
-                                '\n'.join(lib_lines[index_start:index_end]) + '\n')
+                                "\n".join(lib_lines[index_start:index_end]) + "\n"
+                            )
                             overwrote_existing = True
                         else:
                             writefile.write(line)
                     elif overwrite_existing:
-                        if line.startswith('ENDDEF'):
+                        if line.startswith("ENDDEF"):
                             overwrite_existing = False
                     else:
                         writefile.write(line)
@@ -485,9 +563,12 @@ class import_lib:
             self.print("Import lib")
         return device, lib_file_read, lib_file_write
 
-    def import_lib_new(self, remote_type: REMOTE_TYPES, lib_path: pathlib.Path, overwrite_if_exists=True) -> \
-            Tuple[str, Union[pathlib.Path, None], Union[pathlib.Path, None]]:
-
+    def import_lib_new(
+        self,
+        remote_type: REMOTE_TYPES,
+        lib_path: pathlib.Path,
+        overwrite_if_exists=True,
+    ) -> Tuple[str, Union[pathlib.Path, None], Union[pathlib.Path, None]]:
         device = None
 
         def extract_symbol_names(input_text):
@@ -504,9 +585,9 @@ class import_lib:
             open_brackets = 1
             end_index = start_index + len("(symbol")
             for i in range(start_index + len("(symbol"), len(input_text)):
-                if input_text[i] == '(':
+                if input_text[i] == "(":
                     open_brackets += 1
-                elif input_text[i] == ')':
+                elif input_text[i] == ")":
                     open_brackets -= 1
                     if open_brackets == 0:
                         end_index = i + 1
@@ -521,7 +602,10 @@ class import_lib:
                 original_name = match.group(1)
                 name = self.cleanName(original_name)
                 modified_string = re.sub(
-                    pattern, f'(property "Footprint" "{remote_type.name}:{name}"', string)
+                    pattern,
+                    f'(property "Footprint" "{remote_type.name}:{name}"',
+                    string,
+                )
                 return name, modified_string
             else:
                 return None
@@ -531,20 +615,17 @@ class import_lib:
         symbol_section, _, _ = extract_symbol_section(lib_path.read_text())
         device = extract_symbol_names(symbol_section)[0]
 
-        lib_file_read = self.DEST_PATH / \
-            (remote_type.name + '_kicad_sym.kicad_sym')
-        lib_file_write = self.DEST_PATH / \
-            (remote_type.name + '_kicad_sym.kicad_sym~')
+        lib_file_read = self.DEST_PATH / (remote_type.name + "_kicad_sym.kicad_sym")
+        lib_file_write = self.DEST_PATH / (remote_type.name + "_kicad_sym.kicad_sym~")
 
-        self.footprint_name, symbol_section_mod = extract_footprint_name(
-            symbol_section)
+        self.footprint_name, symbol_section_mod = extract_footprint_name(symbol_section)
         symbol_section = symbol_section_mod
 
         if not lib_file_read.exists():  # library does not yet exist
-            with lib_file_write.open('wt') as writefile:
+            with lib_file_write.open("wt") as writefile:
                 text = lib_path.read_text().strip().split("\n")
-                writefile.write(text[0] + '\n')
-                writefile.write(symbol_section + '\n')
+                writefile.write(text[0] + "\n")
+                writefile.write(symbol_section + "\n")
                 writefile.write(text[-1])
 
             check_file(lib_file_read)
@@ -558,18 +639,17 @@ class import_lib:
 
         if device in existing_libs:
             if overwrite_if_exists:
-                self.print(
-                    "Overwrite existing kicad_sym is not implemented")  # TODO
+                self.print("Overwrite existing kicad_sym is not implemented")  # TODO
             else:
                 self.print("Import of kicad_sym skipped")
 
             return device, lib_file_read, lib_file_write
 
-        closing_bracket = lib_file_txt.rfind(')')
+        closing_bracket = lib_file_txt.rfind(")")
 
-        with lib_file_write.open('wt') as writefile:
+        with lib_file_write.open("wt") as writefile:
             writefile.write(lib_file_txt[:closing_bracket])
-            writefile.write(symbol_section + '\n')
+            writefile.write(symbol_section + "\n")
             writefile.write(lib_file_txt[closing_bracket:])
 
         self.print("Import kicad_sym")
@@ -584,30 +664,45 @@ class import_lib:
         self.print("Import: " + zip_file)
 
         with zipfile.ZipFile(zip_file) as zf:
-            dcm_path, lib_path, footprint_path, model_path, remote_type = self.get_remote_info(
-                zf)
+            (
+                dcm_path,
+                lib_path,
+                footprint_path,
+                model_path,
+                remote_type,
+            ) = self.get_remote_info(zf)
 
             self.print("Identify " + remote_type.name)
 
             if lib_path:
                 device, lib_file_read, lib_file_write = self.import_lib(
-                    remote_type, lib_path, overwrite_if_exists)
+                    remote_type, lib_path, overwrite_if_exists
+                )
 
                 dcm_file_read, dcm_file_write = self.import_dcm(
-                    device, remote_type, dcm_path, overwrite_if_exists)
+                    device, remote_type, dcm_path, overwrite_if_exists
+                )
 
             if self.lib_path_new:
                 device, lib_file_new_read, lib_file_new_write = self.import_lib_new(
-                    remote_type, self.lib_path_new, overwrite_if_exists)
+                    remote_type, self.lib_path_new, overwrite_if_exists
+                )
 
                 dcm_file_read, dcm_file_write = self.import_dcm(
-                    device, remote_type, dcm_path, overwrite_if_exists, file_ending="_kicad_sym")
+                    device,
+                    remote_type,
+                    dcm_path,
+                    overwrite_if_exists,
+                    file_ending="_kicad_sym",
+                )
 
             found_model = self.import_model(
-                model_path, remote_type, overwrite_if_exists)
+                model_path, remote_type, overwrite_if_exists
+            )
 
             footprint_file_read, footprint_file_write = self.import_footprint(
-                remote_type, footprint_path, found_model, overwrite_if_exists)
+                remote_type, footprint_path, found_model, overwrite_if_exists
+            )
 
             # replace read files with write files only after all operations succeeded
             if self.lib_path_new and lib_file_new_write.exists():
@@ -624,15 +719,29 @@ class import_lib:
                 elif lib_file_write.exists():
                     remove(lib_file_write)
 
-            if footprint_file_read and (self.footprint_name != footprint_file_read.stem) and not self.footprint_skipped:
-                self.print('Warning renaming footprint file "' +
-                           footprint_file_read.stem + '" to "' + self.footprint_name + '"')
-                footprint_file_read = footprint_file_read.parent / \
-                    (self.footprint_name + footprint_file_read.suffix)
+            if (
+                footprint_file_read
+                and (self.footprint_name != footprint_file_read.stem)
+                and not self.footprint_skipped
+            ):
+                self.print(
+                    'Warning renaming footprint file "'
+                    + footprint_file_read.stem
+                    + '" to "'
+                    + self.footprint_name
+                    + '"'
+                )
+                footprint_file_read = footprint_file_read.parent / (
+                    self.footprint_name + footprint_file_read.suffix
+                )
 
-            if footprint_file_write and footprint_file_write.exists() and not self.footprint_skipped:
+            if (
+                footprint_file_write
+                and footprint_file_write.exists()
+                and not self.footprint_skipped
+            ):
                 footprint_file_write.replace(footprint_file_read)
             elif footprint_file_write and footprint_file_write.exists():
                 remove(footprint_file_write)
 
-        return 'OK',
+        return ("OK",)
