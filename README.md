@@ -1,3 +1,6 @@
+[![GitHub Release](https://img.shields.io/github/release/Steffen-W/Import-LIB-KiCad-Plugin.svg)](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest)
+[![Downloade Plugin](https://img.shields.io/badge/Downloade%20Plugin-green.svg)](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest/download/Import-LIB-KiCad-Plugin.zip)
+
 # Import-LIB-KiCad-Plugin ![icon](plugins/icon_small.png)
 
 Assembles KiCad "legacy" format component libraries from downloaded
@@ -17,7 +20,7 @@ The easiest way to install is to open **KiCad** -> **Plugin And Content Manager*
 
 ![Screenshot_GUI](doc/Screenshot_GUI.png)
 
-The libraries to import must be located in the folder specified as **Folder of the library** to import". After pressing Start, the libraries will be imported into the specified folder (**Library save location**). Provided that the paths have been [added correctly in KiCad](#including-the-imported-libraries-in-kicad), the parts can be used immediately in KiCad.
+The libraries to import must be located in the folder specified as **Folder of the library** to import". After pressing Start, the libraries will be imported into the specified folder (**Library save location**). Provided that the paths have been [added correctly in KiCad](#including-the-imported-libraries-in-kicad), the parts can be used immediately in KiCad. If the libraries have not been imported correctly, a warning will indicate this.
 
 ## Including the imported libraries in KiCad
 
@@ -45,7 +48,7 @@ The libraries to import must be located in the folder specified as **Folder of t
 - [x] [Ultralibrarian](https://app.ultralibrarian.com/search)
 - [x] [Snapeda](https://www.snapeda.com/home/) (KiCad V4 Setting)
 - [x] [Snapeda](https://www.snapeda.com/home/) (KiCad V6 Setting)
-- [ ] [Octopart](https://octopart.com/)
+- [x] [Octopart](https://octopart.com/)
 
 Operating systems
 - [x] Windows
@@ -60,6 +63,9 @@ Please write an issues if an import does not work as requested.
 
 ## To DO
 
+If you notice an error then please write me an issue. If you want to change the GUI or the functionality, I am also open for ideas.
+[![Create Issue](https://img.shields.io/badge/Create%20Issue-blue.svg)](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/issues/new)
+
 
 ## Done
 
@@ -70,4 +76,5 @@ Please write an issues if an import does not work as requested.
 
 ## Many thanks to
 
-[wexi with impart](https://github.com/wexi/impart) and [topherbuckley](https://github.com/topherbuckley/kicad_remote_import) for the code on which the GUI is based.
+[wexi with impart](https://github.com/wexi/impart) and [topherbuckley](https://github.com/topherbuckley/kicad_remote_import) for the code on which the GUI is based. 
+I also thank the people who helped me find the errors in the code.
