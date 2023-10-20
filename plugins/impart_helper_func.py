@@ -40,10 +40,12 @@ class config_handler:
     def __init__(self, config_path):
         self.config = configparser.ConfigParser()
         self.config_path = config_path
+        self.config_is_set = False
         try:
             self.config.read(self.config_path)
             self.config["config"]["SRC_PATH"]  # only for check
             self.config["config"]["DEST_PATH"]  # only for check
+            self.config_is_set = True
         except:
             self.print("An exception occurred during import " + self.config_path)
             self.config = configparser.ConfigParser()
@@ -55,6 +57,7 @@ class config_handler:
             self.config["config"]["SRC_PATH"] = str(Path.home() / "Downloads")
         if self.config["config"]["DEST_PATH"] == "":
             self.config["config"]["DEST_PATH"] = str(Path.home() / "KiCad")
+            self.config_is_set = False
 
     def get_SRC_PATH(self):
         return self.config["config"]["SRC_PATH"]

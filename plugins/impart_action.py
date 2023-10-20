@@ -49,6 +49,15 @@ class PluginThread(Thread):
         wx.PostEvent(self.wxObject, ResultEvent(status))
 
 
+additional_information = (
+    "Important information: "
+    + "\nIf you have already used the previous version of the plugin, you should "
+    + "note that the current version supports all library files. Files with the new "
+    + "format are imported as *_kicad_sym and must be included in the "
+    + "settings (only Symbol Lib). The settings are checked at the end of the import process."
+)
+
+
 class impart_backend:
     importer = import_lib()
 
@@ -64,6 +73,14 @@ class impart_backend:
         self.folderhandler = filehandler(".")
         self.print_buffer = ""
         self.importer.print = self.print2buffer
+
+        if not self.config.config_is_set:
+            self.print2buffer(
+                "Warning: The path where the libraries should be saved has not been adjusted yet."
+                + " Maybe you use the plugin in this version for the first time.\n\n"
+            )
+            self.print2buffer(additional_information)
+            self.print2buffer("\n##############################\n")
 
     def print2buffer(self, text):
         self.print_buffer = self.print_buffer + str(text) + "\n"
@@ -137,14 +154,6 @@ class impart_frontend(impartGUI):
         self.m_overwrite.SetValue(backend_h.overwriteImport)
         self.m_check_import_all.SetValue(backend_h.import_old_format)
 
-        self.m_text.SetValue(
-            "Important information: "
-            + "\nIf you have already used the previous version of the plugin, you should"
-            + "note that the current version supports all library files. Files with the new "
-            + "format are imported as *_kicad_sym and must be included in the "
-            + "settings (only Symbol Lib). The settings are checked at the end of the import process."
-        )
-
         if backend_h.runThread:
             self.m_button.Label = "automatic import / press to stop"
         else:
@@ -214,11 +223,17 @@ class impart_frontend(impartGUI):
 
             if dlg.ShowModal() != wx.ID_OK:
                 return
+
+            backend_h.print2buffer("\n##############################\n")
+            backend_h.print2buffer(additional_information)
+            backend_h.print2buffer(msg)
+            backend_h.print2buffer("\n##############################\n")
         event.Skip()
 
     def DirChange(self, event):
         backend_h.config.set_SRC_PATH(self.m_dirPicker_sourcepath.GetPath())
         backend_h.config.set_DEST_PATH(self.m_dirPicker_librarypath.GetPath())
+        backend_h.folderhandler.filelist = []
         event.Skip()
 
 

@@ -3,18 +3,17 @@
 
 # Import-LIB-KiCad-Plugin ![icon](plugins/icon_small.png)
 
-Assembles KiCad "legacy" format component libraries from downloaded
-[Octopart](https://octopart.com/), [Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search) and [Snapeda](https://www.snapeda.com/home/) zipfiles. Imports symbol, footprint, description and if available 3D file. Normally, when you select the imported symbol in KiCad 7, the appropriate footprint and the 3D file should also be linked. Provided, of course, that the libraries have been included as specified below. 
+Importing downloaded libraries from the platforms [Octopart](https://octopart.com/), [Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search) and [Snapeda](https://www.snapeda.com/home/). Imports symbol, footprint, description and if available 3D file. Normally, when you select the imported symbol in KiCad, the appropriate footprint and the 3D file should also be linked. Provided, of course, that the libraries have been included as specified below.
 
 [![SC2 Video](doc/demo.gif)](https://youtu.be/cdOKDY-F4ZU)
 
 ## Warranty
 
-**None. Zero. Zilch. Use at your own risk, and please be sure to use git or some other means of backing up/reverting changes caused by this script. This script will modify existing lib, dcm, footprint or 3D model files. It is your responsiblity to back them up or have a way to revert changes should you inadvertantly mess something up using this tool** 
+**None. Zero. Zilch. Use at your own risk, and please be sure to use git or some other means of backing up/reverting changes caused by this script. This script will modify existing lib, dcm, footprint or 3D model files. It is your responsibility to back them up or have a way to revert changes should you inadvertently mess something up using this tool** 
 
 ## Installation
 
-The easiest way to install is to open **KiCad** -> **Plugin And Content Manager**. Select ![icon](plugins/icon_small.png) **Import-LIB-KiCad-Plugin** in the Plugins tab, press **Install** and then **Apply Pending Changes**.
+The easiest way to install is to open **KiCad** -> **Plugin And Content Manager**. Select ![icon](plugins/icon_small.png) **Import-LIB-KiCad-Plugin** in the Plugins tab, press **Install** and then **Apply Pending Changes**. The other option is to [![Downloade Plugin](https://img.shields.io/badge/Downloade-green.svg)](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest/download/Import-LIB-KiCad-Plugin.zip) the latest version ([![GitHub Release](https://img.shields.io/github/release/Steffen-W/Import-LIB-KiCad-Plugin.svg)](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest)) and install it via **KiCad** -> **Plugin And Content Manager** -> **Install from File...** -> select **Import-LIB-KiCad-Plugin.zip** and import.
 
 ## Use of the application
 
@@ -30,6 +29,7 @@ The libraries to import must be located in the folder specified as **Folder of t
 |KICAD_3RD_PARTY |**YourLibraryFolder**/KiCad |
 
 **Preferences** -> **Manage Symbol Libraries** -> **Global Libraries** -> Add the following entries
+**(Note: It is best to add the library only after the import has been done with the plugin. Afterwards only the created libraries have to be imported. Lower entries are only for example.)**
 |Active            |Visible           |Nickname       |Library Path                           | Library Format|
 |------------------|------------------|---------------|---------------------------------------|---------------|
 |:heavy_check_mark:|:heavy_check_mark:|Samacsys       |${KICAD_3RD_PARTY}/Samacsys.lib        | Legacy        |
@@ -37,6 +37,7 @@ The libraries to import must be located in the folder specified as **Folder of t
 |:heavy_check_mark:|:heavy_check_mark:|UltraLibrarian |${KICAD_3RD_PARTY}/UltraLibrarian.lib  | Legacy        |
 
 **Preferences** -> **Manage Footprint Libraries** -> **Global Libraries** -> Add the following entries
+**(Note: It is best to add the library only after the import has been done with the plugin. Afterwards only the created libraries have to be imported. Lower entries are only for example.)**
 |Active             |Nickname       |Library Path                             | Library Format|
 |-------------------|---------------|-----------------------------------------|---------------|
 |:heavy_check_mark: |Samacsys       | ${KICAD_3RD_PARTY}/Samacsys.pretty      | KiCad         |
@@ -64,6 +65,7 @@ Please write an issues if an import does not work as requested.
 ## To DO
 
 If you notice an error then please write me an issue. If you want to change the GUI or the functionality, I am also open for ideas.
+
 [![Create Issue](https://img.shields.io/badge/Create%20Issue-blue.svg)](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/issues/new)
 
 
