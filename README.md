@@ -44,6 +44,34 @@ The libraries to import must be located in the folder specified as **Folder of t
 |:heavy_check_mark: |Snapeda        | ${KICAD_3RD_PARTY}/Snapeda.pretty       | KiCad         |
 |:heavy_check_mark: |UltraLibrarian | ${KICAD_3RD_PARTY}/UltraLibrarian.pretty| KiCad         |
 
+## FAQ
+
+**Do I have to manually create a library that does not yet exist before using the plugin?**
+No, you do not need to create a file manually. Your only task is to download your desired part from the internet and start the import process with the plugin.
+
+**Where can I save the library?**
+It is possible to save the files in any place on your PC where you have read and write permissions.
+It is also possible to store the files on network drives or cloud storage to share the library with others.
+In the libraries relative paths are used, the absolute path is not considered.
+
+**Can I change the storage location?**
+Yes, this is of course always possible. But you should keep in mind that the existing libraries will not be moved automatically. You would have to do that yourself if necessary.
+
+**If I import from one source, do I have to stay with that source, or can I import from all sources?**
+For each source, a separate library is created for KiCad. Maximum actually three (Samacsys, Ultralibrarian and Snapeda), Octopart components as well as from other suppliers can be found in the Snapeda library. So if you import from a new source, a new library can be created. But maximum three.
+
+
+**Why are there two symbol libraries?**
+In the latest version both the old and the "new" (since KiCad 6) symbol library format is imported. It is possible to prevent this by deselecting "import also old format". An automatic conversion from the old to the new format should only be done if you are an experienced KiCad user.
+
+**General KiCad question:**
+**I have entered a library in the settings in KiCad that does not exist at this time, what happens?**
+You get a message that this library does not exist. Nothing more. As soon as it exists, it can be accessed.
+
+**Can I remove a library from the settings?**
+Yes, you can always do that. The libraries are neither deleted nor edited in any way. They are just not included.
+
+
 ## Library sources tested
 - [x] [Samacsys](https://componentsearchengine.com/) (COMPONENT SEARCH ENGINE)
 - [x] [Ultralibrarian](https://app.ultralibrarian.com/search)
