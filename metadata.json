@@ -29,6 +29,9 @@
         "ultralibrarian",
         "snapeda"
     ],
+    "keep_on_update": [
+        ".*/config.ini"
+    ],
     "versions": [
         {
             "version": "2023.xx.xx",
