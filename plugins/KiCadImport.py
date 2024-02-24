@@ -681,7 +681,7 @@ class import_lib:
                     remote_type, self.lib_path_new, overwrite_if_exists
                 )
 
-                dcm_file_read, dcm_file_write = self.import_dcm(
+                dcm_file_new_read, dcm_file_new_write = self.import_dcm(
                     device,
                     remote_type,
                     dcm_path,
@@ -711,6 +711,11 @@ class import_lib:
             # replace read files with write files only after all operations succeeded
             if self.lib_path_new and lib_file_new_write.exists():
                 lib_file_new_write.replace(lib_file_new_read)
+
+            if dcm_file_new_write.exists() and not self.dcm_skipped:
+                dcm_file_new_write.replace(dcm_file_new_read)
+            elif dcm_file_new_write.exists():
+                remove(dcm_file_new_write)
 
             if dcm_file_write.exists() and not self.dcm_skipped:
                 dcm_file_write.replace(dcm_file_read)
