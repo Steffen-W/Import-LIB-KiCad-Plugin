@@ -5,7 +5,9 @@
 
 Importing downloaded libraries from the platforms [Octopart](https://octopart.com/), [Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search) and [Snapeda](https://www.snapeda.com/home/). Imports symbol, footprint, description and if available 3D file. Normally, when you select the imported symbol in KiCad, the appropriate footprint and the 3D file should also be linked. Provided, of course, that the libraries have been included as specified below.
 
-[![SC2 Video](doc/demo.gif)](https://youtu.be/cdOKDY-F4ZU)
+[![SC2 Video](doc/demo.gif)]([https://youtu.be/cdOKDY-F4ZU](https://youtu.be/VrWPPHtCovQ))
+
+[YouTube - Instructions for installation and use](https://youtu.be/BYIKjCs1qKQ)
 
 ## Warranty
 
@@ -87,10 +89,13 @@ Operating systems
 KiCad versions
 - [x] KiCad 6
 - [x] KiCad 7
+- [x] KiCad 8
 
 Please write an issues if an import does not work as requested.
 
 ## To DO
+
+- add [jlcpcb parts](https://jlcpcb.com/parts) to import (integrate [TousstNicolas/JLC2KiCad_lib](https://github.com/TousstNicolas/JLC2KiCad_lib))
 
 If you notice an error then please write me an issue. If you want to change the GUI or the functionality, I am also open for ideas.
 
