@@ -69,7 +69,7 @@ class impart_backend:
         self.runThread = False
         self.autoImport = False
         self.overwriteImport = False
-        self.import_old_format = True
+        self.import_old_format = False
         self.folderhandler = filehandler(".")
         self.print_buffer = ""
         self.importer.print = self.print2buffer
