@@ -741,6 +741,9 @@ class import_lib:
                     + self.footprint_name
                     + '"'
                 )
+
+                if (footprint_file_read.exists()):
+                    remove(footprint_file_read)
                 footprint_file_read = footprint_file_read.parent / (
                     self.footprint_name + footprint_file_read.suffix
                 )
