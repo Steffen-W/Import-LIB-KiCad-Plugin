@@ -709,20 +709,21 @@ class import_lib:
             )
 
             # replace read files with write files only after all operations succeeded
-            if self.lib_path_new and lib_file_new_write.exists():
-                lib_file_new_write.replace(lib_file_new_read)
-
-            if dcm_file_new_write.exists() and not self.dcm_skipped:
-                dcm_file_new_write.replace(dcm_file_new_read)
-            elif dcm_file_new_write.exists():
-                remove(dcm_file_new_write)
-
-            if dcm_file_write.exists() and not self.dcm_skipped:
-                dcm_file_write.replace(dcm_file_read)
-            elif dcm_file_write.exists():
-                remove(dcm_file_write)
+            if self.lib_path_new:
+                if lib_file_new_write.exists():
+                    lib_file_new_write.replace(lib_file_new_read)
+                    
+                if dcm_file_new_write.exists() and not self.dcm_skipped:
+                    dcm_file_new_write.replace(dcm_file_new_read)
+                elif dcm_file_new_write.exists():
+                    remove(dcm_file_new_write)
 
             if lib_path:
+                if dcm_file_write.exists() and not self.dcm_skipped:
+                    dcm_file_write.replace(dcm_file_read)
+                elif dcm_file_write.exists():
+                    remove(dcm_file_write)
+                    
                 if lib_file_write.exists() and not self.lib_skipped:
                     lib_file_write.replace(lib_file_read)
                 elif lib_file_write.exists():
