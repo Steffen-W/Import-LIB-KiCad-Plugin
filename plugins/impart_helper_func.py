@@ -27,8 +27,8 @@ class filehandler:
         for i in filelist:
             if i not in self.filelist and i.endswith(".zip"):
                 pathtemp = os.path.join(self.path, i)
-                # the file is less than 10 MB and larger 1kB
-                if (os.path.getsize(pathtemp) < 1000 * 1000 * 10) and (
+                # the file is less than 50 MB and larger 1kB
+                if (os.path.getsize(pathtemp) < 1000 * 1000 * 50) and (
                     os.path.getsize(pathtemp) > 1000
                 ):
                     newFiles.append(pathtemp)
