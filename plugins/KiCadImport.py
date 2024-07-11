@@ -596,8 +596,8 @@ class import_lib:
             return symbol_section, start_index, end_index
 
         def extract_footprint_name(string):
-            pattern = r'\(property "Footprint" "(.*?)"'
-            match = re.search(pattern, string)
+            pattern = r'\(property\s+"Footprint"\s+"(.*?)"'
+            match = re.search(pattern, string, re.MULTILINE)
             if match:
                 original_name = match.group(1)
                 name = self.cleanName(original_name)
@@ -605,6 +605,7 @@ class import_lib:
                     pattern,
                     f'(property "Footprint" "{remote_type.name}:{name}"',
                     string,
+                    flags=re.MULTILINE
                 )
                 return name, modified_string
             else:
