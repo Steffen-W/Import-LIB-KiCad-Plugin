@@ -96,6 +96,9 @@ Please write an issues if an import does not work as requested.
 ## To DO
 
 - add [jlcpcb parts](https://jlcpcb.com/parts) to import (integrate [TousstNicolas/JLC2KiCad_lib](https://github.com/TousstNicolas/JLC2KiCad_lib))
+- alternative [easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py)
+- Updating the library before an import `kicad-cli sym upgrade`
+- Updating the footprint library `kicad-cli fp upgrade *.pretty`
 
 If you notice an error then please write me an issue. If you want to change the GUI or the functionality, I am also open for ideas.
 
