@@ -1,6 +1,7 @@
 Demo
 *.zip
 test
+Video
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
