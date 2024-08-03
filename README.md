@@ -111,6 +111,7 @@ If you notice an error then please write me an issue. If you want to change the 
 - [x] Test on a Mac
 - [x] Testing all library formats
 - [x] Using the new KiCad format
+- [x] Possibility of automatic KiCad settings adjustment
 
 ## Many thanks to
 
