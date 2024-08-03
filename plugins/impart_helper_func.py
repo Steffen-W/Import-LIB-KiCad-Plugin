@@ -89,10 +89,18 @@ class KiCad_Settings:
         path = os.path.join(self.SettingPath, "sym-lib-table")
         return self.__parse_table__(path)
 
+    def set_sym_table(self, libname : str, libpath : str):
+        path = os.path.join(self.SettingPath, "sym-lib-table")
+        self.__add_entry_sexp__(path, name=libname, uri=libpath)
+
     def get_lib_table(self):
         path = os.path.join(self.SettingPath, "fp-lib-table")
         return self.__parse_table__(path)
 
+    def set_lib_table_entry(self, libname : str):
+        path = os.path.join(self.SettingPath, "fp-lib-table")
+        self.__add_entry_sexp__(path, name=libname, uri="${KICAD_3RD_PARTY}/" + libname + ".pretty")
+        
     def __parse_table__(self, path):
         with open(path, "r") as file:
             data = file.read()
@@ -119,6 +127,33 @@ class KiCad_Settings:
                 entry["descr"] = get_value(line, "descr")
                 entries[entry["name"]] = entry
         return entries
+
+    def __add_entry_sexp__(
+        self,
+        path,
+        name="Snapeda",
+        uri="${KICAD_3RD_PARTY}/Snapeda.pretty",
+        type="KiCad",
+        options="",
+        descr="",
+    ):
+        entries = self.__parse_table__(path)
+        
+        if name in entries:
+            raise ValueError(f"Entry with the name '{name}' already exists.")
+
+        # New entry
+        new_entry = f'  (lib (name "{name}")(type "{type}")(uri "{uri}")(options "{options}")(descr "{descr}"))\n'
+
+        with open(path, "r") as file:
+            data = file.readlines()
+
+        # Insert the new entry before the last bracket character
+        insert_index = len(data) - 1
+        data.insert(insert_index, new_entry)
+
+        with open(path, "w") as file:
+            file.writelines(data)
 
     def get_kicad_json(self):
         path = os.path.join(self.SettingPath, "kicad.json")
@@ -166,19 +201,22 @@ class KiCad_Settings:
                 )
                 msg += "\nYou have to import the library '" + SearchLib
                 msg += "' with the path '" + temp_path + "' in Footprint Libraries."
+                # self.set_lib_table_entry(SearchLib) # TODO add GUI
         else:
             msg += "\n" + SearchLib + " is not in the Footprint Libraries."
             msg += "\nYou have to import the library '" + SearchLib
             msg += "' with the path '" + temp_path + "' in the Footprint Libraries."
+            # self.set_lib_table_entry(SearchLib) # TODO add GUI
         return msg
 
-    def check_symbollib(self, SearchLib):
+    def check_symbollib(self, SearchLib : str):
         msg = ""
         SymbolLibs = self.get_sym_table()
         temp_path = "${KICAD_3RD_PARTY}/" + SearchLib
         SymbolLibsUri = [SymbolLibs[lib]["uri"] for lib in SymbolLibs]
         if not temp_path in SymbolLibsUri:
             msg += "\n'" + temp_path + "' is not imported into the Symbol Libraries."
+            # self.set_sym_table(SearchLib.split(".")[0], temp_path) # TODO add GUI
         return msg
 
     def check_GlobalVar(self, LocalLibFolder):
