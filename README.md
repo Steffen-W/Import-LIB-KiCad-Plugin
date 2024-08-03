@@ -113,6 +113,8 @@ If you notice an error then please write me an issue. If you want to change the 
 - [x] Using the new KiCad format
 - [x] Possibility of automatic KiCad settings adjustment
 
+<a href="https://ko-fi.com/steffenw1" target="_blank"><img src="https://storage.ko-fi.com/cdn/brandasset/kofi_button_stroke.png" alt="Support via Ko-fi" height="30"></a>
+
 ## Many thanks to
 
 [wexi with impart](https://github.com/wexi/impart) and [topherbuckley](https://github.com/topherbuckley/kicad_remote_import) for the code on which the GUI is based. 
