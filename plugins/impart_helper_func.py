@@ -89,7 +89,7 @@ class KiCad_Settings:
         path = os.path.join(self.SettingPath, "sym-lib-table")
         return self.__parse_table__(path)
 
-    def set_sym_table(self, libname : str, libpath : str):
+    def set_sym_table(self, libname: str, libpath: str):
         path = os.path.join(self.SettingPath, "sym-lib-table")
         self.__add_entry_sexp__(path, name=libname, uri=libpath)
 
@@ -97,10 +97,11 @@ class KiCad_Settings:
         path = os.path.join(self.SettingPath, "fp-lib-table")
         return self.__parse_table__(path)
 
-    def set_lib_table_entry(self, libname : str):
+    def set_lib_table_entry(self, libname: str):
         path = os.path.join(self.SettingPath, "fp-lib-table")
-        self.__add_entry_sexp__(path, name=libname, uri="${KICAD_3RD_PARTY}/" + libname + ".pretty")
-        
+        uri_lib = "${KICAD_3RD_PARTY}/" + libname + ".pretty"
+        self.__add_entry_sexp__(path, name=libname, uri=uri_lib)
+
     def __parse_table__(self, path):
         with open(path, "r") as file:
             data = file.read()
@@ -138,7 +139,7 @@ class KiCad_Settings:
         descr="",
     ):
         entries = self.__parse_table__(path)
-        
+
         if name in entries:
             raise ValueError(f"Entry with the name '{name}' already exists.")
 
@@ -165,8 +166,8 @@ class KiCad_Settings:
 
     def set_kicad_json(self, kicad_json):
         path = os.path.join(self.SettingPath, "kicad.json")
-        
-        with open(path, 'w') as file:
+
+        with open(path, "w") as file:
             json.dump(kicad_json, file, indent=2)
 
     def get_kicad_common(self):
@@ -179,8 +180,8 @@ class KiCad_Settings:
 
     def set_kicad_common(self, kicad_common):
         path = os.path.join(self.SettingPath, "kicad_common.json")
-        
-        with open(path, 'w') as file:
+
+        with open(path, "w") as file:
             json.dump(kicad_common, file, indent=2)
 
     def get_kicad_GlobalVars(self):
@@ -209,7 +210,7 @@ class KiCad_Settings:
             # self.set_lib_table_entry(SearchLib) # TODO add GUI
         return msg
 
-    def check_symbollib(self, SearchLib : str):
+    def check_symbollib(self, SearchLib: str):
         msg = ""
         SymbolLibs = self.get_sym_table()
         temp_path = "${KICAD_3RD_PARTY}/" + SearchLib
@@ -222,23 +223,22 @@ class KiCad_Settings:
     def check_GlobalVar(self, LocalLibFolder):
         msg = ""
         GlobalVars = self.get_kicad_GlobalVars()
-        
+
         def setup_kicad_common():
             kicad_common = self.get_kicad_common()
-            kicad_common['environment']['vars']["KICAD_3RD_PARTY"] = LocalLibFolder
+            kicad_common["environment"]["vars"]["KICAD_3RD_PARTY"] = LocalLibFolder
             self.set_kicad_common(kicad_common)
-        
+
         if GlobalVars and "KICAD_3RD_PARTY" in GlobalVars:
-            # print("KICAD_3RD_PARTY", GlobalVars["KICAD_3RD_PARTY"])
             if not GlobalVars["KICAD_3RD_PARTY"] == LocalLibFolder:
                 msg += "\nKICAD_3RD_PARTY is defined as '"
                 msg += GlobalVars["KICAD_3RD_PARTY"]
                 msg += "' and not '" + LocalLibFolder + "'."
-                # setup_kicad_common()
+                # setup_kicad_common() # TODO add GUI
         else:
             msg += "\nKICAD_3RD_PARTY" + " is not defined in Environment Variables."
-            # setup_kicad_common()
-            
+            # setup_kicad_common() # TODO add GUI
+
         return msg
 
 
