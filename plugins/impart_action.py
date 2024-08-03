@@ -116,26 +116,27 @@ class impart_backend:
 backend_h = impart_backend()
 
 
-def checkImport():
+def checkImport(add_if_possible=True):
     libnames = ["Octopart", "Samacsys", "UltraLibrarian", "Snapeda"]
     setting = backend_h.KiCad_Settings
     DEST_PATH = backend_h.config.get_DEST_PATH()
 
     msg = ""
-    msg += setting.check_GlobalVar(DEST_PATH)
+    msg += setting.check_GlobalVar(DEST_PATH, add_if_possible)
 
     for name in libnames:
         libname = os.path.join(DEST_PATH, name + ".lib")
         if os.path.isfile(libname):
-            msg += setting.check_symbollib(name + ".lib")
+            msg += setting.check_symbollib(name + ".lib", add_if_possible)
 
         libname = os.path.join(DEST_PATH, name + "_kicad_sym.kicad_sym")
         if os.path.isfile(libname):
-            msg += setting.check_symbollib(name + "_kicad_sym.kicad_sym")
+            libname = name + "_kicad_sym.kicad_sym"
+            msg += setting.check_symbollib(libname, add_if_possible)
 
         libdir = os.path.join(DEST_PATH, name + ".pretty")
         if os.path.isdir(libdir):
-            msg += setting.check_footprintlib(name)
+            msg += setting.check_footprintlib(name, add_if_possible)
     return msg
 
 
@@ -211,11 +212,12 @@ class impart_frontend(impartGUI):
             x = Thread(target=backend_h.__find_new_file__, args=[])
             x.start()
 
-        msg = checkImport()
+        add_if_possible  = self.m_check_autoLib.IsChecked()
+        msg = checkImport(add_if_possible)
         if msg:
             msg += "\n\nMore information can be found in the README for the integration into KiCad.\n"
             msg += "github.com/Steffen-W/Import-LIB-KiCad-Plugin"
-            msg += "\nSome configurations require a kicad restart to be detected correctly."
+            msg += "\nSome configurations require a KiCad restart to be detected correctly."
 
             temp_text = wx.StaticText(None, label=msg)
 
@@ -225,7 +227,7 @@ class impart_frontend(impartGUI):
                 return
 
             backend_h.print2buffer("\n##############################\n")
-            backend_h.print2buffer(additional_information)
+            # backend_h.print2buffer(additional_information)
             backend_h.print2buffer(msg)
             backend_h.print2buffer("\n##############################\n")
         event.Skip()

@@ -188,12 +188,11 @@ class KiCad_Settings:
         KiCadjson = self.get_kicad_common()
         return KiCadjson["environment"]["vars"]
 
-    def check_footprintlib(self, SearchLib):
+    def check_footprintlib(self, SearchLib, add_if_possible=True):
         msg = ""
         FootprintLibs = self.get_lib_table()
         temp_path = "${KICAD_3RD_PARTY}/" + SearchLib + ".pretty"
         if SearchLib in FootprintLibs:
-            # print(footprintLibs[SearchLib]["uri"])
             if not FootprintLibs[SearchLib]["uri"] == temp_path:
                 msg += (
                     "\n"
@@ -202,25 +201,45 @@ class KiCad_Settings:
                 )
                 msg += "\nYou have to import the library '" + SearchLib
                 msg += "' with the path '" + temp_path + "' in Footprint Libraries."
-                # self.set_lib_table_entry(SearchLib) # TODO add GUI
+                if add_if_possible:
+                    msg += "\nThe entry must either be corrected manually or deleted."
+                    # self.set_lib_table_entry(SearchLib) # TODO
         else:
             msg += "\n" + SearchLib + " is not in the Footprint Libraries."
-            msg += "\nYou have to import the library '" + SearchLib
-            msg += "' with the path '" + temp_path + "' in the Footprint Libraries."
-            # self.set_lib_table_entry(SearchLib) # TODO add GUI
+            if add_if_possible:
+                self.set_lib_table_entry(SearchLib)
+                msg += "\nThe library '" + SearchLib
+                msg += " has been successfully added. A restart of KiCad is necessary."
+            else:
+                msg += "\nYou have to import the library '" + SearchLib
+                msg += "' with the path '" + temp_path
+                msg += "' in the Footprint Libraries or select the automatic option."
+
         return msg
 
-    def check_symbollib(self, SearchLib: str):
+    def check_symbollib(self, SearchLib: str, add_if_possible: bool = True):
         msg = ""
+        SearchLib_name = SearchLib.split(".")[0]
+
         SymbolLibs = self.get_sym_table()
         temp_path = "${KICAD_3RD_PARTY}/" + SearchLib
         SymbolLibsUri = [SymbolLibs[lib]["uri"] for lib in SymbolLibs]
+
         if not temp_path in SymbolLibsUri:
             msg += "\n'" + temp_path + "' is not imported into the Symbol Libraries."
-            # self.set_sym_table(SearchLib.split(".")[0], temp_path) # TODO add GUI
+            if add_if_possible:
+                if SearchLib_name not in SymbolLibs:
+                    self.set_sym_table(SearchLib_name, temp_path)
+                    msg += "\nThe library has been successfully added. A restart of KiCad is necessary."
+                else:
+                    msg += "\nThe entry must either be corrected manually or deleted."
+                    # self.set_sym_table(SearchLib_name, temp_path) # TODO
+            else:
+                msg += "\nYou must add them manually or select the automatic option."
+
         return msg
 
-    def check_GlobalVar(self, LocalLibFolder):
+    def check_GlobalVar(self, LocalLibFolder, add_if_possible=True):
         msg = ""
         GlobalVars = self.get_kicad_GlobalVars()
 
@@ -234,10 +253,16 @@ class KiCad_Settings:
                 msg += "\nKICAD_3RD_PARTY is defined as '"
                 msg += GlobalVars["KICAD_3RD_PARTY"]
                 msg += "' and not '" + LocalLibFolder + "'."
-                # setup_kicad_common() # TODO add GUI
+                if add_if_possible:
+                    setup_kicad_common()
+                else:
+                    msg += "\nChange the entry or select the automatic option."
         else:
             msg += "\nKICAD_3RD_PARTY" + " is not defined in Environment Variables."
-            # setup_kicad_common() # TODO add GUI
+            if add_if_possible:
+                setup_kicad_common()
+            else:
+                msg += "\nYou must add them manually or select the automatic option."
 
         return msg
 

@@ -18,7 +18,7 @@ import wx.adv
 class impartGUI ( wx.Dialog ):
 
     def __init__( self, parent ):
-        wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = u"impartGUI", pos = wx.DefaultPosition, size = wx.Size( 600,600 ), style = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.BORDER_DEFAULT )
+        wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = u"impartGUI", pos = wx.DefaultPosition, size = wx.Size( 650,650 ), style = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.BORDER_DEFAULT )
 
         self.SetSizeHints( wx.DefaultSize, wx.DefaultSize )
         self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
@@ -64,19 +64,22 @@ class impartGUI ( wx.Dialog ):
 
         # bSizer1.Add( self.m_staticline12, 0, wx.EXPAND |wx.ALL, 5 )
 
-        fgSizer1 = wx.FlexGridSizer( 0, 3, 0, 0 )
+        fgSizer1 = wx.FlexGridSizer( 0, 4, 0, 0 )
         fgSizer1.SetFlexibleDirection( wx.BOTH )
         fgSizer1.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
 
         fgSizer1.SetMinSize( wx.Size( -1,0 ) )
-        self.m_autoImport = wx.CheckBox( self, wx.ID_ANY, u"automatic import", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_autoImport = wx.CheckBox( self, wx.ID_ANY, u"auto background import", wx.DefaultPosition, wx.DefaultSize, 0 )
         fgSizer1.Add( self.m_autoImport, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5 )
 
-        self.m_overwrite = wx.CheckBox( self, wx.ID_ANY, u"overwrite if existing", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_overwrite = wx.CheckBox( self, wx.ID_ANY, u"overwrite existing lib", wx.DefaultPosition, wx.DefaultSize, 0 )
         fgSizer1.Add( self.m_overwrite, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5 )
 
-        self.m_check_import_all = wx.CheckBox( self, wx.ID_ANY, u"import also old format", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_check_import_all = wx.CheckBox( self, wx.ID_ANY, u"import old format", wx.DefaultPosition, wx.DefaultSize, 0 )
         fgSizer1.Add( self.m_check_import_all, 0, wx.ALL, 5 )
+
+        self.m_check_autoLib = wx.CheckBox( self, wx.ID_ANY, u"auto KiCad setting", wx.DefaultPosition, wx.DefaultSize, 0 )
+        fgSizer1.Add( self.m_check_autoLib, 0, wx.ALL, 5 )
 
 
         bSizer1.Add( fgSizer1, 0, wx.EXPAND, 5 )
@@ -123,7 +126,7 @@ class impartGUI ( wx.Dialog ):
         self.Bind( wx.EVT_CLOSE, self.on_close )
         self.m_button.Bind( wx.EVT_BUTTON, self.BottonClick )
         # TODO
-        # self.m_buttonImportManual.Bind( wx.EVT_BUTTON, self.ButtomManualImport )
+        # self.m_buttonImportManual.Bind( wx.EVT_BUTTON, self.ButtomManualImport ) 
         # self.m_textCtrl2.Bind( wx.EVT_TEXT_ENTER, self.ButtomManualImport )
         self.m_dirPicker_sourcepath.Bind( wx.EVT_DIRPICKER_CHANGED, self.DirChange )
         self.m_dirPicker_librarypath.Bind( wx.EVT_DIRPICKER_CHANGED, self.DirChange )
