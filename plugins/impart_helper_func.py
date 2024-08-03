@@ -128,6 +128,12 @@ class KiCad_Settings:
 
         return data
 
+    def set_kicad_json(self, kicad_json):
+        path = os.path.join(self.SettingPath, "kicad.json")
+        
+        with open(path, 'w') as file:
+            json.dump(kicad_json, file, indent=2)
+
     def get_kicad_common(self):
         path = os.path.join(self.SettingPath, "kicad_common.json")
 
@@ -135,6 +141,12 @@ class KiCad_Settings:
             data = json.load(json_data)
 
         return data
+
+    def set_kicad_common(self, kicad_common):
+        path = os.path.join(self.SettingPath, "kicad_common.json")
+        
+        with open(path, 'w') as file:
+            json.dump(kicad_common, file, indent=2)
 
     def get_kicad_GlobalVars(self):
         KiCadjson = self.get_kicad_common()
@@ -172,14 +184,23 @@ class KiCad_Settings:
     def check_GlobalVar(self, LocalLibFolder):
         msg = ""
         GlobalVars = self.get_kicad_GlobalVars()
+        
+        def setup_kicad_common():
+            kicad_common = self.get_kicad_common()
+            kicad_common['environment']['vars']["KICAD_3RD_PARTY"] = LocalLibFolder
+            self.set_kicad_common(kicad_common)
+        
         if GlobalVars and "KICAD_3RD_PARTY" in GlobalVars:
             # print("KICAD_3RD_PARTY", GlobalVars["KICAD_3RD_PARTY"])
             if not GlobalVars["KICAD_3RD_PARTY"] == LocalLibFolder:
                 msg += "\nKICAD_3RD_PARTY is defined as '"
                 msg += GlobalVars["KICAD_3RD_PARTY"]
                 msg += "' and not '" + LocalLibFolder + "'."
+                # setup_kicad_common()
         else:
             msg += "\nKICAD_3RD_PARTY" + " is not defined in Environment Variables."
+            # setup_kicad_common()
+            
         return msg
 
 
