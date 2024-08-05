@@ -48,11 +48,11 @@ To use the imported libraries from the plugin, you will need to add a couple ent
 
 **Preferences** -> **Manage Symbol Libraries** -> **Global Libraries** -> Add the following entries
 **(Note: Errors will show up if components weren't imported yet. The errors will disappear after importing as libraries will be created)**
-|Active            |Visible           |Nickname       |Library Path                                           | Library Format |
-|------------------|------------------|---------------|-------------------------------------------------------|----------------|
-|:heavy_check_mark:|:heavy_check_mark:|Samacsys       |${KICAD_3RD_PARTY}/Samacsys_kicad_sym.kicad_sym        | KiCad          |
-|:heavy_check_mark:|:heavy_check_mark:|Snapeda        |${KICAD_3RD_PARTY}/Snapeda_kicad_sym.kicad_sym         | KiCad          |
-|:heavy_check_mark:|:heavy_check_mark:|UltraLibrarian |${KICAD_3RD_PARTY}/UltraLibrarian_kicad_sym.kicad_sym  | KiCad          |
+|Active            |Visible           |Nickname                 |Library Path                                           | Library Format |
+|------------------|------------------|-------------------------|-------------------------------------------------------|----------------|
+|:heavy_check_mark:|:heavy_check_mark:|Samacsys_kicad_sym       |${KICAD_3RD_PARTY}/Samacsys_kicad_sym.kicad_sym        | KiCad          |
+|:heavy_check_mark:|:heavy_check_mark:|Snapeda_kicad_sym        |${KICAD_3RD_PARTY}/Snapeda_kicad_sym.kicad_sym         | KiCad          |
+|:heavy_check_mark:|:heavy_check_mark:|UltraLibrarian_kicad_sym |${KICAD_3RD_PARTY}/UltraLibrarian_kicad_sym.kicad_sym  | KiCad          |
 
 **Preferences** -> **Manage Footprint Libraries** -> **Global Libraries** -> Add the following entries
 **(Note: It is best to add the library only after the import has been done with the plugin. Afterwards only the created libraries have to be imported. Lower entries are only for example.)**

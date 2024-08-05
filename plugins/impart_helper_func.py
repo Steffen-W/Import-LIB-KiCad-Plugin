@@ -220,7 +220,7 @@ class KiCad_Settings:
 
     def check_symbollib(self, SearchLib: str, add_if_possible: bool = True):
         msg = ""
-        SearchLib_name = SearchLib.split("_")[0]
+        SearchLib_name = SearchLib.split(".")[0]
 
         SymbolLibs = self.get_sym_table()
         temp_path = "${KICAD_3RD_PARTY}/" + SearchLib
