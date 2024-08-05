@@ -209,7 +209,8 @@ class KiCad_Settings:
             if add_if_possible:
                 self.set_lib_table_entry(SearchLib)
                 msg += "\nThe library '" + SearchLib
-                msg += " has been successfully added. A restart of KiCad is necessary."
+                msg += " has been successfully added."
+                msg += "\n##### A restart of KiCad is necessary. #####"
             else:
                 msg += "\nYou have to import the library '" + SearchLib
                 msg += "' with the path '" + temp_path
@@ -230,7 +231,9 @@ class KiCad_Settings:
             if add_if_possible:
                 if SearchLib_name not in SymbolLibs:
                     self.set_sym_table(SearchLib_name, temp_path)
-                    msg += "\nThe library has been successfully added. A restart of KiCad is necessary."
+                    msg += "\nThe library '" + SearchLib
+                    msg += " has been successfully added."
+                    msg += "\n##### A restart of KiCad is necessary. #####"
                 else:
                     msg += "\nThe entry must either be corrected manually or deleted."
                     # self.set_sym_table(SearchLib_name, temp_path) # TODO
