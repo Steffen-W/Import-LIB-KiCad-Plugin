@@ -70,6 +70,7 @@ class impart_backend:
         self.autoImport = False
         self.overwriteImport = False
         self.import_old_format = False
+        self.autoLib = True
         self.folderhandler = filehandler(".")
         self.print_buffer = ""
         self.importer.print = self.print2buffer
@@ -153,6 +154,7 @@ class impart_frontend(impartGUI):
 
         self.m_autoImport.SetValue(backend_h.autoImport)
         self.m_overwrite.SetValue(backend_h.overwriteImport)
+        self.m_check_autoLib.SetValue(backend_h.autoLib)
         self.m_check_import_all.SetValue(backend_h.import_old_format)
 
         if backend_h.runThread:
@@ -185,6 +187,7 @@ class impart_frontend(impartGUI):
 
         backend_h.autoImport = self.m_autoImport.IsChecked()
         backend_h.overwriteImport = self.m_overwrite.IsChecked()
+        backend_h.autoLib = self.m_check_autoLib.IsChecked()
         backend_h.import_old_format = self.m_check_import_all.IsChecked()
         # backend_h.runThread = False
         self.Thread.stopThread = True  # only for text output
@@ -195,6 +198,7 @@ class impart_frontend(impartGUI):
 
         backend_h.autoImport = self.m_autoImport.IsChecked()
         backend_h.overwriteImport = self.m_overwrite.IsChecked()
+        backend_h.autoLib = self.m_check_autoLib.IsChecked()
         backend_h.import_old_format = self.m_check_import_all.IsChecked()
 
         if backend_h.runThread:
