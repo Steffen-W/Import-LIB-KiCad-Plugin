@@ -28,7 +28,7 @@
         "samacsys",
         "ultralibrarian",
         "snapeda",
-        "EasyEDA"
+        "easyeda"
     ],
     "keep_on_update": [
         ".*/config.ini"
