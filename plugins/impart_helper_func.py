@@ -199,7 +199,7 @@ class KiCad_Settings:
                     + SearchLib
                     + " in the Footprint Libraries is not imported correctly."
                 )
-                msg += "\nYou have to import the library '" + SearchLib
+                msg += "\nYou have to import the library " + SearchLib
                 msg += "' with the path '" + temp_path + "' in Footprint Libraries."
                 if add_if_possible:
                     msg += "\nThe entry must either be corrected manually or deleted."
@@ -208,11 +208,11 @@ class KiCad_Settings:
             msg += "\n" + SearchLib + " is not in the Footprint Libraries."
             if add_if_possible:
                 self.set_lib_table_entry(SearchLib)
-                msg += "\nThe library '" + SearchLib
+                msg += "\nThe library " + SearchLib
                 msg += " has been successfully added."
                 msg += "\n##### A restart of KiCad is necessary. #####"
             else:
-                msg += "\nYou have to import the library '" + SearchLib
+                msg += "\nYou have to import the library " + SearchLib
                 msg += "' with the path '" + temp_path
                 msg += "' in the Footprint Libraries or select the automatic option."
 
@@ -221,6 +221,7 @@ class KiCad_Settings:
     def check_symbollib(self, SearchLib: str, add_if_possible: bool = True):
         msg = ""
         SearchLib_name = SearchLib.split(".")[0]
+        SearchLib_name_short = SearchLib_name.split("_")[0]
 
         SymbolLibs = self.get_sym_table()
         temp_path = "${KICAD_3RD_PARTY}/" + SearchLib
@@ -229,9 +230,14 @@ class KiCad_Settings:
         if not temp_path in SymbolLibsUri:
             msg += "\n'" + temp_path + "' is not imported into the Symbol Libraries."
             if add_if_possible:
-                if SearchLib_name not in SymbolLibs:
+                if SearchLib_name_short not in SymbolLibs:
+                    self.set_sym_table(SearchLib_name_short, temp_path)
+                    msg += "\nThe library " + SearchLib
+                    msg += " has been successfully added."
+                    msg += "\n##### A restart of KiCad is necessary. #####"
+                elif SearchLib_name not in SymbolLibs:
                     self.set_sym_table(SearchLib_name, temp_path)
-                    msg += "\nThe library '" + SearchLib
+                    msg += "\nThe library " + SearchLib
                     msg += " has been successfully added."
                     msg += "\n##### A restart of KiCad is necessary. #####"
                 else:
@@ -258,12 +264,15 @@ class KiCad_Settings:
                 msg += "' and not '" + LocalLibFolder + "'."
                 if add_if_possible:
                     setup_kicad_common()
+                    msg += "\nThe entry was changed automatically."
+                    msg += "\n##### A restart of KiCad is necessary. #####"
                 else:
                     msg += "\nChange the entry or select the automatic option."
         else:
             msg += "\nKICAD_3RD_PARTY" + " is not defined in Environment Variables."
             if add_if_possible:
                 setup_kicad_common()
+                msg += "\nThe entry has been added successfully."
             else:
                 msg += "\nYou must add them manually or select the automatic option."
 
