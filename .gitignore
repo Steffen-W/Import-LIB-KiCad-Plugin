@@ -2,6 +2,7 @@ Demo
 *.zip
 test
 Video
+plugins/easyeda2kicad
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

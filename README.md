@@ -12,7 +12,7 @@
 
 # KiCad Import-LIB-KiCad-Plugin ![icon](plugins/icon_small.png)
 
-This plugin allows importing downloaded libraries from the platforms [Octopart](https://octopart.com/), [Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search) and [Snapeda](https://www.snapeda.com/home/). It can import symbols, footprints, descriptions, and if available, 3D files. Normally, when you select the imported symbol in KiCad, the appropriate footprint and the 3D file should also be linked. Provided, of course, that the libraries have been included as specified below.
+This plugin allows importing downloaded libraries from the platforms [Octopart](https://octopart.com/), [Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search), [Snapeda](https://www.snapeda.com/home/) and [EasyEDA](https://www.lcsc.com/). It can import symbols, footprints, descriptions, and if available, 3D files. Normally, when you select the imported symbol in KiCad, the appropriate footprint and the 3D file should also be linked. Provided, of course, that the libraries have been included as specified below.
 
 [![SC2 Video](doc/demo.gif)]([https://youtu.be/cdOKDY-F4ZU](https://youtu.be/VrWPPHtCovQ))
 
@@ -48,11 +48,12 @@ To use the imported libraries from the plugin, you will need to add a couple ent
 
 **Preferences** -> **Manage Symbol Libraries** -> **Global Libraries** -> Add the following entries
 **(Note: Errors will show up if components weren't imported yet. The errors will disappear after importing as libraries will be created)**
-|Active            |Visible           |Nickname                 |Library Path                                           | Library Format |
-|------------------|------------------|-------------------------|-------------------------------------------------------|----------------|
-|:heavy_check_mark:|:heavy_check_mark:|Samacsys_kicad_sym       |${KICAD_3RD_PARTY}/Samacsys_kicad_sym.kicad_sym        | KiCad          |
-|:heavy_check_mark:|:heavy_check_mark:|Snapeda_kicad_sym        |${KICAD_3RD_PARTY}/Snapeda_kicad_sym.kicad_sym         | KiCad          |
-|:heavy_check_mark:|:heavy_check_mark:|UltraLibrarian_kicad_sym |${KICAD_3RD_PARTY}/UltraLibrarian_kicad_sym.kicad_sym  | KiCad          |
+|Active            |Visible           |Nickname       |Library Path                                 | Library Format |
+|------------------|------------------|---------------|---------------------------------------------|----------------|
+|:heavy_check_mark:|:heavy_check_mark:|Samacsys       |${KICAD_3RD_PARTY}/Samacsys.kicad_sym        | KiCad          |
+|:heavy_check_mark:|:heavy_check_mark:|Snapeda        |${KICAD_3RD_PARTY}/Snapeda.kicad_sym         | KiCad          |
+|:heavy_check_mark:|:heavy_check_mark:|UltraLibrarian |${KICAD_3RD_PARTY}/UltraLibrarian.kicad_sym  | KiCad          |
+|:heavy_check_mark:|:heavy_check_mark:|EasyEDA        |${KICAD_3RD_PARTY}/EasyEDA.kicad_sym         | KiCad          |
 
 **Preferences** -> **Manage Footprint Libraries** -> **Global Libraries** -> Add the following entries
 **(Note: It is best to add the library only after the import has been done with the plugin. Afterwards only the created libraries have to be imported. Lower entries are only for example.)**
@@ -95,7 +96,7 @@ Yes, you can always do that. The libraries are neither deleted nor edited in any
 
 ## Todo List
 
-- [ ] add [jlcpcb parts](https://jlcpcb.com/parts) to import (integrate [uPesy/easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py)
+- [x] add [jlcpcb parts](https://jlcpcb.com/parts) to import (integrate [uPesy/easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py)
 - [ ] Updating the library before an import `kicad-cli sym upgrade`
 - [ ] Updating the footprint library `kicad-cli fp upgrade *.pretty`
 - [x] Automatic background import
