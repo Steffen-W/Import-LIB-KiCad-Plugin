@@ -3,6 +3,8 @@ import os.path
 import wx
 from time import sleep
 from threading import Thread
+import sys
+import traceback
 
 if __name__ == "__main__":
     from impart_gui import impartGUI
@@ -15,7 +17,7 @@ else:
     from .impart_helper_func import filehandler, config_handler, KiCad_Settings
 
 
-EVT_UPDATE_ID = wx.NewId()
+EVT_UPDATE_ID = wx.NewIdRef()
 
 
 def EVT_UPDATE(win, func):
@@ -52,9 +54,10 @@ class PluginThread(Thread):
 additional_information = (
     "Important information: "
     + "\nIf you have already used the previous version of the plugin, you should "
-    + "note that the current version supports all library files. Files with the new "
-    + "format are imported as *_kicad_sym and must be included in the "
-    + "settings (only Symbol Lib). The settings are checked at the end of the import process."
+    + "note that the current version only supports the current library file format. "
+    + "If this plugin is being used for the first time, settings in KiCad are required. "
+    + "The settings are checked at the end of the import process. For easy setup, "
+    + "auto setting can be activated."
 )
 
 
@@ -70,7 +73,7 @@ class impart_backend:
         self.autoImport = False
         self.overwriteImport = False
         self.import_old_format = False
-        self.autoLib = True
+        self.autoLib = False
         self.folderhandler = filehandler(".")
         self.print_buffer = ""
         self.importer.print = self.print2buffer
@@ -118,7 +121,7 @@ backend_h = impart_backend()
 
 
 def checkImport(add_if_possible=True):
-    libnames = ["Octopart", "Samacsys", "UltraLibrarian", "Snapeda"]
+    libnames = ["Octopart", "Samacsys", "UltraLibrarian", "Snapeda", "EasyEDA"]
     setting = backend_h.KiCad_Settings
     DEST_PATH = backend_h.config.get_DEST_PATH()
 
@@ -126,12 +129,17 @@ def checkImport(add_if_possible=True):
     msg += setting.check_GlobalVar(DEST_PATH, add_if_possible)
 
     for name in libnames:
-        libname = os.path.join(DEST_PATH, name + ".lib")
-        if os.path.isfile(libname):
-            msg += setting.check_symbollib(name + ".lib", add_if_possible)
+        # The lines work but old libraries should not be added automatically
+        # libname = os.path.join(DEST_PATH, name + ".lib")
+        # if os.path.isfile(libname):
+        #     msg += setting.check_symbollib(name + ".lib", add_if_possible)
 
-        libname = os.path.join(DEST_PATH, name + "_kicad_sym.kicad_sym")
-        if os.path.isfile(libname):
+        libdir = os.path.join(DEST_PATH, name + ".kicad_sym")
+        libdir_old = os.path.join(DEST_PATH, name + "_kicad_sym.kicad_sym")
+        if os.path.isfile(libdir):
+            libname = name + ".kicad_sym"
+            msg += setting.check_symbollib(libname, add_if_possible)
+        elif os.path.isfile(libdir_old):
             libname = name + "_kicad_sym.kicad_sym"
             msg += setting.check_symbollib(libname, add_if_possible)
 
@@ -223,8 +231,6 @@ class impart_frontend(impartGUI):
             msg += "github.com/Steffen-W/Import-LIB-KiCad-Plugin"
             msg += "\nSome configurations require a KiCad restart to be detected correctly."
 
-            temp_text = wx.StaticText(None, label=msg)
-
             dlg = wx.MessageDialog(None, msg, "WARNING", wx.KILL_OK | wx.ICON_WARNING)
 
             if dlg.ShowModal() != wx.ID_OK:
@@ -242,10 +248,36 @@ class impart_frontend(impartGUI):
         backend_h.folderhandler.filelist = []
         event.Skip()
 
+    def ButtomManualImport(self, event):
+        try:
+            from impart_easyeda import easyeda2kicad_wrapper
+
+            component_id = self.m_textCtrl2.GetValue().strip()  # example: "C2040"
+            overwrite = self.m_overwrite.IsChecked()
+            backend_h.print2buffer("")
+            backend_h.print2buffer(
+                "Try to import EeasyEDA /  LCSC Part# : " + component_id
+            )
+            base_folder = (
+                backend_h.config.get_DEST_PATH()
+            )  # "~/Documents/Kicad/easyeda"
+            easyeda_import = easyeda2kicad_wrapper()
+            easyeda_import.print = backend_h.print2buffer
+            easyeda_import.full_import(component_id, base_folder, overwrite)
+            event.Skip()
+        except Exception as e:
+            backend_h.print2buffer(f"Error: {e}")
+            backend_h.print2buffer("Python version " + sys.version)
+            print(traceback.format_exc())
+
 
 class ActionImpartPlugin(pcbnew.ActionPlugin):
     def defaults(self):
         self.set_LOGO()
+
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        if current_dir not in sys.path:
+            sys.path.append(current_dir)
 
     def set_LOGO(self, is_red=False):
         self.name = "impartGUI"
