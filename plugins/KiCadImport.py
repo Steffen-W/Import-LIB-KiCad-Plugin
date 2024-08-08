@@ -11,6 +11,7 @@ from typing import Tuple, Union, Any
 import re
 import zipfile
 from os import stat, remove
+from os.path import isfile
 
 
 class Modification(Enum):
@@ -249,9 +250,13 @@ class import_lib:
                         dcm_attributes[attribute_idx] = "F " + datasheet
         if index_end is None:
             raise Warning(device + "not found in " + dcm_path.name)
+        
+        dcm_file_read = self.DEST_PATH / (remote_type.name + ".dcm")
+        dcm_file_read_old = self.DEST_PATH / (remote_type.name + file_ending + ".dcm")
+        if isfile(dcm_file_read_old) and not isfile(dcm_file_read):
+            dcm_file_read = dcm_file_read_old
 
-        dcm_file_read = self.DEST_PATH / (remote_type.name + file_ending + ".dcm")
-        dcm_file_write = self.DEST_PATH / (remote_type.name + file_ending + ".dcm~")
+        dcm_file_write = self.DEST_PATH / (remote_type.name + ".dcm~")
         overwrite_existing = overwrote_existing = False
 
         check_file(dcm_file_read)
@@ -615,9 +620,14 @@ class import_lib:
 
         symbol_section, _, _ = extract_symbol_section(lib_path.read_text(encoding='utf-8'))
         device = extract_symbol_names(symbol_section)[0]
+        
+        
+        lib_file_read = self.DEST_PATH / (remote_type.name + ".kicad_sym")
+        lib_file_read_old = self.DEST_PATH / (remote_type.name + "_kicad_sym.kicad_sym")
+        lib_file_write = self.DEST_PATH / (remote_type.name + ".kicad_sym~")
+        if isfile(lib_file_read_old) and not isfile(lib_file_read):
+            lib_file_read = lib_file_read_old
 
-        lib_file_read = self.DEST_PATH / (remote_type.name + "_kicad_sym.kicad_sym")
-        lib_file_write = self.DEST_PATH / (remote_type.name + "_kicad_sym.kicad_sym~")
 
         self.footprint_name, symbol_section_mod = extract_footprint_name(symbol_section)
         symbol_section = symbol_section_mod
