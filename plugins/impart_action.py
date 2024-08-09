@@ -10,11 +10,13 @@ if __name__ == "__main__":
     from impart_gui import impartGUI
     from KiCadImport import import_lib
     from impart_helper_func import filehandler, config_handler, KiCad_Settings
+    from impart_migration import find_old_lib_files
 else:
     # relative import is required in kicad
     from .impart_gui import impartGUI
     from .KiCadImport import import_lib
     from .impart_helper_func import filehandler, config_handler, KiCad_Settings
+    from .impart_migration import find_old_lib_files
 
 
 EVT_UPDATE_ID = wx.NewIdRef()
@@ -173,6 +175,8 @@ class impart_frontend(impartGUI):
         EVT_UPDATE(self, self.updateDisplay)
         self.Thread = PluginThread(self)  # only for text output
 
+        self.test_migrate_possible()
+
     def updateDisplay(self, status):
         self.m_text.SetValue(status.data)
         self.m_text.SetInsertionPointEnd()
@@ -270,6 +274,45 @@ class impart_frontend(impartGUI):
             backend_h.print2buffer("Python version " + sys.version)
             print(traceback.format_exc())
 
+    def get_old_libfiles(self):
+        libpath = self.m_dirPicker_librarypath.GetPath()
+        libs = ["Octopart", "Samacsys", "UltraLibrarian", "Snapeda", "EasyEDA"]
+        return find_old_lib_files(folder_path=libpath, libs=libs)
+
+    def test_migrate_possible(self):
+        libs2migrate = self.get_old_libfiles()
+        if len(libs2migrate):
+            self.m_button_migrate.Show()
+        else:
+            self.m_button_migrate.Hide()
+
+    def migrate_libs(self, event):
+        libs2migrate = self.get_old_libfiles()
+        for old in libs2migrate:
+            if old["lib"].suffix == ".lib":
+                # print("lib", old)
+                new_file_name = old["lib"].stem + "_old_lib.kicad_sym"
+                new_file_path = old["lib"].with_name(new_file_name)
+
+                print(old["lib"], "conv to", new_file_path)
+                print(old["lib"], "rename to", old["lib"].with_suffix(".lib.blk"))
+                # shutil.copy(old["lib"], new_file_path)
+                # old["lib"].rename(old["lib"].with_suffix(".lib.blk"))
+
+            if old["lib"].suffix == ".kicad_sym":
+                # print("kicad_sym", old)
+                new_file_name = old["libName"] + ".kicad_sym"
+                new_file_path = old["lib"].with_name(new_file_name)
+
+                print(old["lib"], "conv to", new_file_path)
+                print(
+                    old["lib"],
+                    "rename to",
+                    old["lib"].with_name(old["lib"].name + ".blk"),
+                )
+
+        event.Skip()
+
 
 class ActionImpartPlugin(pcbnew.ActionPlugin):
     def defaults(self):
@@ -282,9 +325,7 @@ class ActionImpartPlugin(pcbnew.ActionPlugin):
     def set_LOGO(self, is_red=False):
         self.name = "impartGUI"
         self.category = "Import library files"
-        self.description = (
-            "Import library files from Octopart, Samacsys, Ultralibrarian and Snapeda"
-        )
+        self.description = "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA"
         self.show_toolbar_button = True
 
         if not is_red:

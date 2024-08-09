@@ -2,7 +2,8 @@ import os.path
 import json
 import configparser
 from pathlib import Path
-
+import re
+from s_expression_parse import readFile2var, parse_sexp, convert_list_to_dicts
 
 class filehandler:
     def __init__(self, path):
@@ -103,31 +104,42 @@ class KiCad_Settings:
         self.__add_entry_sexp__(path, name=libname, uri=uri_lib)
 
     def __parse_table__(self, path):
+        sexp = readFile2var(path)
+        parsed = parse_sexp(sexp)
+        return convert_list_to_dicts(parsed)
+
+    def __update_uri_in_sexp__(  # TODO need to test
+        self,
+        path,
+        old_uri,
+        new_uri,
+    ):
         with open(path, "r") as file:
-            data = file.read()
+            data = file.readlines()
 
-        def get_value(line, key):
-            start = line.find("(" + key)
-            if start == -1:
-                return None
-            start = line.find("(" + key)
-            end = line.find(")", start)
-            value = line[start + len(key) + 2 : end].strip('"')
-            return value
+        entry_pattern = re.compile(
+            r'\s*\(lib \(name "(.*?)"\)\(type "(.*?)"\)\(uri "(.*?)"\)\(options "(.*?)"\)\(descr "(.*?)"\)\)\s*'
+        )
+        uri_found = False
 
-        entries = {}
-        lines = data.split("\n")
-        for line in lines:
-            line = line.strip()
-            if line.startswith("(lib"):
-                entry = {}
-                entry["name"] = get_value(line, "name")
-                entry["type"] = get_value(line, "type")
-                entry["uri"] = get_value(line, "uri")
-                entry["options"] = get_value(line, "options")
-                entry["descr"] = get_value(line, "descr")
-                entries[entry["name"]] = entry
-        return entries
+        for index, line in enumerate(data):
+            match = entry_pattern.match(line)
+            if match:
+                name, type_, uri, options, descr = match.groups()
+                if uri == old_uri:
+                    print(f"Found URI in entry with name: {name}")
+
+                    # Create a new entry with the new URI
+                    new_entry = f'  (lib (name "{name}")(type "{type_}")(uri "{new_uri}")(options "{options}")(descr "{descr}"))\n'
+                    data[index] = new_entry
+                    uri_found = True
+                    break
+
+        if not uri_found:
+            raise ValueError(f"URI '{old_uri}' not found in the file.")
+
+        with open(path, "w") as file:
+            file.writelines(data)
 
     def __add_entry_sexp__(
         self,
@@ -138,12 +150,11 @@ class KiCad_Settings:
         options="",
         descr="",
     ):
-        entries = self.__parse_table__(path)
-
+        table_entry = self.__parse_table__(path)
+        entries = {lib["name"]: lib for lib in table_entry}
         if name in entries:
             raise ValueError(f"Entry with the name '{name}' already exists.")
 
-        # New entry
         new_entry = f'  (lib (name "{name}")(type "{type}")(uri "{uri}")(options "{options}")(descr "{descr}"))\n'
 
         with open(path, "r") as file:
@@ -190,15 +201,14 @@ class KiCad_Settings:
 
     def check_footprintlib(self, SearchLib, add_if_possible=True):
         msg = ""
-        FootprintLibs = self.get_lib_table()
+        FootprintTable = self.get_lib_table()
+        FootprintLibs = {lib["name"]: lib for lib in FootprintTable}
+
         temp_path = "${KICAD_3RD_PARTY}/" + SearchLib + ".pretty"
         if SearchLib in FootprintLibs:
             if not FootprintLibs[SearchLib]["uri"] == temp_path:
-                msg += (
-                    "\n"
-                    + SearchLib
-                    + " in the Footprint Libraries is not imported correctly."
-                )
+                msg += "\n" + SearchLib
+                msg += " in the Footprint Libraries is not imported correctly."
                 msg += "\nYou have to import the library " + SearchLib
                 msg += "' with the path '" + temp_path + "' in Footprint Libraries."
                 if add_if_possible:
@@ -223,9 +233,11 @@ class KiCad_Settings:
         SearchLib_name = SearchLib.split(".")[0]
         SearchLib_name_short = SearchLib_name.split("_")[0]
 
-        SymbolLibs = self.get_sym_table()
+        SymbolTable = self.get_sym_table()
+        SymbolLibs = {lib["name"]: lib for lib in SymbolTable}
+        SymbolLibsUri = {lib["uri"]: lib for lib in SymbolTable}
+
         temp_path = "${KICAD_3RD_PARTY}/" + SearchLib
-        SymbolLibsUri = [SymbolLibs[lib]["uri"] for lib in SymbolLibs]
 
         if not temp_path in SymbolLibsUri:
             msg += "\n'" + temp_path + "' is not imported into the Symbol Libraries."
