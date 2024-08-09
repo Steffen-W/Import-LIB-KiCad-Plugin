@@ -5,7 +5,7 @@
 [![Static Badge](https://img.shields.io/badge/SnapEDA-Works_(v4%2C_v6)-27ae60)](https://www.snapeda.com/home/)
 [![Static Badge](https://img.shields.io/badge/UltraLibrarian-Works-229954)](https://app.ultralibrarian.com/search)
 [![Static Badge](https://img.shields.io/badge/Octopart-Works-52be80)](https://octopart.com/)
-[![Static Badge](https://img.shields.io/badge/LCSC--EasyEDA-In_Process-d68910)](https://www.lcsc.com/)
+[![Static Badge](https://img.shields.io/badge/LCSC--EasyEDA-Works-008000)](https://www.lcsc.com/)
 
 [![GitHub Release](https://img.shields.io/github/release/Steffen-W/Import-LIB-KiCad-Plugin.svg)](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest)
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Steffen-W/Import-LIB-KiCad-Plugin/total)](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest/download/Import-LIB-KiCad-Plugin.zip)
@@ -36,7 +36,7 @@ The import window is accessible in the **PCB Editor** -> **Tools** -> **External
 
 ![Screenshot_GUI](doc/Screenshot_GUI.png)
 
-The libraries to import must be located in the folder specified as **Folder of the library** to import". After pressing Start, the libraries will be imported into the specified folder (**Library save location**). Provided that the paths have been [added correctly in KiCad](#including-the-imported-libraries-in-kicad), the parts can be used immediately in KiCad. If the libraries have not been imported correctly, a warning will indicate this.
+The libraries to import must be located in the folder specified as **Folder of the library** to import. After pressing Start, the libraries will be imported into the specified folder (**Library save location**). Provided that the paths have been [added correctly in KiCad](#including-the-imported-libraries-in-kicad), the parts can be used immediately in KiCad. If the libraries have not been imported correctly, a warning will indicate this.
 
 ## Including the imported libraries in KiCad
 To use the imported libraries from the plugin, you will need to add a couple entries to KiCad's path first to see them.
@@ -62,6 +62,7 @@ To use the imported libraries from the plugin, you will need to add a couple ent
 |:heavy_check_mark: |Samacsys       | ${KICAD_3RD_PARTY}/Samacsys.pretty      | KiCad         |
 |:heavy_check_mark: |Snapeda        | ${KICAD_3RD_PARTY}/Snapeda.pretty       | KiCad         |
 |:heavy_check_mark: |UltraLibrarian | ${KICAD_3RD_PARTY}/UltraLibrarian.pretty| KiCad         |
+|:heavy_check_mark: |EasyEDA        | ${KICAD_3RD_PARTY}/EasyEDA.pretty       | KiCad         |
 
 ## Warranty
 
@@ -96,9 +97,9 @@ Yes, you can always do that. The libraries are neither deleted nor edited in any
 
 ## Todo List
 
-- [x] add [jlcpcb parts](https://jlcpcb.com/parts) to import (integrate [uPesy/easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py)
 - [ ] Updating the library before an import `kicad-cli sym upgrade`
 - [ ] Updating the footprint library `kicad-cli fp upgrade *.pretty`
+- [x] add [jlcpcb parts](https://jlcpcb.com/parts) to import (integrate [uPesy/easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py)
 - [x] Automatic background import
 - [x] Test on a Mac
 - [x] Testing all library formats
