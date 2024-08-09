@@ -250,11 +250,8 @@ class import_lib:
                         dcm_attributes[attribute_idx] = "F " + datasheet
         if index_end is None:
             raise Warning(device + "not found in " + dcm_path.name)
-        
-        dcm_file_read = self.DEST_PATH / (remote_type.name + ".dcm")
-        dcm_file_read_old = self.DEST_PATH / (remote_type.name + file_ending + ".dcm")
-        if isfile(dcm_file_read_old) and not isfile(dcm_file_read):
-            dcm_file_read = dcm_file_read_old
+
+        dcm_file_read = self.DEST_PATH / (remote_type.name + file_ending + ".dcm")
 
         dcm_file_write = self.DEST_PATH / (remote_type.name + ".dcm~")
         overwrite_existing = overwrote_existing = False
@@ -620,14 +617,12 @@ class import_lib:
 
         symbol_section, _, _ = extract_symbol_section(lib_path.read_text(encoding='utf-8'))
         device = extract_symbol_names(symbol_section)[0]
-        
-        
+
         lib_file_read = self.DEST_PATH / (remote_type.name + ".kicad_sym")
         lib_file_read_old = self.DEST_PATH / (remote_type.name + "_kicad_sym.kicad_sym")
         lib_file_write = self.DEST_PATH / (remote_type.name + ".kicad_sym~")
         if isfile(lib_file_read_old) and not isfile(lib_file_read):
             lib_file_read = lib_file_read_old
-
 
         self.footprint_name, symbol_section_mod = extract_footprint_name(symbol_section)
         symbol_section = symbol_section_mod
@@ -692,12 +687,16 @@ class import_lib:
                     remote_type, self.lib_path_new, overwrite_if_exists
                 )
 
+                file_ending = ""
+                if "_kicad_sym" in lib_file_new_read:
+                    file_ending = "_kicad_sym"
+
                 dcm_file_new_read, dcm_file_new_write = self.import_dcm(
                     device,
                     remote_type,
                     dcm_path,
                     overwrite_if_exists,
-                    file_ending="_kicad_sym",
+                    file_ending=file_ending,
                 )
                 if not import_old_format:
                     lib_path = None
@@ -723,7 +722,7 @@ class import_lib:
             if self.lib_path_new:
                 if lib_file_new_write.exists():
                     lib_file_new_write.replace(lib_file_new_read)
-                    
+
                 if dcm_file_new_write.exists() and not self.dcm_skipped:
                     dcm_file_new_write.replace(dcm_file_new_read)
                 elif dcm_file_new_write.exists():
@@ -734,7 +733,7 @@ class import_lib:
                     dcm_file_write.replace(dcm_file_read)
                 elif dcm_file_write.exists():
                     remove(dcm_file_write)
-                    
+
                 if lib_file_write.exists() and not self.lib_skipped:
                     lib_file_write.replace(lib_file_read)
                 elif lib_file_write.exists():
