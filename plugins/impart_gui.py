@@ -25,19 +25,25 @@ class impartGUI ( wx.Dialog ):
 
         bSizer = wx.BoxSizer( wx.VERTICAL )
 
+        self.m_button_migrate = wx.Button( self, wx.ID_ANY, u"migrate the libraries (highly recommended)", wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_button_migrate.SetFont( wx.Font( 15, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, False, wx.EmptyString ) )
+        self.m_button_migrate.Hide()
+        self.m_button_migrate.SetMaxSize( wx.Size( -1,150 ) )
+
+        bSizer.Add( self.m_button_migrate, 1, wx.ALL|wx.EXPAND, 5 )
+
         self.m_button = wx.Button( self, wx.ID_ANY, u"Start", wx.DefaultPosition, wx.DefaultSize, 0 )
         bSizer.Add( self.m_button, 0, wx.ALL|wx.EXPAND, 5 )
 
-        bSizer1 = wx.BoxSizer( wx.VERTICAL )
-
         self.m_text = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_BESTWRAP|wx.TE_MULTILINE )
-        bSizer1.Add( self.m_text, 1, wx.ALL|wx.EXPAND, 5 )
+        bSizer.Add( self.m_text, 1, wx.ALL|wx.EXPAND, 5 )
 
         self.m_staticline11 = wx.StaticLine( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL )
         self.m_staticline11.SetForegroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
         self.m_staticline11.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_GRAYTEXT ) )
+        self.m_staticline11.Hide()
 
-        bSizer1.Add( self.m_staticline11, 0, wx.EXPAND |wx.ALL, 5 )
+        bSizer.Add( self.m_staticline11, 0, wx.EXPAND |wx.ALL, 5 )
 
         fgSizer2 = wx.FlexGridSizer( 0, 3, 0, 0 )
         fgSizer2.SetFlexibleDirection( wx.HORIZONTAL )
@@ -57,13 +63,13 @@ class impartGUI ( wx.Dialog ):
         fgSizer2.Add( self.m_textCtrl2, 0, wx.ALL|wx.EXPAND, 5 )
 
 
-        bSizer1.Add( fgSizer2, 0, wx.EXPAND, 5 )
+        bSizer.Add( fgSizer2, 0, wx.EXPAND, 5 )
 
         self.m_staticline12 = wx.StaticLine( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL )
         self.m_staticline12.SetForegroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
         self.m_staticline12.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_GRAYTEXT ) )
 
-        bSizer1.Add( self.m_staticline12, 0, wx.EXPAND |wx.ALL, 5 )
+        bSizer.Add( self.m_staticline12, 0, wx.EXPAND |wx.ALL, 5 )
 
         fgSizer1 = wx.FlexGridSizer( 0, 4, 0, 0 )
         fgSizer1.SetFlexibleDirection( wx.BOTH )
@@ -85,42 +91,41 @@ class impartGUI ( wx.Dialog ):
         fgSizer1.Add( self.m_check_autoLib, 0, wx.ALL, 5 )
 
 
-        bSizer1.Add( fgSizer1, 0, wx.EXPAND, 5 )
+        bSizer.Add( fgSizer1, 0, wx.EXPAND, 5 )
 
         self.m_staticText_sourcepath = wx.StaticText( self, wx.ID_ANY, u"Folder of the library to import:", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText_sourcepath.Wrap( -1 )
 
-        bSizer1.Add( self.m_staticText_sourcepath, 0, wx.ALL, 5 )
+        bSizer.Add( self.m_staticText_sourcepath, 0, wx.ALL, 5 )
 
         self.m_dirPicker_sourcepath = wx.DirPickerCtrl( self, wx.ID_ANY, u".", u"Select a folder", wx.DefaultPosition, wx.DefaultSize, wx.DIRP_DEFAULT_STYLE )
-        bSizer1.Add( self.m_dirPicker_sourcepath, 0, wx.ALL|wx.EXPAND, 5 )
+        bSizer.Add( self.m_dirPicker_sourcepath, 0, wx.ALL|wx.EXPAND, 5 )
 
         self.m_staticText_librarypath = wx.StaticText( self, wx.ID_ANY, u"Library save location:", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText_librarypath.Wrap( -1 )
 
-        bSizer1.Add( self.m_staticText_librarypath, 0, wx.ALL, 5 )
+        bSizer.Add( self.m_staticText_librarypath, 0, wx.ALL, 5 )
 
         self.m_dirPicker_librarypath = wx.DirPickerCtrl( self, wx.ID_ANY, u".", u"Select a folder", wx.DefaultPosition, wx.DefaultSize, wx.DIRP_DEFAULT_STYLE )
-        bSizer1.Add( self.m_dirPicker_librarypath, 0, wx.ALL|wx.EXPAND, 5 )
+        bSizer.Add( self.m_dirPicker_librarypath, 0, wx.ALL|wx.EXPAND, 5 )
 
         self.m_staticline1 = wx.StaticLine( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL )
         self.m_staticline1.SetForegroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
         self.m_staticline1.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_GRAYTEXT ) )
 
-        bSizer1.Add( self.m_staticline1, 0, wx.EXPAND |wx.ALL, 5 )
+        bSizer.Add( self.m_staticline1, 0, wx.EXPAND |wx.ALL, 5 )
 
         self.m_staticText5 = wx.StaticText( self, wx.ID_ANY, u"There is no guarantee for faultless function. Use only at your own risk. Should there be any errors please write an issue.\nNecessary settings for the integration of the libraries can be found in the README:", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText5.Wrap( -1 )
 
         self.m_staticText5.SetMinSize( wx.Size( -1,50 ) )
 
-        bSizer1.Add( self.m_staticText5, 0, wx.EXPAND|wx.TOP|wx.RIGHT|wx.LEFT, 5 )
+        bSizer.Add( self.m_staticText5, 0, wx.EXPAND|wx.TOP|wx.RIGHT|wx.LEFT, 5 )
 
         self.m_hyperlink = wx.adv.HyperlinkCtrl( self, wx.ID_ANY, u"github.com/Steffen-W/Import-LIB-KiCad-Plugin", u"https://github.com/Steffen-W/Import-LIB-KiCad-Plugin", wx.DefaultPosition, wx.DefaultSize, wx.adv.HL_DEFAULT_STYLE )
-        bSizer1.Add( self.m_hyperlink, 0, wx.BOTTOM|wx.RIGHT|wx.LEFT, 5 )
+        bSizer.Add( self.m_hyperlink, 0, wx.BOTTOM|wx.RIGHT|wx.LEFT, 5 )
 
 
-        bSizer.Add( bSizer1, 1, wx.EXPAND, 5 )
         self.SetSizer( bSizer )
         self.Layout()
 
@@ -128,6 +133,7 @@ class impartGUI ( wx.Dialog ):
 
         # Connect Events
         self.Bind( wx.EVT_CLOSE, self.on_close )
+        self.m_button_migrate.Bind( wx.EVT_BUTTON, self.migrate_libs )
         self.m_button.Bind( wx.EVT_BUTTON, self.BottonClick )
         self.m_buttonImportManual.Bind( wx.EVT_BUTTON, self.ButtomManualImport )
         self.m_textCtrl2.Bind( wx.EVT_TEXT_ENTER, self.ButtomManualImport )
@@ -140,6 +146,9 @@ class impartGUI ( wx.Dialog ):
 
     # Virtual event handlers, override them in your derived class
     def on_close( self, event ):
+        event.Skip()
+
+    def migrate_libs( self, event ):
         event.Skip()
 
     def BottonClick( self, event ):
