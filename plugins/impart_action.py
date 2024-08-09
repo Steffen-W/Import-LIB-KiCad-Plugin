@@ -290,26 +290,33 @@ class impart_frontend(impartGUI):
         libs2migrate = self.get_old_libfiles()
         for old in libs2migrate:
             if old["lib"].suffix == ".lib":
-                # print("lib", old)
-                new_file_name = old["lib"].stem + "_old_lib.kicad_sym"
-                new_file_path = old["lib"].with_name(new_file_name)
-
-                print(old["lib"], "conv to", new_file_path)
-                print(old["lib"], "rename to", old["lib"].with_suffix(".lib.blk"))
-                # shutil.copy(old["lib"], new_file_path)
-                # old["lib"].rename(old["lib"].with_suffix(".lib.blk"))
+                conv_file_name = old["lib"].stem + "_old_lib.kicad_sym"
+                # could in principle also be converted to old["lib"].stem + ".kicad_sym"
+                # but only if *_kicad_sym.kicad_sym does not exist # TODO
+                conv_file = old["lib"].with_name(conv_file_name)
+                blk_file = old["lib"].with_suffix(".lib.blk")
 
             if old["lib"].suffix == ".kicad_sym":
-                # print("kicad_sym", old)
-                new_file_name = old["libName"] + ".kicad_sym"
-                new_file_path = old["lib"].with_name(new_file_name)
+                conv_file_name = old["libName"] + ".kicad_sym"
+                conv_file = old["lib"].with_name(conv_file_name)
+                blk_file = old["lib"].with_suffix(".kicad_sym.blk")
 
-                print(old["lib"], "conv to", new_file_path)
-                print(
-                    old["lib"],
-                    "rename to",
-                    old["lib"].with_name(old["lib"].name + ".blk"),
-                )
+            print(old["lib"], "conv to", conv_file)  # TODO
+            print(old["lib"], "rename to", blk_file)  # TODO
+
+            dcm_file = old["lib"].with_suffix(".dcm")
+            dcm_conv_file = conv_file.with_suffix(".dcm")
+            dcm_blk_file = old["lib"].with_suffix(".dcm.blk")
+            if dcm_file.is_file():
+                print(dcm_file, "conv to", dcm_conv_file)  # TODO
+                print(dcm_file, "rename to", dcm_blk_file)  # TODO
+
+            SymbolTable = backend_h.KiCad_Settings.get_sym_table()  # load sym config
+            SymbolLibsUri = {lib["uri"]: lib for lib in SymbolTable}
+            uriSearch = "${KICAD_3RD_PARTY}/" + old["lib"].name
+            uriNew = "${KICAD_3RD_PARTY}/" + conv_file.name
+            if uriSearch in SymbolLibsUri:
+                print(uriSearch, "rename in config to", uriNew)  # TODO
 
         event.Skip()
 
