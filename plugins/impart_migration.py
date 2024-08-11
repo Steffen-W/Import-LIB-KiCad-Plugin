@@ -40,11 +40,6 @@ def find_old_lib_files(
                     if dcm_file.exists() and dcm_file.is_file():
                         entry["old_lib_dcm"] = dcm_file  # description file
 
-                    kicad_sym_file = file.with_name(file.stem + "_old_lib.kicad_sym")
-                    if kicad_sym_file.exists() and kicad_sym_file.is_file():
-                        # Possible conversion name
-                        entry["old_lib_kicad_sym"] = kicad_sym_file
-
                 # Check whether the file with the old kicad v6 name exists
                 elif file.name.endswith("_kicad_sym.kicad_sym"):
                     entry["oldV6"] = file
@@ -69,6 +64,11 @@ def find_old_lib_files(
                     if blk_file.exists() and blk_file.is_file():
                         entry["V6_blk"] = blk_file  # backup file
 
+                kicad_sym_file = file.with_name(lib + "_old_lib.kicad_sym")
+                if kicad_sym_file.exists() and kicad_sym_file.is_file():
+                    # Possible conversion name
+                    entry["old_lib_kicad_sym"] = kicad_sym_file
+
                 if entry:
                     found_files[lib] = entry
     return found_files
@@ -77,24 +77,28 @@ def find_old_lib_files(
 def convert_lib(SRC: Path, DES: Path, drymode=True):
 
     BLK_file = SRC.with_suffix(SRC.suffix + ".blk")  # Backup
-    print(SRC.name, "rename to", BLK_file.name)
-    print(SRC.name, "convert to", DES.name)
 
-    if not drymode:
+    if drymode:
+        print(SRC.stem, "convert to", DES.stem)
+        print(SRC.stem, "rename to", BLK_file.stem)
+
+    else:
 
         SRC_dcm = SRC.with_suffix(".dcm")
         DES_dcm = DES.with_suffix(".dcm")
         if DES_dcm.exists() and DES_dcm.is_file():
             return 0
 
-        if not cli.upgrade_sym_lib(SRC, DES):
+        if not cli.upgrade_sym_lib(SRC, DES) or not DES.exists():
             logger.error(f"converting {SRC.name} to {DES.name} produced an error")
             return 0
+        print(SRC.stem, "convert to", DES.stem)
 
         if SRC_dcm.exists() and SRC_dcm.is_file():
             SRC_dcm.rename(DES_dcm)
 
         SRC.rename(BLK_file)
+        print(SRC.stem, "rename to", BLK_file.stem)
 
     return 1
 
@@ -139,12 +143,17 @@ def convert_lib_list(libs_dict, drymode=True):
 if __name__ == "__main__":
     from pprint import pprint
 
+    logging.basicConfig(level=logging.INFO)
+
     path = "~/KiCad"
     ret = find_old_lib_files(folder_path=path)
-    print("#######################")
-    pprint(ret)
-    print("#######################")
+    if ret:
+        print("#######################")
+        pprint(ret)
+        print("#######################")
+
     conv = convert_lib_list(ret, drymode=False)
-    print("#######################")
-    pprint(conv)
-    print("#######################")
+    if conv:
+        print("#######################")
+        pprint(conv)
+        print("#######################")

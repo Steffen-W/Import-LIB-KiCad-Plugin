@@ -11,7 +11,7 @@ class kicad_cli:
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            return result.stdout
+            return True
         except subprocess.CalledProcessError as e:
             print(" ".join(["kicad-cli"] + command))
             print(f"Error: {e.stderr}")
@@ -32,16 +32,10 @@ class kicad_cli:
             return False
 
     def upgrade_sym_lib(self, input_file, output_file):
-        res = self.run_kicad_cli(["sym", "upgrade", input_file, "-o", output_file])
-        if res:
-            return True
-        return False
+        return self.run_kicad_cli(["sym", "upgrade", input_file, "-o", output_file])
 
     def upgrade_footprint_lib(self, pretty_folder):
-        res = self.run_kicad_cli(["fp", "upgrade", pretty_folder])
-        if res:
-            return True
-        return False
+        return self.run_kicad_cli(["fp", "upgrade", pretty_folder])
 
 
 if __name__ == "__main__":
