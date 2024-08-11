@@ -290,7 +290,13 @@ class impart_frontend(impartGUI):
         libs2migrate = self.get_old_libfiles()
 
         conv = convert_lib_list(libs2migrate, drymode=True)  # TODO
-        backend_h.print2buffer(conv)
+
+        backend_h.print2buffer("Current dry mode without changes")
+        for line in conv:
+            backend_h.print2buffer(line)
+
+        if conv:
+            backend_h.print2buffer("##############################")
 
         event.Skip()
 

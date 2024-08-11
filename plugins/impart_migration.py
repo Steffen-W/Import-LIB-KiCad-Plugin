@@ -78,9 +78,11 @@ def convert_lib(SRC: Path, DES: Path, drymode=True):
 
     BLK_file = SRC.with_suffix(SRC.suffix + ".blk")  # Backup
 
+    msg = []
+
     if drymode:
-        print(SRC.stem, "convert to", DES.stem)
-        print(SRC.stem, "rename to", BLK_file.stem)
+        msg.append(f"{SRC.name} convert to {DES.name}")
+        msg.append(f"{SRC.name} rename to {BLK_file.name}")
 
     else:
 
@@ -92,15 +94,15 @@ def convert_lib(SRC: Path, DES: Path, drymode=True):
         if not cli.upgrade_sym_lib(SRC, DES) or not DES.exists():
             logger.error(f"converting {SRC.name} to {DES.name} produced an error")
             return 0
-        print(SRC.stem, "convert to", DES.stem)
+        msg.append(f"{SRC.stem} convert to {DES.stem}")
 
         if SRC_dcm.exists() and SRC_dcm.is_file():
             SRC_dcm.rename(DES_dcm)
 
         SRC.rename(BLK_file)
-        print(SRC.stem, "rename to", BLK_file.stem)
+        msg.append(f"{SRC.name} rename to {BLK_file.name}")
 
-    return 1
+    return msg
 
 
 def convert_lib_list(libs_dict, drymode=True):
@@ -121,22 +123,22 @@ def convert_lib_list(libs_dict, drymode=True):
                 if "old_lib_kicad_sym" in paths:
                     logger.error(f"{lib} old_lib_kicad_sym already exists")
                 else:
-                    convertlist.append(f"{lib}: old_lib -> old_lib_kicad_sym")
                     kicad_sym_file = file.with_name(file.stem + "_old_lib.kicad_sym")
-                    convert_lib(SRC=file, DES=kicad_sym_file, drymode=drymode)
+                    res = convert_lib(SRC=file, DES=kicad_sym_file, drymode=drymode)
+                    convertlist.extend(res)
             else:
-                convertlist.append(f"{lib}: old_lib -> v6")
                 name_V6 = file.with_name(lib + ".kicad_sym")
-                convert_lib(SRC=file, DES=name_V6, drymode=drymode)
+                res = convert_lib(SRC=file, DES=name_V6, drymode=drymode)
+                convertlist.extend(res)
 
         if "oldV6" in paths:
             file = paths["oldV6"]
             if "V6" in paths:
                 logger.error(f"{lib} V6 already exists")
             else:
-                convertlist.append(f"{lib}: oldV6 -> v6")
                 name_V6 = file.with_name(lib + ".kicad_sym")
-                convert_lib(SRC=file, DES=name_V6, drymode=drymode)
+                res = convert_lib(SRC=file, DES=name_V6, drymode=drymode)
+                convertlist.extend(res)
     return convertlist
 
 
@@ -152,7 +154,7 @@ if __name__ == "__main__":
         pprint(ret)
         print("#######################")
 
-    conv = convert_lib_list(ret, drymode=False)
+    conv = convert_lib_list(ret, drymode=True)
     if conv:
         print("#######################")
         pprint(conv)
