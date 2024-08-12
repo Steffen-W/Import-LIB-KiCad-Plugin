@@ -143,11 +143,16 @@ def checkImport(add_if_possible=True):
 
         libdir = os.path.join(DEST_PATH, name + ".kicad_sym")
         libdir_old = os.path.join(DEST_PATH, name + "_kicad_sym.kicad_sym")
+        libdir_convert_lib = os.path.join(DEST_PATH, name + "_old_lib.kicad_sym")
         if os.path.isfile(libdir):
             libname = name + ".kicad_sym"
             msg += setting.check_symbollib(libname, add_if_possible)
         elif os.path.isfile(libdir_old):
             libname = name + "_kicad_sym.kicad_sym"
+            msg += setting.check_symbollib(libname, add_if_possible)
+
+        if os.path.isfile(libdir_convert_lib):
+            libname = name + "_old_lib.kicad_sym"
             msg += setting.check_symbollib(libname, add_if_possible)
 
         libdir = os.path.join(DEST_PATH, name + ".pretty")
@@ -299,10 +304,12 @@ class impart_frontend(impartGUI):
 
         conv = convert_lib_list(libs2migrate, drymode=True)
 
-        msg = "Current dry mode without changes:\n"
+        msg = "Current dry mode without changes:\n\n"
         for line in conv:
             msg += line + "\n"
-        msg = "\nShould the changes be applied? Backup files are also created automatically."
+        msg += "\nBackup files are also created automatically. "
+        msg += "It may be necessary to adjust the settings of the imported symbol libraries in KiCad."
+        msg += "\n\nShould the changes be applied?"
 
         if conv:
             dlg = wx.MessageDialog(

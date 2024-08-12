@@ -13,6 +13,10 @@ import zipfile
 from os import stat, remove
 from os.path import isfile
 
+from kicad_cli import kicad_cli
+
+cli = kicad_cli()
+
 
 class Modification(Enum):
     MKDIR = 0
@@ -686,19 +690,26 @@ class import_lib:
             if lib_path and not self.lib_path_new:
                 CompatibilityMode = True
 
-                temp_path = self.DEST_PATH / lib_path.name
-                temp_path_new = temp_path.with_suffix(".kicad_sym")
+                temp_path = self.DEST_PATH / "temp.lib"
+                temp_path_new = self.DEST_PATH / "temp.kicad_sym"
 
-                # TODO convert libs
-                # TODO delete temp_path and temp_path_new after importing
-                self.print("convert " + str(lib_path) + " to " + str(temp_path_new))
+                if temp_path.exists():
+                    remove(temp_path)
+                if temp_path_new.exists():
+                    remove(temp_path_new)
+
+                with temp_path.open("wt", encoding="utf-8") as writefile:
+                    text = lib_path.read_text(encoding="utf-8")
+                    writefile.write(text)
+
+                if temp_path.exists() and cli.exists():
+                    cli.upgrade_sym_lib(temp_path, temp_path_new)
+                    self.print("compatibility mode: convert from .lib to .kicad_sym")
 
                 if temp_path_new.exists() and temp_path_new.is_file():
                     self.lib_path_new = temp_path_new
                 else:
-                    self.print(
-                        "Error in the import process. Library could not be converted from '.lib' to '.kicad_sym'."
-                    )
+                    self.print("error during conversion")
 
             if self.lib_path_new:
                 device, lib_file_new_read, lib_file_new_write = self.import_lib_new(
@@ -718,6 +729,12 @@ class import_lib:
                 )
                 if not import_old_format:
                     lib_path = None
+
+            if CompatibilityMode:
+                if temp_path.exists():
+                    remove(temp_path)
+                if temp_path_new.exists():
+                    remove(temp_path_new)
 
             if lib_path:
                 device, lib_file_read, lib_file_write = self.import_lib(

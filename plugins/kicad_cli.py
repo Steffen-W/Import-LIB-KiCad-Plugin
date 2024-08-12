@@ -18,15 +18,26 @@ class kicad_cli:
             return None
 
     def exists(self):
+
+        def version_to_tuple(version_str):
+            return tuple(map(int, version_str.split(".")))
+
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["kicad-cli", "--version"],
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            return True
+            version = result.stdout.strip()
+            minVersion = "8.0.4"
+            if version_to_tuple(version) < version_to_tuple(minVersion):
+                print("KiCad Version", version)
+                print("Minimum required KiCad version is", minVersion)
+                return False
+            else:
+                return True
         except (subprocess.CalledProcessError, FileNotFoundError):
             print("kicad-cli does not exist")
             return False
