@@ -107,6 +107,8 @@ class impart_backend:
                         import_old_format=self.import_old_format,
                     )
                     self.print2buffer(res)
+                except AssertionError as e:
+                    self.print2buffer(e)
                 except Exception as e:
                     self.print2buffer(e)
                     backend_h.print2buffer(f"Error: {e}")

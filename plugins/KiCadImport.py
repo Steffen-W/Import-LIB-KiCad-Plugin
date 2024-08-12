@@ -706,7 +706,7 @@ class import_lib:
                 )
 
                 file_ending = ""
-                if "_kicad_sym" in lib_file_new_read:
+                if "_kicad_sym" in lib_file_new_read.name:
                     file_ending = "_kicad_sym"
 
                 dcm_file_new_read, dcm_file_new_write = self.import_dcm(
