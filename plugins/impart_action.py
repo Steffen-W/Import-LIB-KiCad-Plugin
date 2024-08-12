@@ -109,6 +109,9 @@ class impart_backend:
                     self.print2buffer(res)
                 except Exception as e:
                     self.print2buffer(e)
+                    backend_h.print2buffer(f"Error: {e}")
+                    backend_h.print2buffer("Python version " + sys.version)
+                    print(traceback.format_exc())
                 self.print2buffer("")
 
             if not self.runThread:

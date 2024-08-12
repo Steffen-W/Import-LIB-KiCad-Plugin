@@ -682,6 +682,24 @@ class import_lib:
 
             self.print("Identify " + remote_type.name)
 
+            CompatibilityMode = False
+            if lib_path and not self.lib_path_new:
+                CompatibilityMode = True
+
+                temp_path = self.DEST_PATH / lib_path.name
+                temp_path_new = temp_path.with_suffix(".kicad_sym")
+
+                # TODO convert libs
+                # TODO delete temp_path and temp_path_new after importing
+                self.print("convert " + str(lib_path) + " to " + str(temp_path_new))
+
+                if temp_path_new.exists() and temp_path_new.is_file():
+                    self.lib_path_new = temp_path_new
+                else:
+                    self.print(
+                        "Error in the import process. Library could not be converted from '.lib' to '.kicad_sym'."
+                    )
+
             if self.lib_path_new:
                 device, lib_file_new_read, lib_file_new_write = self.import_lib_new(
                     remote_type, self.lib_path_new, overwrite_if_exists
