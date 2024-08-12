@@ -250,6 +250,7 @@ class impart_frontend(impartGUI):
         backend_h.config.set_SRC_PATH(self.m_dirPicker_sourcepath.GetPath())
         backend_h.config.set_DEST_PATH(self.m_dirPicker_librarypath.GetPath())
         backend_h.folderhandler.filelist = []
+        self.test_migrate_possible()
         event.Skip()
 
     def ButtomManualImport(self, event):
@@ -281,7 +282,9 @@ class impart_frontend(impartGUI):
 
     def test_migrate_possible(self):
         libs2migrate = self.get_old_libfiles()
-        if len(libs2migrate):
+        conv = convert_lib_list(libs2migrate, drymode=True)
+
+        if len(conv):
             self.m_button_migrate.Show()
         else:
             self.m_button_migrate.Hide()
@@ -289,14 +292,26 @@ class impart_frontend(impartGUI):
     def migrate_libs(self, event):
         libs2migrate = self.get_old_libfiles()
 
-        conv = convert_lib_list(libs2migrate, drymode=True)  # TODO
+        conv = convert_lib_list(libs2migrate, drymode=True)
 
-        backend_h.print2buffer("Current dry mode without changes")
+        msg = "Current dry mode without changes:\n"
         for line in conv:
-            backend_h.print2buffer(line)
+            msg += line + "\n"
+        msg = "\nShould the changes be applied? Backup files are also created automatically."
 
         if conv:
-            backend_h.print2buffer("##############################")
+            dlg = wx.MessageDialog(
+                None, msg, "WARNING", wx.KILL_OK | wx.ICON_WARNING | wx.CANCEL
+            )
+            if dlg.ShowModal() == wx.ID_OK:
+                backend_h.print2buffer("convert_lib_list")
+                conv = convert_lib_list(libs2migrate, drymode=False)
+                for line in conv:
+                    backend_h.print2buffer(line)
+                backend_h.print2buffer("TODO: need to update KiCad Settings")  # TODO
+                backend_h.print2buffer("##############################")
+
+        self.test_migrate_possible()
 
         event.Skip()
 
