@@ -1,7 +1,7 @@
 from pathlib import Path
 import logging
 
-from kicad_cli.kicad_cli import kicad_cli
+from kicad_cli import kicad_cli
 
 logger = logging.getLogger(__name__)
 cli = kicad_cli()
