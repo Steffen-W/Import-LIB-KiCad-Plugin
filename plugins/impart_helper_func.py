@@ -3,7 +3,13 @@ import json
 import configparser
 from pathlib import Path
 import re
-from s_expression_parse import readFile2var, parse_sexp, convert_list_to_dicts
+
+if __name__ == "__main__":
+    from s_expression_parse import readFile2var, parse_sexp, convert_list_to_dicts
+else:
+    # relative import is required in kicad
+    from .s_expression_parse import readFile2var, parse_sexp, convert_list_to_dicts
+
 
 class filehandler:
     def __init__(self, path):
@@ -94,6 +100,10 @@ class KiCad_Settings:
         path = os.path.join(self.SettingPath, "sym-lib-table")
         self.__add_entry_sexp__(path, name=libname, uri=libpath)
 
+    def sym_table_change_entry(self, old_uri, new_uri):
+        path = os.path.join(self.SettingPath, "sym-lib-table")
+        self.__update_uri_in_sexp__(path, old_uri=old_uri, new_uri=new_uri)
+
     def get_lib_table(self):
         path = os.path.join(self.SettingPath, "fp-lib-table")
         return self.__parse_table__(path)
@@ -108,7 +118,7 @@ class KiCad_Settings:
         parsed = parse_sexp(sexp)
         return convert_list_to_dicts(parsed)
 
-    def __update_uri_in_sexp__(  # TODO need to test
+    def __update_uri_in_sexp__(
         self,
         path,
         old_uri,
@@ -127,11 +137,11 @@ class KiCad_Settings:
             if match:
                 name, type_, uri, options, descr = match.groups()
                 if uri == old_uri:
-                    print(f"Found URI in entry with name: {name}")
-
                     # Create a new entry with the new URI
-                    new_entry = f'  (lib (name "{name}")(type "{type_}")(uri "{new_uri}")(options "{options}")(descr "{descr}"))\n'
+                    new_entry = f'  (lib (name "{name}")(type "KiCad")(uri "{new_uri}")(options "{options}")(descr "{descr}"))\n'
+                    print("old entry:", data[index], end="")
                     data[index] = new_entry
+                    print("new entry:", data[index], end="")
                     uri_found = True
                     break
 
