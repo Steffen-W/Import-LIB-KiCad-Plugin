@@ -1,9 +1,15 @@
 from pathlib import Path
 import logging
-from kicad_cli import kicad_cli
+
+if __name__ == "__main__":
+    from kicad_cli import kicad_cli
+else:
+    # relative import is required in kicad
+    from .kicad_cli import kicad_cli
 
 logger = logging.getLogger(__name__)
 cli = kicad_cli()
+
 
 def find_old_lib_files(
     folder_path: str,
@@ -81,26 +87,26 @@ def convert_lib(SRC: Path, DES: Path, drymode=True):
     msg = []
 
     if drymode:
-        msg.append(f"{SRC.name} convert to {DES.name}")
-        msg.append(f"{SRC.name} rename to {BLK_file.name}")
+        msg.append([SRC.name, DES.name])
+        msg.append([SRC.name, BLK_file.name])
 
     else:
 
         SRC_dcm = SRC.with_suffix(".dcm")
         DES_dcm = DES.with_suffix(".dcm")
         if DES_dcm.exists() and DES_dcm.is_file():
-            return 0
+            return []
 
         if not cli.upgrade_sym_lib(SRC, DES) or not DES.exists():
             logger.error(f"converting {SRC.name} to {DES.name} produced an error")
-            return 0
-        msg.append(f"{SRC.stem} convert to {DES.stem}")
+            return []
+        msg.append([SRC.stem, DES.stem])
 
         if SRC_dcm.exists() and SRC_dcm.is_file():
             SRC_dcm.rename(DES_dcm)
 
         SRC.rename(BLK_file)
-        msg.append(f"{SRC.name} rename to {BLK_file.name}")
+        msg.append([SRC.name, BLK_file.name])
 
     return msg
 
