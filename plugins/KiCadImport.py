@@ -13,7 +13,7 @@ import zipfile
 from os import stat, remove
 from os.path import isfile
 
-import kicad_cli
+from kicad_cli.kicad_cli import kicad_cli
 
 cli = kicad_cli()
 
