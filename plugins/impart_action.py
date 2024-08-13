@@ -6,17 +6,20 @@ from threading import Thread
 import sys
 import traceback
 
-if __name__ == "__main__":
-    from impart_gui import impartGUI
-    from KiCadImport import import_lib
-    from impart_helper_func import filehandler, config_handler, KiCad_Settings
-    from impart_migration import find_old_lib_files, convert_lib_list
-else:
-    # relative import is required in kicad
-    from .impart_gui import impartGUI
-    from .KiCadImport import import_lib
-    from .impart_helper_func import filehandler, config_handler, KiCad_Settings
-    from .impart_migration import find_old_lib_files, convert_lib_list
+try:
+    if __name__ == "__main__":
+        from impart_gui import impartGUI
+        from KiCadImport import import_lib
+        from impart_helper_func import filehandler, config_handler, KiCad_Settings
+        from impart_migration import find_old_lib_files, convert_lib_list
+    else:
+        # relative import is required in kicad
+        from .impart_gui import impartGUI
+        from .KiCadImport import import_lib
+        from .impart_helper_func import filehandler, config_handler, KiCad_Settings
+        from .impart_migration import find_old_lib_files, convert_lib_list
+except Exception as e:
+    print(traceback.format_exc())
 
 
 EVT_UPDATE_ID = wx.NewIdRef()
@@ -64,7 +67,6 @@ additional_information = (
 
 
 class impart_backend:
-    importer = import_lib()
 
     def __init__(self):
         path2config = os.path.join(os.path.dirname(__file__), "config.ini")
@@ -78,7 +80,17 @@ class impart_backend:
         self.autoLib = False
         self.folderhandler = filehandler(".")
         self.print_buffer = ""
+        self.importer = import_lib()
         self.importer.print = self.print2buffer
+
+        def version_to_tuple(version_str):
+            return tuple(map(int, version_str.split(".")))
+
+        minVersion = "8.0.4"
+        if version_to_tuple(pcbnew.Version()) < version_to_tuple(minVersion):
+            self.print2buffer("KiCad Version: " + str(pcbnew.FullVersion()))
+            self.print2buffer("Minimum required KiCad version is " + minVersion)
+            self.print2buffer("This can limit the functionality of the plugin.")
 
         if not self.config.config_is_set:
             self.print2buffer(
@@ -88,8 +100,9 @@ class impart_backend:
             self.print2buffer(additional_information)
             self.print2buffer("\n##############################\n")
 
-    def print2buffer(self, text):
-        self.print_buffer = self.print_buffer + str(text) + "\n"
+    def print2buffer(self, *args):
+        for text in args:
+            self.print_buffer = self.print_buffer + str(text) + "\n"
 
     def __find_new_file__(self):
         path = self.config.get_SRC_PATH()
@@ -238,7 +251,7 @@ class impart_frontend(impartGUI):
             x = Thread(target=backend_h.__find_new_file__, args=[])
             x.start()
 
-        add_if_possible  = self.m_check_autoLib.IsChecked()
+        add_if_possible = self.m_check_autoLib.IsChecked()
         msg = checkImport(add_if_possible)
         if msg:
             msg += "\n\nMore information can be found in the README for the integration into KiCad.\n"
@@ -304,27 +317,81 @@ class impart_frontend(impartGUI):
 
         conv = convert_lib_list(libs2migrate, drymode=True)
 
-        msg = "Current dry mode without changes:\n\n"
+        def print2GUI(text):
+            backend_h.print2buffer(text)
+
+        if len(conv) <= 0:
+            print2GUI("Error in migrate_libs()")
+            return
+
+        SymbolTable = backend_h.KiCad_Settings.get_sym_table()
+        SymbolLibsUri = {lib["uri"]: lib for lib in SymbolTable}
+        libRename = []
+
+        def lib_entry(lib):
+            return "${KICAD_3RD_PARTY}/" + lib
+
+        msg = ""
         for line in conv:
-            msg += line + "\n"
-        msg += "\nBackup files are also created automatically. "
-        msg += "It may be necessary to adjust the settings of the imported symbol libraries in KiCad."
-        msg += "\n\nShould the changes be applied?"
+            if line[1].endswith(".blk"):
+                msg += "\n" + line[0] + " rename to " + line[1]
+            else:
+                msg += "\n" + line[0] + " convert to " + line[1]
+                if lib_entry(line[0]) in SymbolLibsUri:
+                    entry = SymbolLibsUri[lib_entry(line[0])]
+                    tmp = {
+                        "oldURI": entry["uri"],
+                        "newURI": lib_entry(line[1]),
+                        "name": entry["name"],
+                    }
+                    libRename.append(tmp)
 
-        if conv:
-            dlg = wx.MessageDialog(
-                None, msg, "WARNING", wx.KILL_OK | wx.ICON_WARNING | wx.CANCEL
-            )
-            if dlg.ShowModal() == wx.ID_OK:
-                backend_h.print2buffer("convert_lib_list")
-                conv = convert_lib_list(libs2migrate, drymode=False)
-                for line in conv:
-                    backend_h.print2buffer(line)
-                backend_h.print2buffer("TODO: need to update KiCad Settings")  # TODO
-                backend_h.print2buffer("##############################")
+        msg_lib = ""
+        if len(libRename):
+            msg_lib += "The following changes must be made to the list of imported Symbol libs:\n"
 
-        self.test_migrate_possible()
+            for tmp in libRename:
+                msg_lib += f"\n{tmp['name']} : {tmp['oldURI']} \n-> {tmp['newURI']}"
 
+            msg_lib += "\n\n"
+            msg_lib += "It is necessary to adjust the settings of the imported symbol libraries in KiCad."
+            msg += "\n\n" + msg_lib
+
+        msg += "\n\nBackup files are also created automatically. "
+        msg += "These are named '*.blk'.\nShould the changes be applied?"
+
+        dlg = wx.MessageDialog(
+            None, msg, "WARNING", wx.KILL_OK | wx.ICON_WARNING | wx.CANCEL
+        )
+        if dlg.ShowModal() == wx.ID_OK:
+            print2GUI("Converted libraries:")
+            conv = convert_lib_list(libs2migrate, drymode=False)
+            for line in conv:
+                if line[1].endswith(".blk"):
+                    print2GUI(line[0] + " rename to " + line[1])
+                else:
+                    print2GUI(line[0] + " convert to " + line[1])
+        else:
+            return
+
+        if not len(msg_lib):
+            return
+
+        msg_dlg = "\nShould the change be made automatically? A restart of KiCad is then necessary to apply all changes."
+        dlg2 = wx.MessageDialog(
+            None, msg_lib + msg_dlg, "WARNING", wx.KILL_OK | wx.ICON_WARNING | wx.CANCEL
+        )
+        if dlg2.ShowModal() == wx.ID_OK:
+            for tmp in libRename:
+                print2GUI(f"\n{tmp['name']} : {tmp['oldURI']} \n-> {tmp['newURI']}")
+                backend_h.KiCad_Settings.sym_table_change_entry(
+                    tmp["oldURI"], tmp["newURI"]
+                )
+            print2GUI("\nA restart of KiCad is then necessary to apply all changes.")
+        else:
+            print2GUI(msg_lib)
+
+        self.test_migrate_possible()  # When everything has worked, the button disappears
         event.Skip()
 
 
