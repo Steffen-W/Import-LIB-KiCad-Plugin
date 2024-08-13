@@ -1,11 +1,7 @@
 from pathlib import Path
 import logging
 
-if __name__ == "__main__":
-    from kicad_cli import kicad_cli
-else:
-    # relative import is required in kicad
-    from .kicad_cli import kicad_cli
+from kicad_cli import kicad_cli
 
 logger = logging.getLogger(__name__)
 cli = kicad_cli()

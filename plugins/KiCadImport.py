@@ -13,12 +13,7 @@ import zipfile
 from os import stat, remove
 from os.path import isfile
 
-
-if __name__ == "__main__":
-    from kicad_cli import kicad_cli
-else:
-    # relative import is required in kicad
-    from .kicad_cli import kicad_cli
+import kicad_cli
 
 cli = kicad_cli()
 
