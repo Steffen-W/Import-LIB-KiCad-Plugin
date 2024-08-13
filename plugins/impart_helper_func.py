@@ -4,11 +4,7 @@ import configparser
 from pathlib import Path
 import re
 
-if __name__ == "__main__":
-    from s_expression_parse import readFile2var, parse_sexp, convert_list_to_dicts
-else:
-    # relative import is required in kicad
-    from .s_expression_parse import readFile2var, parse_sexp, convert_list_to_dicts
+from s_expression_parse import readFile2var, parse_sexp, convert_list_to_dicts
 
 
 class filehandler:
