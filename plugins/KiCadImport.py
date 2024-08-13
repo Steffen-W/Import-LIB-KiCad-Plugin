@@ -13,7 +13,12 @@ import zipfile
 from os import stat, remove
 from os.path import isfile
 
-from kicad_cli import kicad_cli
+
+if __name__ == "__main__":
+    from kicad_cli import kicad_cli
+else:
+    # relative import is required in kicad
+    from .kicad_cli import kicad_cli
 
 cli = kicad_cli()
 
@@ -173,7 +178,9 @@ class import_lib:
         if self.lib_path or self.lib_path_new:
             self.dcm_path = unzip(root_path, ".dcm")
             # self.footprint_path = root_path
-            self.footprint_path = footprint.parent
+            self.footprint_path = None
+            if footprint:
+                self.footprint_path = footprint.parent
             self.model_path = unzip(root_path, ".step")
             remote_type = REMOTE_TYPES.Snapeda
 
