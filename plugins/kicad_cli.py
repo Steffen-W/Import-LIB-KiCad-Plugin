@@ -11,6 +11,7 @@ class kicad_cli:
                 stderr=subprocess.PIPE,
                 text=True,
             )
+            # print(result.stdout.strip())
             return True
         except subprocess.CalledProcessError as e:
             print(" ".join(["kicad-cli"] + command))
