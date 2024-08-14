@@ -15,6 +15,9 @@ def find_old_lib_files(
     folder_path = Path(folder_path).expanduser()
     found_files = {}
 
+    if not folder_path.exists():
+        return found_files
+
     for file in folder_path.iterdir():
         if not file.is_file():
             continue
