@@ -341,7 +341,7 @@
         </object>
         <object class="sizeritem" expanded="true">
           <property name="border">5</property>
-          <property name="flag">wxEXPAND</property>
+          <property name="flag">wxALIGN_CENTER_HORIZONTAL</property>
           <property name="proportion">0</property>
           <object class="wxFlexGridSizer" expanded="true">
             <property name="cols">3</property>
@@ -497,7 +497,7 @@
             </object>
             <object class="sizeritem" expanded="true">
               <property name="border">5</property>
-              <property name="flag">wxALL|wxEXPAND</property>
+              <property name="flag">wxEXPAND|wxALL</property>
               <property name="proportion">0</property>
               <object class="wxTextCtrl" expanded="true">
                 <property name="BottomDockable">1</property>
@@ -532,13 +532,13 @@
                 <property name="maximize_button">0</property>
                 <property name="maximum_size"></property>
                 <property name="maxlength">0</property>
-                <property name="min_size"></property>
+                <property name="min_size">-1,-1</property>
                 <property name="minimize_button">0</property>
                 <property name="minimum_size">220,-1</property>
                 <property name="moveable">1</property>
                 <property name="name">m_textCtrl2</property>
                 <property name="pane_border">1</property>
-                <property name="pane_position"></property>
+                <property name="pane_position">-1,-1</property>
                 <property name="pane_size"></property>
                 <property name="permission">protected</property>
                 <property name="pin_button">1</property>
@@ -624,7 +624,7 @@
         </object>
         <object class="sizeritem" expanded="true">
           <property name="border">5</property>
-          <property name="flag">wxEXPAND</property>
+          <property name="flag">wxALIGN_CENTER</property>
           <property name="proportion">0</property>
           <object class="wxFlexGridSizer" expanded="true">
             <property name="cols">4</property>
@@ -800,7 +800,7 @@
                 <property name="floatable">1</property>
                 <property name="font"></property>
                 <property name="gripper">0</property>
-                <property name="hidden">0</property>
+                <property name="hidden">1</property>
                 <property name="id">wxID_ANY</property>
                 <property name="label">import old format</property>
                 <property name="max_size"></property>
@@ -1187,7 +1187,7 @@
             <property name="floatable">1</property>
             <property name="font"></property>
             <property name="gripper">0</property>
-            <property name="hidden">0</property>
+            <property name="hidden">1</property>
             <property name="id">wxID_ANY</property>
             <property name="max_size"></property>
             <property name="maximize_button">0</property>
@@ -1246,7 +1246,7 @@
             <property name="floatable">1</property>
             <property name="font"></property>
             <property name="gripper">0</property>
-            <property name="hidden">0</property>
+            <property name="hidden">1</property>
             <property name="id">wxID_ANY</property>
             <property name="label">There is no guarantee for faultless function. Use only at your own risk. Should there be any errors please write an issue.&#x0A;Necessary settings for the integration of the libraries can be found in the README:</property>
             <property name="markup">0</property>

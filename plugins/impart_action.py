@@ -56,16 +56,6 @@ class PluginThread(Thread):
         wx.PostEvent(self.wxObject, ResultEvent(status))
 
 
-additional_information = (
-    "Important information: "
-    + "\nIf you have already used the previous version of the plugin, you should "
-    + "note that the current version only supports the current library file format. "
-    + "If this plugin is being used for the first time, settings in KiCad are required. "
-    + "The settings are checked at the end of the import process. For easy setup, "
-    + "auto setting can be activated."
-)
-
-
 class impart_backend:
 
     def __init__(self):
@@ -95,7 +85,13 @@ class impart_backend:
         if not self.config.config_is_set:
             self.print2buffer(
                 "Warning: The path where the libraries should be saved has not been adjusted yet."
-                + " Maybe you use the plugin in this version for the first time.\n\n"
+                + " Maybe you use the plugin in this version for the first time.\n"
+            )
+
+            additional_information = (
+                "If this plugin is being used for the first time, settings in KiCad are required. "
+                + "The settings are checked at the end of the import process. For easy setup, "
+                + "auto setting can be activated."
             )
             self.print2buffer(additional_information)
             self.print2buffer("\n##############################\n")
@@ -264,7 +260,6 @@ class impart_frontend(impartGUI):
                 return
 
             backend_h.print2buffer("\n##############################\n")
-            # backend_h.print2buffer(additional_information)
             backend_h.print2buffer(msg)
             backend_h.print2buffer("\n##############################\n")
         event.Skip()
@@ -286,9 +281,7 @@ class impart_frontend(impartGUI):
             backend_h.print2buffer(
                 "Try to import EeasyEDA /  LCSC Part# : " + component_id
             )
-            base_folder = (
-                backend_h.config.get_DEST_PATH()
-            )  # "~/Documents/Kicad/easyeda"
+            base_folder = backend_h.config.get_DEST_PATH()
             easyeda_import = easyeda2kicad_wrapper()
             easyeda_import.print = backend_h.print2buffer
             easyeda_import.full_import(component_id, base_folder, overwrite)
