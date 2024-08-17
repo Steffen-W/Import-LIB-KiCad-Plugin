@@ -18,12 +18,6 @@ This plugin allows importing downloaded libraries from the platforms [Octopart](
 
 [YouTube - Instructions for installation and use](https://youtu.be/BYIKjCs1qKQ)
 
-## Warranty
-
-**None. Zero. Zilch. Use at your own risk, and please be sure to use git or some other means of backing up/reverting changes caused by this script. This script will modify existing lib, dcm, footprint or 3D model files. It is your responsibility to back them up or have a way to revert changes should you inadvertently mess something up using this tool** 
-
-Please write an issues if an import does not work as requested.
-
 ## Installation
 
 Install the plugin easily through KiCad's **Plugin And Content Manager**. Select ![icon](plugins/icon_small.png) **Import-LIB-KiCad-Plugin** in the Plugins tab, press **Install** and then **Apply Pending Changes**.
@@ -34,12 +28,12 @@ You can also download the latest version [here](https://github.com/Steffen-W/Imp
 
 The import window is accessible in the **PCB Editor** -> **Tools** -> **External Plugins** -> **impartGUI**
 
-![Screenshot_GUI](doc/Screenshot_GUI.png)
+![Screenshot_GUI](doc/2024-08-17_Example_Import.png)
 
 The libraries to import must be located in the folder specified as **Folder of the library** to import. After pressing Start, the libraries will be imported into the specified folder (**Library save location**). Provided that the paths have been [added correctly in KiCad](#including-the-imported-libraries-in-kicad), the parts can be used immediately in KiCad. If the libraries have not been imported correctly, a warning will indicate this.
 
 ## Including the imported libraries in KiCad
-To use the imported libraries from the plugin, you will need to add a couple entries to KiCad's path first to see them.
+To use the imported libraries from the plugin, you will need to add a couple entries to KiCad's path first to see them. You can either let the plugin make the changes automatically (auto KiCad setting) or set the following changes manually in KiCad.
 
 **Preferences** -> **Configure paths** -> **Environment Variables** -> Add the following entry
 |Name            |Path    |
@@ -64,9 +58,25 @@ To use the imported libraries from the plugin, you will need to add a couple ent
 |:heavy_check_mark: |UltraLibrarian | ${KICAD_3RD_PARTY}/UltraLibrarian.pretty| KiCad         |
 |:heavy_check_mark: |EasyEDA        | ${KICAD_3RD_PARTY}/EasyEDA.pretty       | KiCad         |
 
+## Migrate the libraries
+
+It is strongly recommended to migrate the libraries. If you see the “migrate the libraries” button, you have been using the plugin for some time. From now on, only the latest library format will be supported. If this does not work, the old format will continue to work.
+
+![GUI_migrate](doc/2024-08-17_GUI_migrate.png)
+
+By pressing “migrate the libraries” the following window appears. Depending on how many libraries you use, fewer libraries may be displayed. Now you can start the conversion process. Important: The conversion only works completely from KiCad 8.0.4. If possible, use the latest stable [![GitHub Release](https://img.shields.io/badge/KiCad-V8-blue.svg)](https://www.kicad.org/download/) version. 
+
+![Migration](doc/2024-08-17_Migration.png)
+
+Depending on the setup, further changes may be necessary. You will be notified if this is necessary. Press ok to apply them. A restart of KiCad is mandatory to apply the changes.
+
+![update setting](doc/2024-08-17_setting.png)
+
 ## Warranty
 
 **None. Zero. Zilch. Use at your own risk**, and please be sure to use git or some other means of backing up/reverting changes caused by this script. This script will modify existing lib, dcm, footprint or 3D model files. It is your responsibility to back them up or have a way to revert changes should you inadvertently mess something up using this tool.
+
+Please write an issues if an import does not work as requested.
 
 ## FAQ
 
@@ -115,4 +125,5 @@ If you notice an error then please write me an issue. If you want to change the 
 ## Many thanks to
 
 [wexi with impart](https://github.com/wexi/impart) and [topherbuckley](https://github.com/topherbuckley/kicad_remote_import) for the code on which the GUI is based.
+I would also like to thank [uPesy](https://github.com/uPesy) for enabling the import of [EasyEDA](https://www.lcsc.com/) through his python project [uPesy/easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py) (AGPL-3.0 license).
 I also thank the people who helped me find the errors in the code.
