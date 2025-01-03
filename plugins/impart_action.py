@@ -74,7 +74,7 @@ class impart_backend:
         self.importer.print = self.print2buffer
 
         def version_to_tuple(version_str):
-            return tuple(map(int, version_str.split(".")))
+            return tuple(map(int, version_str.split('-')[0].split(".")))
 
         minVersion = "8.0.4"
         if version_to_tuple(pcbnew.Version()) < version_to_tuple(minVersion):
