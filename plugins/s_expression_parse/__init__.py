@@ -81,6 +81,44 @@ def convert_list_to_dicts(data):
     return dict_list
 
 
+def search_recursive(line: list, entry: str, all=False):
+    if type(line[0]) == str and line[0] == entry:
+        if all:
+            return line
+        else:
+            return line[1]
+
+    for e in line:
+        if type(e) == list:
+            res = search_recursive(line=e, entry=entry, all=all)
+            if not res == None:
+                return res
+    return None
+
+
+def extract_properties(sexp_list: list):
+    """
+    Extracts all “property” entries from a nested list and saves them in a dictionary.
+
+    :param sexp_list: The nested list
+    :return: A dictionary with “property” keys and their values
+    """
+    properties = {}
+
+    def traverse_list(lst):
+        """Recursive function to run through the list and extract 'property' entries."""
+        if isinstance(lst, list):
+            if len(lst) > 1 and lst[0] == "property":
+                key = lst[1]
+                value = lst[2] if len(lst) > 2 else None
+                properties[key] = value
+            for item in lst:
+                traverse_list(item)
+
+    traverse_list(sexp_list)
+    return properties
+
+
 if __name__ == "__main__":
     from pprint import pprint
 

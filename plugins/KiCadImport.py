@@ -14,6 +14,7 @@ from os import stat, remove
 from os.path import isfile
 
 from kicad_cli import kicad_cli
+from s_expression_parse import parse_sexp, search_recursive, extract_properties
 
 cli = kicad_cli()
 
@@ -619,9 +620,40 @@ class import_lib:
             else:
                 return None
 
+        def replace_footprint_name(string, original_name, remote_type_name, new_name):
+            escaped_original_name = re.escape(original_name)
+            pattern = rf'\(property\s+"Footprint"\s+"{escaped_original_name}"'
+            replacement = f'(property "Footprint" "{remote_type_name}:{new_name}"'
+            modified_string = re.sub(pattern, replacement, string, flags=re.MULTILINE)
+            return modified_string
+
+        def extract_symbol_section_new(sexpression: str, symbol_name):
+            pattern = re.compile(
+                r'\(symbol "{}"(.*?)\)\n\)'.format(re.escape(symbol_name)), re.DOTALL
+            )
+            match = pattern.search(sexpression)
+            if match:
+                return f'(symbol "{symbol_name}"{match.group(1)})'
+            return None
+
+        RAW_text = lib_path.read_text(encoding="utf-8")  # new
+        sexp_list = parse_sexp(RAW_text)  # new
+
+        symbol_name = search_recursive(sexp_list, "symbol")  # new
+        symbol_properties = extract_properties(sexp_list)  # new
+
+        symbol_sec_new = extract_symbol_section_new(RAW_text, symbol_name)
+
+        Footprint_name_raw = symbol_properties["Footprint"]  # new
+        Footprint_name = self.cleanName(Footprint_name_raw)
+
+        symbol_sec_new = replace_footprint_name(
+            symbol_sec_new, Footprint_name_raw, remote_type.name, Footprint_name
+        )
+
         # lib_lines[line_idx] = line.replace(footprint, remote_type.name + ":" + self.footprint_name, 1)
 
-        symbol_section, _, _ = extract_symbol_section(lib_path.read_text(encoding='utf-8'))
+        symbol_section, _, _ = extract_symbol_section(RAW_text)
         device = extract_symbol_names(symbol_section)[0]
 
         lib_file_read = self.DEST_PATH / (remote_type.name + ".kicad_sym")
@@ -633,9 +665,16 @@ class import_lib:
         self.footprint_name, symbol_section_mod = extract_footprint_name(symbol_section)
         symbol_section = symbol_section_mod
 
+        if not device == symbol_name:
+            print("ERROR symbol_name", symbol_name)
+        if not self.footprint_name == Footprint_name:
+            print("ERROR Footprint_name", Footprint_name)
+        if not symbol_section == symbol_sec_new:
+            print("ERROR symbol_section", symbol_name)
+
         if not lib_file_read.exists():  # library does not yet exist
             with lib_file_write.open("wt", encoding='utf-8') as writefile:
-                text = lib_path.read_text(encoding='utf-8').strip().split("\n")
+                text = RAW_text.strip().split("\n")
                 writefile.write(text[0] + "\n")
                 writefile.write(symbol_section + "\n")
                 writefile.write(text[-1])
