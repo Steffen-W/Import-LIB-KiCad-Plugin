@@ -233,7 +233,12 @@ class impart_frontend(impartGUI):
         backend_h.importer.set_DEST_PATH(backend_h.config.get_DEST_PATH())
 
         backend_h.autoImport = self.m_autoImport.IsChecked()
+
+        tmp = self.m_overwrite.IsChecked()
+        if tmp and not tmp == backend_h.overwriteImport:
+            backend_h.folderhandler.filelist = []
         backend_h.overwriteImport = self.m_overwrite.IsChecked()
+
         backend_h.autoLib = self.m_check_autoLib.IsChecked()
         backend_h.import_old_format = self.m_check_import_all.IsChecked()
 
