@@ -21,7 +21,11 @@ class kicad_cli:
     def exists(self):
 
         def version_to_tuple(version_str):
-            return tuple(map(int, version_str.split(".")))
+            try:
+                return tuple(map(int, version_str.split("-")[0].split(".")))
+            except (ValueError, AttributeError) as e:
+                print(f"Version extractions error '{version_str}': {e}")
+                return None
 
         try:
             result = subprocess.run(
@@ -33,7 +37,8 @@ class kicad_cli:
             )
             version = result.stdout.strip()
             minVersion = "8.0.4"
-            if version_to_tuple(version) < version_to_tuple(minVersion):
+            KiCadVers = version_to_tuple(version)
+            if not KiCadVers or KiCadVers < version_to_tuple(minVersion):
                 print("KiCad Version", version)
                 print("Minimum required KiCad version is", minVersion)
                 return False

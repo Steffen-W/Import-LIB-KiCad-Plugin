@@ -74,10 +74,15 @@ class impart_backend:
         self.importer.print = self.print2buffer
 
         def version_to_tuple(version_str):
-            return tuple(map(int, version_str.split('-')[0].split(".")))
+            try:
+                return tuple(map(int, version_str.split("-")[0].split(".")))
+            except (ValueError, AttributeError) as e:
+                print(f"Version extractions error '{version_str}': {e}")
+                return None
 
         minVersion = "8.0.4"
-        if version_to_tuple(pcbnew.Version()) < version_to_tuple(minVersion):
+        KiCadVers = version_to_tuple(pcbnew.Version())
+        if not KiCadVers or KiCadVers < version_to_tuple(minVersion):
             self.print2buffer("KiCad Version: " + str(pcbnew.FullVersion()))
             self.print2buffer("Minimum required KiCad version is " + minVersion)
             self.print2buffer("This can limit the functionality of the plugin.")
