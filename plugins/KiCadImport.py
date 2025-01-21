@@ -578,7 +578,7 @@ class import_lib:
         lib_path: pathlib.Path,
         overwrite_if_exists=True,
     ) -> Tuple[str, Union[pathlib.Path, None], Union[pathlib.Path, None]]:
-        device = None
+        symbol_name = None
 
         def extract_symbol_names(input_text):
             pattern = r'"(.*?)"'  # Searches for text in quotes
@@ -586,39 +586,7 @@ class import_lib:
             pattern = r'\(symbol\s+"(.*?)"'
             matches = re.findall(pattern, input_text)
             return matches
-
-        def extract_symbol_section(input_text):
-            start_index = input_text.find("(symbol")  # Search for "(symbol"
-            if start_index == -1:
-                return None
-            open_brackets = 1
-            end_index = start_index + len("(symbol")
-            for i in range(start_index + len("(symbol"), len(input_text)):
-                if input_text[i] == "(":
-                    open_brackets += 1
-                elif input_text[i] == ")":
-                    open_brackets -= 1
-                    if open_brackets == 0:
-                        end_index = i + 1
-                        break
-            symbol_section = input_text[start_index:end_index]
-            return symbol_section, start_index, end_index
-
-        def extract_footprint_name(string):
-            pattern = r'\(property\s+"Footprint"\s+"(.*?)"'
-            match = re.search(pattern, string, re.MULTILINE)
-            if match:
-                original_name = match.group(1)
-                name = self.cleanName(original_name)
-                modified_string = re.sub(
-                    pattern,
-                    f'(property "Footprint" "{remote_type.name}:{name}"',
-                    string,
-                    flags=re.MULTILINE
-                )
-                return name, modified_string
-            else:
-                return None
+        symbol_name = None
 
         def replace_footprint_name(string, original_name, remote_type_name, new_name):
             escaped_original_name = re.escape(original_name)
@@ -642,35 +610,20 @@ class import_lib:
         symbol_name = search_recursive(sexp_list, "symbol")  # new
         symbol_properties = extract_properties(sexp_list)  # new
 
-        symbol_sec_new = extract_symbol_section_new(RAW_text, symbol_name)
+        symbol_section = extract_symbol_section_new(RAW_text, symbol_name)
 
         Footprint_name_raw = symbol_properties["Footprint"]  # new
-        Footprint_name = self.cleanName(Footprint_name_raw)
+        self.footprint_name = self.cleanName(Footprint_name_raw)
 
-        symbol_sec_new = replace_footprint_name(
-            symbol_sec_new, Footprint_name_raw, remote_type.name, Footprint_name
+        symbol_section = replace_footprint_name(
+            symbol_section, Footprint_name_raw, remote_type.name, self.footprint_name
         )
-
-        # lib_lines[line_idx] = line.replace(footprint, remote_type.name + ":" + self.footprint_name, 1)
-
-        symbol_section, _, _ = extract_symbol_section(RAW_text)
-        device = extract_symbol_names(symbol_section)[0]
 
         lib_file_read = self.DEST_PATH / (remote_type.name + ".kicad_sym")
         lib_file_read_old = self.DEST_PATH / (remote_type.name + "_kicad_sym.kicad_sym")
         lib_file_write = self.DEST_PATH / (remote_type.name + ".kicad_sym~")
         if isfile(lib_file_read_old) and not isfile(lib_file_read):
             lib_file_read = lib_file_read_old
-
-        self.footprint_name, symbol_section_mod = extract_footprint_name(symbol_section)
-        symbol_section = symbol_section_mod
-
-        if not device == symbol_name:
-            print("ERROR symbol_name", symbol_name)
-        if not self.footprint_name == Footprint_name:
-            print("ERROR Footprint_name", Footprint_name)
-        if not symbol_section == symbol_sec_new:
-            print("ERROR symbol_section", symbol_name)
 
         if not lib_file_read.exists():  # library does not yet exist
             with lib_file_write.open("wt", encoding='utf-8') as writefile:
@@ -681,20 +634,20 @@ class import_lib:
 
             check_file(lib_file_read)
             self.print("Import kicad_sym")
-            return device, lib_file_read, lib_file_write
+            return symbol_name, lib_file_read, lib_file_write
 
         check_file(lib_file_read)
 
         lib_file_txt = lib_file_read.read_text(encoding='utf-8')
         existing_libs = extract_symbol_names(lib_file_txt)
 
-        if device in existing_libs:
+        if symbol_name in existing_libs:
             if overwrite_if_exists:
                 self.print("Overwrite existing kicad_sym is not implemented")  # TODO
             else:
                 self.print("Import of kicad_sym skipped")
 
-            return device, lib_file_read, lib_file_write
+            return symbol_name, lib_file_read, lib_file_write
 
         closing_bracket = lib_file_txt.rfind(")")
 
@@ -705,7 +658,7 @@ class import_lib:
 
         self.print("Import kicad_sym")
 
-        return device, lib_file_read, lib_file_write
+        return symbol_name, lib_file_read, lib_file_write
 
     def import_all(
         self, zip_file: pathlib.Path, overwrite_if_exists=True, import_old_format=True
