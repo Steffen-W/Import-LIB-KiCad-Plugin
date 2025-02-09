@@ -802,3 +802,76 @@ class import_lib:
                 remove(footprint_file_write)
 
         return ("OK",)
+
+
+def main(lib_file, lib_folder, overwrite=False):
+    lib_folder = pathlib.Path(lib_folder)
+    lib_file = pathlib.Path(lib_file)
+
+    print("overwrite", overwrite)
+
+    if not lib_folder.is_dir():
+        print(f"Error destination folder {lib_folder} does not exist!")
+        return 0
+
+    if not lib_file.is_file():
+        print(f"Error file {lib_folder} to be imported was not found!")
+        return 0
+
+    impart = import_lib()
+    impart.set_DEST_PATH(lib_folder)
+    impart.import_all(lib_file, overwrite_if_exists=overwrite)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    # Example: python plugins/KiCadImport.py --download-folder Demo/libs --lib-folder import_test
+
+    parser = argparse.ArgumentParser(
+        description="Import KiCad libraries from a file or folder."
+    )
+
+    # Create mutually exclusive arguments for file or folder
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        "--download-folder",
+        help="Path to the folder with the zip files to be imported.",
+    )
+    group.add_argument("--download-file", help="Path to the zip file to import.")
+
+    parser.add_argument(
+        "--lib-folder",
+        required=True,
+        help="Destination folder for the imported KiCad files.",
+    )
+
+    parser.add_argument(
+        "--overwrite-if-exists",
+        action="store_true",
+        help="Overwrite existing files if they already exist",
+    )
+
+    args = parser.parse_args()
+
+    if args.download_file:
+        main(
+            lib_file=args.download_file,
+            lib_folder=args.lib_folder,
+            overwrite=args.overwrite_if_exists,
+        )
+
+    elif args.download_folder:
+        download_folder = pathlib.Path(args.download_folder)
+        if not download_folder.is_dir():
+            print(f"Error Source folder {download_folder} does not exist!")
+        else:
+            for zip_file in download_folder.glob("*.zip"):
+                if (
+                    zip_file.is_file() and zip_file.stat().st_size >= 1024
+                ):  # Check if it's a file and at least 1 KB
+                    main(
+                        lib_file=zip_file,
+                        lib_folder=args.lib_folder,
+                        overwrite=args.overwrite_if_exists,
+                    )
