@@ -107,9 +107,11 @@ Yes, you can always do that. The libraries are neither deleted nor edited in any
 
 ## Todo List
 
+- [ ] Add digikey support
+- [ ] Reloading the dependency pydantic for [uPesy/easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py)
 - [ ] Updating the library before an import `kicad-cli sym upgrade`
 - [ ] Updating the footprint library `kicad-cli fp upgrade *.pretty`
-- [x] add [jlcpcb parts](https://jlcpcb.com/parts) to import (integrate [uPesy/easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py)
+- [x] add [jlcpcb parts](https://jlcpcb.com/parts) to import (integrate [uPesy/easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py))
 - [x] Automatic background import
 - [x] Test on a Mac
 - [x] Testing all library formats
