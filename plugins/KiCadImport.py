@@ -83,7 +83,7 @@ class import_lib:
         print("->" + txt)
 
     def __init__(self):
-        DEST_PATH = pathlib.Path.home() / "KiCad"
+        self.KICAD_3RD_PARTY_LINK = "${KICAD_3RD_PARTY}"
 
     def set_DEST_PATH(self, DEST_PATH_=pathlib.Path.home() / "KiCad"):
         self.DEST_PATH = pathlib.Path(DEST_PATH_)
@@ -392,13 +392,9 @@ class import_lib:
 
             if found_model:
                 footprint.splitlines()
+                model_path = f"{self.KICAD_3RD_PARTY_LINK}/{remote_type.name}.3dshapes/{found_model.name}"
                 model = [
-                    '  (model "'
-                    + "${KICAD_3RD_PARTY}/"
-                    + remote_type.name
-                    + ".3dshapes/"
-                    + found_model.name
-                    + '"',
+                    f'  (model "{model_path}"',
                     "    (offset (xyz 0 0 0))",
                     "    (scale (xyz 1 1 1))",
                     "    (rotate (xyz 0 0 0))",
@@ -804,7 +800,9 @@ class import_lib:
         return ("OK",)
 
 
-def main(lib_file, lib_folder, overwrite=False):
+def main(
+    lib_file, lib_folder, overwrite=False, KICAD_3RD_PARTY_LINK="${KICAD_3RD_PARTY}"
+):
     lib_folder = pathlib.Path(lib_folder)
     lib_file = pathlib.Path(lib_file)
 
@@ -819,6 +817,7 @@ def main(lib_file, lib_folder, overwrite=False):
         return 0
 
     impart = import_lib()
+    impart.KICAD_3RD_PARTY_LINK = KICAD_3RD_PARTY_LINK
     impart.set_DEST_PATH(lib_folder)
     impart.import_all(lib_file, overwrite_if_exists=overwrite)
 
@@ -852,19 +851,33 @@ if __name__ == "__main__":
         help="Overwrite existing files if they already exist",
     )
 
+    parser.add_argument(
+        "--path-variable",
+        help="Example: if only project-specific '${KIPRJMOD}' standard is '${KICAD_3RD_PARTY}'",
+    )
+
     args = parser.parse_args()
+
+    if args.path_variable:
+        path_variable = str(args.path_variable).strip()
+    else:
+        path_variable = "${KICAD_3RD_PARTY}"
 
     if args.download_file:
         main(
             lib_file=args.download_file,
             lib_folder=args.lib_folder,
             overwrite=args.overwrite_if_exists,
+            KICAD_3RD_PARTY_LINK=path_variable,
         )
 
     elif args.download_folder:
         download_folder = pathlib.Path(args.download_folder)
+        lib_folder = pathlib.Path(args.lib_folder)
         if not download_folder.is_dir():
             print(f"Error Source folder {download_folder} does not exist!")
+        elif not lib_folder.is_dir():
+            print(f"Error destination folder {lib_folder} does not exist!")
         else:
             for zip_file in download_folder.glob("*.zip"):
                 if (
@@ -874,4 +887,5 @@ if __name__ == "__main__":
                         lib_file=zip_file,
                         lib_folder=args.lib_folder,
                         overwrite=args.overwrite_if_exists,
+                        KICAD_3RD_PARTY_LINK=path_variable,
                     )
