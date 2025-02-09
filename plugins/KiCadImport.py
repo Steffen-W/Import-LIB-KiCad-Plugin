@@ -89,7 +89,7 @@ class import_lib:
         self.DEST_PATH = pathlib.Path(DEST_PATH_)
 
     def cleanName(self, name):
-        invalid = '<>:"/\|?* '
+        invalid = '<>:"/\\|?* '
         name = name.strip()
         for char in invalid:  # remove invalid characters
             name = name.replace(char, "_")
@@ -217,7 +217,7 @@ class import_lib:
 
         # Array of values defining all attributes of .dcm file
         dcm_attributes = (
-            dcm_path.read_text(encoding='utf-8').splitlines()
+            dcm_path.read_text(encoding="utf-8").splitlines()
             if dcm_path
             else ["#", "# " + device, "#", "$CMP " + device, "D", "F", "$ENDCMP"]
         )
@@ -266,11 +266,11 @@ class import_lib:
         check_file(dcm_file_read)
         check_file(dcm_file_write)
 
-        with dcm_file_read.open("rt", encoding='utf-8') as readfile:
-            with dcm_file_write.open("wt", encoding='utf-8') as writefile:
+        with dcm_file_read.open("rt", encoding="utf-8") as readfile:
+            with dcm_file_write.open("wt", encoding="utf-8") as writefile:
                 if stat(dcm_file_read).st_size == 0:
                     # todo Handle appending to empty file
-                    with dcm_file_read.open("wt", encoding='utf-8') as template_file:
+                    with dcm_file_read.open("wt", encoding="utf-8") as template_file:
                         template = ["EESchema-DOCLIB  Version 2.0", "#End Doc Library"]
                         template_file.writelines(line + "\n" for line in template)
                         template_file.close()
@@ -281,9 +281,11 @@ class import_lib:
                             writefile.write(
                                 "\n".join(
                                     dcm_attributes[
-                                        index_start
-                                        if index_header_start is None
-                                        else index_header_start : index_end
+                                        (
+                                            index_start
+                                            if index_header_start is None
+                                            else index_header_start
+                                        ) : index_end
                                     ]
                                 )
                                 + "\n"
@@ -380,7 +382,7 @@ class import_lib:
             return footprint_file_read, footprint_file_write
 
         if footprint_path_item.name.endswith("mod"):
-            footprint = footprint_path_item.read_text(encoding='utf-8')
+            footprint = footprint_path_item.read_text(encoding="utf-8")
 
             footprint_write_path = self.DEST_PATH / (remote_type.name + ".pretty")
             footprint_file_read = footprint_write_path / footprint_path_item.name
@@ -415,14 +417,14 @@ class import_lib:
                         return footprint_file_read, footprint_file_write
 
                 check_file(footprint_file_read)
-                with footprint_file_read.open("wt", encoding='utf-8') as wr:
+                with footprint_file_read.open("wt", encoding="utf-8") as wr:
                     wr.write(footprint)
                     overwrote_existing = True
 
                 check_file(footprint_file_write)
 
-                with footprint_file_read.open("rt", encoding='utf-8') as readfile:
-                    with footprint_file_write.open("wt", encoding='utf-8') as writefile:
+                with footprint_file_read.open("rt", encoding="utf-8") as readfile:
+                    with footprint_file_write.open("wt", encoding="utf-8") as writefile:
                         if stat(footprint_file_read).st_size == 0:
                             # todo Handle appending to empty file?
                             pass
@@ -445,7 +447,7 @@ class import_lib:
                     self.print("Import footprint")
             else:
                 check_file(footprint_file_write)
-                with footprint_file_write.open("wt", encoding='utf-8') as wr:
+                with footprint_file_write.open("wt", encoding="utf-8") as wr:
                     wr.write(footprint)
                     self.print("Import footprint")
 
@@ -469,7 +471,7 @@ class import_lib:
         self.lib_skipped = False
 
         device = None
-        lib_lines = lib_path.read_text(encoding='utf-8').splitlines()
+        lib_lines = lib_path.read_text(encoding="utf-8").splitlines()
 
         # Find which lines contain the component information in file to be imported
         index_start = None
@@ -509,11 +511,11 @@ class import_lib:
         check_file(lib_file_read)
         check_file(lib_file_write)
 
-        with lib_file_read.open("rt", encoding='utf-8') as readfile:
-            with lib_file_write.open("wt", encoding='utf-8') as writefile:
+        with lib_file_read.open("rt", encoding="utf-8") as readfile:
+            with lib_file_write.open("wt", encoding="utf-8") as writefile:
                 if stat(lib_file_read).st_size == 0:
                     # todo Handle appending to empty file
-                    with lib_file_read.open("wt", encoding='utf-8') as template_file:
+                    with lib_file_read.open("wt", encoding="utf-8") as template_file:
                         template = [
                             "EESchema-LIBRARY Version 2.4",
                             "#encoding utf-8",
@@ -532,9 +534,11 @@ class import_lib:
                             writefile.write(
                                 "\n".join(
                                     lib_lines[
-                                        index_start
-                                        if index_header_start is None
-                                        else index_header_start : index_end
+                                        (
+                                            index_start
+                                            if index_header_start is None
+                                            else index_header_start
+                                        ) : index_end
                                     ]
                                 )
                                 + "\n"
@@ -586,6 +590,7 @@ class import_lib:
             pattern = r'\(symbol\s+"(.*?)"'
             matches = re.findall(pattern, input_text)
             return matches
+
         symbol_name = None
 
         def replace_footprint_name(string, original_name, remote_type_name, new_name):
@@ -626,7 +631,7 @@ class import_lib:
             lib_file_read = lib_file_read_old
 
         if not lib_file_read.exists():  # library does not yet exist
-            with lib_file_write.open("wt", encoding='utf-8') as writefile:
+            with lib_file_write.open("wt", encoding="utf-8") as writefile:
                 text = RAW_text.strip().split("\n")
                 writefile.write(text[0] + "\n")
                 writefile.write(symbol_section + "\n")
@@ -638,7 +643,7 @@ class import_lib:
 
         check_file(lib_file_read)
 
-        lib_file_txt = lib_file_read.read_text(encoding='utf-8')
+        lib_file_txt = lib_file_read.read_text(encoding="utf-8")
         existing_libs = extract_symbol_names(lib_file_txt)
 
         if symbol_name in existing_libs:
@@ -651,7 +656,7 @@ class import_lib:
 
         closing_bracket = lib_file_txt.rfind(")")
 
-        with lib_file_write.open("wt", encoding='utf-8') as writefile:
+        with lib_file_write.open("wt", encoding="utf-8") as writefile:
             writefile.write(lib_file_txt[:closing_bracket])
             writefile.write(symbol_section + "\n")
             writefile.write(lib_file_txt[closing_bracket:])
@@ -667,7 +672,7 @@ class import_lib:
         if not zipfile.is_zipfile(zip_file):
             return None
 
-        self.print("Import: " + zip_file)
+        self.print(f"Import: {zip_file}")
 
         with zipfile.ZipFile(zip_file) as zf:
             (
@@ -781,7 +786,7 @@ class import_lib:
                     + '"'
                 )
 
-                if (footprint_file_read.exists()):
+                if footprint_file_read.exists():
                     remove(footprint_file_read)
                 footprint_file_read = footprint_file_read.parent / (
                     self.footprint_name + footprint_file_read.suffix
