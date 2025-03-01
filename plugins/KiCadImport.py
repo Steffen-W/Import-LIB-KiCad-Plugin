@@ -13,8 +13,8 @@ import zipfile
 from os import stat, remove
 from os.path import isfile
 
-from kicad_cli import kicad_cli
-from s_expression_parse import parse_sexp, search_recursive, extract_properties
+from .kicad_cli import kicad_cli
+from .s_expression_parse import parse_sexp, search_recursive, extract_properties
 
 cli = kicad_cli()
 

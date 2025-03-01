@@ -4,7 +4,7 @@ import configparser
 from pathlib import Path
 import re
 
-from s_expression_parse import readFile2var, parse_sexp, convert_list_to_dicts
+from .s_expression_parse import readFile2var, parse_sexp, convert_list_to_dicts
 
 
 class filehandler:

@@ -5,6 +5,9 @@ from time import sleep
 from threading import Thread
 import sys
 import traceback
+import subprocess
+import os
+import venv
 
 try:
     if __name__ == "__main__":
@@ -20,6 +23,42 @@ try:
         from .impart_migration import find_old_lib_files, convert_lib_list
 except Exception as e:
     print(traceback.format_exc())
+
+
+plugin_dir = os.path.dirname(os.path.abspath(__file__))
+venv_dir = os.path.join(plugin_dir, "venv")
+
+
+def activate_virtualenv(venv_dir):
+    """Activates a virtual environment, but creates it first if it does not exist."""
+    if not os.path.exists(venv_dir):
+        print(f"Virtual environment not found. Create new in {venv_dir} ...")
+        venv.create(venv_dir, with_pip=True)
+
+    if os.name == "nt":  # Windows
+        python_executable = os.path.join(venv_dir, "Scripts", "python.exe")
+        site_packages = os.path.join(venv_dir, "Lib", "site-packages")
+    else:  # Linux / macOS
+        python_executable = os.path.join(venv_dir, "bin", "python")
+        site_packages = os.path.join(
+            venv_dir,
+            "lib",
+            f"python{sys.version_info.major}.{sys.version_info.minor}",
+            "site-packages",
+        )
+
+    sys.path.insert(0, site_packages)
+    return python_executable
+
+
+def ensure_package(package_name, python_executable="python"):
+    try:
+        __import__(package_name)
+    except ModuleNotFoundError:
+        cmd = [python_executable, "-m", "pip", "install", package_name]
+        print(" ".join(cmd))
+        subprocess.check_call(cmd)
+        __import__(package_name)
 
 
 EVT_UPDATE_ID = wx.NewIdRef()
@@ -423,7 +462,15 @@ class ActionImpartPlugin(pcbnew.ActionPlugin):
         self.dark_icon_file_name = self.icon_file_name
 
     def Run(self):
+
         global backend_h
+
+        plugin_dir = os.path.dirname(os.path.abspath(__file__))
+        venv_dir = os.path.join(plugin_dir, "venv")
+        python_executable = activate_virtualenv(venv_dir)
+        ensure_package("pydantic", python_executable)
+        ensure_package("easyeda2kicad", python_executable)
+
         board = pcbnew.GetBoard()
         Impart_h = impart_frontend(board, self)
         Impart_h.ShowModal()
