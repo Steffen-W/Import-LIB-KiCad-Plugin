@@ -29,8 +29,8 @@ except Exception as e:
 def activate_virtualenv(venv_dir):
     """Activates a virtual environment, but creates it first if it does not exist."""
     if not os.path.exists(venv_dir):
-        print(f"Virtual environment not found. Create new in {venv_dir} ...")
         venv.create(venv_dir, with_pip=True)
+        print(f"Virtual environment not found. Create new in {venv_dir} ...")
 
     if os.name == "nt":  # Windows
         python_executable = os.path.join(venv_dir, "Scripts", "python.exe")
@@ -51,11 +51,16 @@ def activate_virtualenv(venv_dir):
 def ensure_package(package_name, python_executable="python"):
     try:
         __import__(package_name)
+        return True
     except ModuleNotFoundError:
-        cmd = [python_executable, "-m", "pip", "install", package_name]
-        print(" ".join(cmd))
-        subprocess.check_call(cmd)
-        __import__(package_name)
+        try:
+            cmd = [python_executable, "-m", "pip", "install", package_name]
+            print(" ".join(cmd))
+            subprocess.check_call(cmd)
+            __import__(package_name)
+            return True
+        except:
+            return False
 
 
 EVT_UPDATE_ID = wx.NewIdRef()
@@ -450,9 +455,12 @@ class ActionImpartPlugin(pcbnew.ActionPlugin):
 
     def Run(self):
         # Use virtual env
+        # TODO: Does not work completely reliably
         python_executable = activate_virtualenv(venv_dir=self.plugin_dir / "venv")
-        ensure_package("pydantic", python_executable)
-        ensure_package("easyeda2kicad", python_executable)
+        if not ensure_package("pydantic", python_executable):
+            print("Problems with loading", "pydantic")
+        if not ensure_package("easyeda2kicad", python_executable):
+            print("Problems with loading", "easyeda2kicad")
 
         # Start GUI
         board = pcbnew.GetBoard()
