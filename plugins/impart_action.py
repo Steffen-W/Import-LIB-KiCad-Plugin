@@ -1,5 +1,6 @@
 import pcbnew
 import os.path
+from pathlib import Path
 import wx
 from time import sleep
 from threading import Thread
@@ -23,10 +24,6 @@ try:
         from .impart_migration import find_old_lib_files, convert_lib_list
 except Exception as e:
     print(traceback.format_exc())
-
-
-plugin_dir = os.path.dirname(os.path.abspath(__file__))
-venv_dir = os.path.join(plugin_dir, "venv")
 
 
 def activate_virtualenv(venv_dir):
@@ -322,7 +319,7 @@ class impart_frontend(impartGUI):
 
     def ButtomManualImport(self, event):
         try:
-            from impart_easyeda import easyeda2kicad_wrapper
+            from .impart_easyeda import easyeda2kicad_wrapper
 
             component_id = self.m_textCtrl2.GetValue().strip()  # example: "C2040"
             overwrite = self.m_overwrite.IsChecked()
@@ -439,43 +436,29 @@ class impart_frontend(impartGUI):
 
 class ActionImpartPlugin(pcbnew.ActionPlugin):
     def defaults(self):
-        self.set_LOGO()
+        plugin_dir = Path(__file__).resolve().parent
+        self.resources_dir = plugin_dir.parent.parent / "resources" / plugin_dir.name
+        self.plugin_dir = plugin_dir
 
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        if current_dir not in sys.path:
-            sys.path.append(current_dir)
-
-    def set_LOGO(self, is_red=False):
         self.name = "impartGUI"
         self.category = "Import library files"
         self.description = "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA"
         self.show_toolbar_button = True
 
-        if not is_red:
-            self.icon_file_name = os.path.join(
-                os.path.dirname(__file__), "icon_small.png"
-            )
-        else:
-            self.icon_file_name = os.path.join(
-                os.path.dirname(__file__), "icon_small_red.png"
-            )
+        self.icon_file_name = str(self.resources_dir / "icon.png")
         self.dark_icon_file_name = self.icon_file_name
 
     def Run(self):
-
-        global backend_h
-
-        plugin_dir = os.path.dirname(os.path.abspath(__file__))
-        venv_dir = os.path.join(plugin_dir, "venv")
-        python_executable = activate_virtualenv(venv_dir)
+        # Use virtual env
+        python_executable = activate_virtualenv(venv_dir=self.plugin_dir / "venv")
         ensure_package("pydantic", python_executable)
         ensure_package("easyeda2kicad", python_executable)
 
+        # Start GUI
         board = pcbnew.GetBoard()
         Impart_h = impart_frontend(board, self)
         Impart_h.ShowModal()
         Impart_h.Destroy()
-        self.set_LOGO(is_red=backend_h.runThread)  # not yet working
 
 
 if __name__ == "__main__":
