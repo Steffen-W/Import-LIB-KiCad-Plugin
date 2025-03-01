@@ -72,6 +72,29 @@ Depending on the setup, further changes may be necessary. You will be notified i
 
 ![update setting](doc/2024-08-17_setting.png)
 
+## CLI Support
+
+The import process can also be done completely without the GUI. ```python plugins/KiCadImport.py```
+
+```bash
+usage: KiCadImport.py [-h] (--download-folder DOWNLOAD_FOLDER | --download-file DOWNLOAD_FILE) --lib-folder LIB_FOLDER [--overwrite-if-exists] [--path-variable PATH_VARIABLE]
+
+Import KiCad libraries from a file or folder.
+
+options:
+  -h, --help            show this help message and exit
+  --download-folder DOWNLOAD_FOLDER
+                        Path to the folder with the zip files to be imported.
+  --download-file DOWNLOAD_FILE
+                        Path to the zip file to import.
+  --lib-folder LIB_FOLDER
+                        Destination folder for the imported KiCad files.
+  --overwrite-if-exists
+                        Overwrite existing files if they already exist
+  --path-variable PATH_VARIABLE
+                        Example: if only project-specific '${KIPRJMOD}' standard is '${KICAD_3RD_PARTY}'
+```
+
 ## Warranty
 
 **None. Zero. Zilch. Use at your own risk**, and please be sure to use git or some other means of backing up/reverting changes caused by this script. This script will modify existing lib, dcm, footprint or 3D model files. It is your responsibility to back them up or have a way to revert changes should you inadvertently mess something up using this tool.

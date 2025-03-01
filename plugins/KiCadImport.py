@@ -13,8 +13,13 @@ import zipfile
 from os import stat, remove
 from os.path import isfile
 
-from .kicad_cli import kicad_cli
-from .s_expression_parse import parse_sexp, search_recursive, extract_properties
+
+if __name__ == "__main__":
+    from kicad_cli import kicad_cli
+    from s_expression_parse import parse_sexp, search_recursive, extract_properties
+else:
+    from .kicad_cli import kicad_cli
+    from .s_expression_parse import parse_sexp, search_recursive, extract_properties
 
 cli = kicad_cli()
 
@@ -819,7 +824,13 @@ def main(
     impart = import_lib()
     impart.KICAD_3RD_PARTY_LINK = KICAD_3RD_PARTY_LINK
     impart.set_DEST_PATH(lib_folder)
-    impart.import_all(lib_file, overwrite_if_exists=overwrite)
+    try:
+        (res,) = impart.import_all(lib_file, overwrite_if_exists=overwrite)
+        print(res)
+    except AssertionError as e:
+        print(e)
+    except Exception as e:
+        print(e)
 
 
 if __name__ == "__main__":
