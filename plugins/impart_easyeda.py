@@ -101,11 +101,15 @@ class easyeda2kicad_wrapper:
         print(f"Footprint path: {os.path.join(footprint_path, footprint_filename)}")
 
     def import_3D_Model(self, cad_data, output):
-        exporter = Exporter3dModelKicad(
-            model_3d=Easyeda3dModelImporter(
-                easyeda_cp_cad_data=cad_data, download_raw_3d_model=True
-            ).output
-        )
+        model_3d = Easyeda3dModelImporter(
+            easyeda_cp_cad_data=cad_data, download_raw_3d_model=True
+        ).output
+        
+        if not model_3d:
+            self.print(f"No 3D model available for this component.")
+            return
+        
+        exporter = Exporter3dModelKicad(model_3d=model_3d)
         exporter.export(lib_path=output)
 
         if exporter.output or exporter.output_step:
