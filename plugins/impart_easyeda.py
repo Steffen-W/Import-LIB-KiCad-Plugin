@@ -104,11 +104,11 @@ class easyeda2kicad_wrapper:
         model_3d = Easyeda3dModelImporter(
             easyeda_cp_cad_data=cad_data, download_raw_3d_model=True
         ).output
-        
+
         if not model_3d:
             self.print(f"No 3D model available for this component.")
             return
-        
+
         exporter = Exporter3dModelKicad(model_3d=model_3d)
         exporter.export(lib_path=output)
 
@@ -129,7 +129,13 @@ class easyeda2kicad_wrapper:
             if filename_step:
                 print("3D model path (step): " + os.path.join(lib_path, filename_step))
 
-    def full_import(self, component_id="C2040", base_folder=False, overwrite=False):
+    def full_import(
+        self,
+        component_id="C2040",
+        base_folder=False,
+        overwrite=False,
+        lib_var="KICAD_3RD_PARTY",
+    ):
 
         base_folder = os.path.expanduser(base_folder)
 
@@ -142,8 +148,6 @@ class easyeda2kicad_wrapper:
 
         lib_name = "EasyEDA"
         output = f"{base_folder}/{lib_name}"
-
-        lib_var = "KICAD_3RD_PARTY"
 
         # Create new footprint folder if it does not exist
         if not os.path.isdir(f"{output}.pretty"):

@@ -12,6 +12,7 @@ import re
 import zipfile
 from os import stat, remove
 from os.path import isfile
+import logging
 
 
 if __name__ == "__main__":
@@ -835,6 +836,7 @@ def main(
 
 if __name__ == "__main__":
     import argparse
+    logging.basicConfig(level=logging.ERROR)
 
     # Example: python plugins/KiCadImport.py --download-folder Demo/libs --lib-folder import_test
 
@@ -849,6 +851,8 @@ if __name__ == "__main__":
         help="Path to the folder with the zip files to be imported.",
     )
     group.add_argument("--download-file", help="Path to the zip file to import.")
+
+    group.add_argument("--easyeda", help="Import easyeda part. example: C2040")
 
     parser.add_argument(
         "--lib-folder",
@@ -869,6 +873,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    lib_folder = pathlib.Path(args.lib_folder)
+
     if args.path_variable:
         path_variable = str(args.path_variable).strip()
     else:
@@ -881,10 +887,8 @@ if __name__ == "__main__":
             overwrite=args.overwrite_if_exists,
             KICAD_3RD_PARTY_LINK=path_variable,
         )
-
     elif args.download_folder:
         download_folder = pathlib.Path(args.download_folder)
-        lib_folder = pathlib.Path(args.lib_folder)
         if not download_folder.is_dir():
             print(f"Error Source folder {download_folder} does not exist!")
         elif not lib_folder.is_dir():
@@ -900,3 +904,19 @@ if __name__ == "__main__":
                         overwrite=args.overwrite_if_exists,
                         KICAD_3RD_PARTY_LINK=path_variable,
                     )
+    elif args.easyeda:
+        if not lib_folder.is_dir():
+            print(f"Error destination folder {lib_folder} does not exist!")
+        else:
+            component_id = str(args.easyeda).strip
+            print("Try to import EeasyEDA /  LCSC Part# : ", component_id)
+            from impart_easyeda import easyeda2kicad_wrapper
+
+            easyeda_import = easyeda2kicad_wrapper()
+
+            easyeda_import.full_import(
+                component_id="C2040",
+                base_folder=lib_folder,
+                overwrite=False,
+                lib_var=path_variable,
+            )
