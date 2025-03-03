@@ -28,14 +28,27 @@ except Exception as e:
 
 def activate_virtualenv(venv_dir):
     """Activates a virtual environment, but creates it first if it does not exist."""
-    if not os.path.exists(venv_dir):
-        venv.create(venv_dir, with_pip=True)
-        print(f"Virtual environment not found. Create new in {venv_dir} ...")
+    venv_dir = os.path.abspath(venv_dir)
 
     if os.name == "nt":  # Windows
+        if not os.path.exists(venv_dir):
+            # venv.create(venv_dir, with_pip=True) # dont work
+            kicad_executable = sys.executable
+            kicad_bin_dir = os.path.dirname(kicad_executable)
+            python_executable = os.path.join(kicad_bin_dir, "python.exe")
+            subprocess.run(
+                [python_executable, "-m", "venv", venv_dir],
+                check=True,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+            print(f"Virtual environment not found. Create new in {venv_dir} ...")
+
         python_executable = os.path.join(venv_dir, "Scripts", "python.exe")
         site_packages = os.path.join(venv_dir, "Lib", "site-packages")
     else:  # Linux / macOS
+        if not os.path.exists(venv_dir):
+            venv.create(venv_dir, with_pip=True)
+            print(f"Virtual environment not found. Create new in {venv_dir} ...")
         python_executable = os.path.join(venv_dir, "bin", "python")
         site_packages = os.path.join(
             venv_dir,

@@ -3,6 +3,7 @@
 
 import os
 import logging
+logging.basicConfig(level=logging.ERROR)
 
 from easyeda2kicad.easyeda.easyeda_api import EasyedaApi
 from easyeda2kicad.kicad.parameters_kicad_symbol import KicadVersion
