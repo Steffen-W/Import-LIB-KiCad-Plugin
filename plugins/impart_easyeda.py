@@ -3,6 +3,7 @@
 
 import os
 import logging
+
 logging.basicConfig(level=logging.ERROR)
 
 from easyeda2kicad.easyeda.easyeda_api import EasyedaApi
@@ -101,7 +102,7 @@ class easyeda2kicad_wrapper:
         self.print(f"Created Kicad footprint {easyeda_footprint.info.name}")
         print(f"Footprint path: {os.path.join(footprint_path, footprint_filename)}")
 
-    def import_3D_Model(self, cad_data, output):
+    def import_3D_Model(self, cad_data, output, overwrite=True):
         model_3d = Easyeda3dModelImporter(
             easyeda_cp_cad_data=cad_data, download_raw_3d_model=True
         ).output
@@ -111,24 +112,38 @@ class easyeda2kicad_wrapper:
             return
 
         exporter = Exporter3dModelKicad(model_3d=model_3d)
-        exporter.export(lib_path=output)
 
         if exporter.output or exporter.output_step:
             filename_wrl = f"{exporter.output.name}.wrl"
             filename_step = f"{exporter.output.name}.step"
             lib_path = f"{output}.3dshapes"
 
+            filepath_wrl = os.path.join(lib_path, filename_wrl)
+            filepath_step = os.path.join(lib_path, filename_step)
+
             formats = ""
-            if filename_wrl:
+            if os.path.exists(filepath_wrl) and not overwrite:
+                self.print(
+                    f"3D model (wrl) exists:Use overwrite option to replace the 3D model"
+                )
+                return
+            else:
                 formats += "wrl"
-            if filename_step:
+
+            if os.path.exists(filepath_step) and not overwrite:
+                self.print(
+                    f"3D model (wrl) exists:Use overwrite option to replace the 3D model"
+                )
+                return
+            else:
                 formats += ",step"
 
+            exporter.export(lib_path=output)
             self.print(f"Created 3D model {exporter.output.name} ({formats})")
             if filename_wrl:
-                print("3D model path (wrl): " + os.path.join(lib_path, filename_wrl))
+                print("3D model path (wrl): " + filepath_wrl)
             if filename_step:
-                print("3D model path (step): " + os.path.join(lib_path, filename_step))
+                print("3D model path (step): " + filepath_step)
 
     def full_import(
         self,
@@ -188,7 +203,7 @@ class easyeda2kicad_wrapper:
         # ---------------- FOOTPRINT -------------
         self.import_Footprint(cad_data, output, overwrite=overwrite, lib_name=lib_var)
         # ---------------- 3D MODEL --------------
-        self.import_3D_Model(cad_data, output)
+        self.import_3D_Model(cad_data, output, overwrite=overwrite)
         return 0
 
 
