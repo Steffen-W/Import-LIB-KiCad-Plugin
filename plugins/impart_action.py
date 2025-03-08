@@ -121,6 +121,7 @@ class impart_backend:
         self.autoImport = False
         self.overwriteImport = False
         self.import_old_format = False
+        self.localLib = False
         self.autoLib = False
         self.folderhandler = filehandler(".")
         self.print_buffer = ""
@@ -134,12 +135,15 @@ class impart_backend:
                 print(f"Version extractions error '{version_str}': {e}")
                 return None
 
-        minVersion = "8.0.4"
-        KiCadVers = version_to_tuple(pcbnew.Version())
-        if not KiCadVers or KiCadVers < version_to_tuple(minVersion):
-            self.print2buffer("KiCad Version: " + str(pcbnew.FullVersion()))
-            self.print2buffer("Minimum required KiCad version is " + minVersion)
-            self.print2buffer("This can limit the functionality of the plugin.")
+        try:
+            minVersion = "8.0.4"
+            KiCadVers = version_to_tuple(pcbnew.Version())
+            if not KiCadVers or KiCadVers < version_to_tuple(minVersion):
+                self.print2buffer("KiCad Version: " + str(pcbnew.FullVersion()))
+                self.print2buffer("Minimum required KiCad version is " + minVersion)
+                self.print2buffer("This can limit the functionality of the plugin.")
+        except:
+            print("Error: KiCad Version check")
 
         if not self.config.config_is_set:
             self.print2buffer(
@@ -198,10 +202,15 @@ backend_h = impart_backend()
 def checkImport(add_if_possible=True):
     libnames = ["Octopart", "Samacsys", "UltraLibrarian", "Snapeda", "EasyEDA"]
     setting = backend_h.KiCad_Settings
-    DEST_PATH = backend_h.config.get_DEST_PATH()
 
     msg = ""
-    msg += setting.check_GlobalVar(DEST_PATH, add_if_possible)
+
+    if not backend_h.localLib:
+        # DEST_PATH = self.KiCad_Project
+        print("TODO checkImport")
+    else:
+        DEST_PATH = backend_h.config.get_DEST_PATH()
+        msg += setting.check_GlobalVar(DEST_PATH, add_if_possible)
 
     for name in libnames:
         # The lines work but old libraries should not be added automatically
@@ -232,9 +241,10 @@ def checkImport(add_if_possible=True):
 class impart_frontend(impartGUI):
     global backend_h
 
-    def __init__(self, board, action):
+    def __init__(self, board: pcbnew.BOARD, action: pcbnew.ActionPlugin):
         super(impart_frontend, self).__init__(None)
         self.board = board
+        self.KiCad_Project = os.path.dirname(board.GetFileName())
         self.action = action
 
         self.m_dirPicker_sourcepath.SetPath(backend_h.config.get_SRC_PATH())
@@ -244,6 +254,7 @@ class impart_frontend(impartGUI):
         self.m_overwrite.SetValue(backend_h.overwriteImport)
         self.m_check_autoLib.SetValue(backend_h.autoLib)
         self.m_check_import_all.SetValue(backend_h.import_old_format)
+        self.m_checkBoxLocaLib.SetValue(backend_h.localLib)
 
         if backend_h.runThread:
             self.m_button.Label = "automatic import / press to stop"
@@ -259,8 +270,10 @@ class impart_frontend(impartGUI):
         self.m_text.SetValue(status.data)
         self.m_text.SetInsertionPointEnd()
 
-    # def print(self, text):
-    #     self.m_text.AppendText(str(text)+"\n")
+    def m_checkBoxLocaLibOnCheckBox(self, event):
+        backend_h.localLib = self.m_checkBoxLocaLib.IsChecked()
+        self.m_dirPicker_librarypath.Enable(not backend_h.localLib)
+        event.Skip()
 
     def on_close(self, event):
         if backend_h.runThread:
@@ -279,12 +292,20 @@ class impart_frontend(impartGUI):
         backend_h.overwriteImport = self.m_overwrite.IsChecked()
         backend_h.autoLib = self.m_check_autoLib.IsChecked()
         backend_h.import_old_format = self.m_check_import_all.IsChecked()
+        backend_h.localLib = self.m_checkBoxLocaLib.IsChecked()
         # backend_h.runThread = False
         self.Thread.stopThread = True  # only for text output
         event.Skip()
 
     def BottonClick(self, event):
-        backend_h.importer.set_DEST_PATH(backend_h.config.get_DEST_PATH())
+        if backend_h.localLib:
+            backend_h.importer.set_DEST_PATH(self.KiCad_Project)
+            KICAD_3RD_PARTY_LINK = "${KIPRJMOD}"
+        else:
+            backend_h.importer.set_DEST_PATH(backend_h.config.get_DEST_PATH())
+            KICAD_3RD_PARTY_LINK = "${KICAD_3RD_PARTY}"
+
+        backend_h.importer.KICAD_3RD_PARTY_LINK = KICAD_3RD_PARTY_LINK
 
         backend_h.autoImport = self.m_autoImport.IsChecked()
 
@@ -339,16 +360,24 @@ class impart_frontend(impartGUI):
         try:
             from .impart_easyeda import easyeda2kicad_wrapper
 
+            if backend_h.localLib:
+                path_variable = "${KIPRJMOD}"
+                base_folder = self.KiCad_Project
+            else:
+                path_variable = "${KICAD_3RD_PARTY}"
+                base_folder = backend_h.config.get_DEST_PATH()
+
             component_id = self.m_textCtrl2.GetValue().strip()  # example: "C2040"
             overwrite = self.m_overwrite.IsChecked()
             backend_h.print2buffer("")
             backend_h.print2buffer(
                 "Try to import EeasyEDA /  LCSC Part# : " + component_id
             )
-            base_folder = backend_h.config.get_DEST_PATH()
             easyeda_import = easyeda2kicad_wrapper()
             easyeda_import.print = backend_h.print2buffer
-            easyeda_import.full_import(component_id, base_folder, overwrite)
+            easyeda_import.full_import(
+                component_id, base_folder, overwrite, lib_var=path_variable
+            )
             event.Skip()
         except Exception as e:
             backend_h.print2buffer(f"Error: {e}")

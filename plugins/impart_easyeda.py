@@ -74,7 +74,7 @@ class easyeda2kicad_wrapper:
         print(f"Library path : {output}.{sym_lib_ext}")
 
     def import_Footprint(
-        self, cad_data, output, overwrite=False, lib_name="EASYEDA2KICAD"
+        self, cad_data, output, overwrite=False, lib_name="${EASYEDA2KICAD}"
     ):
         importer = EasyedaFootprintImporter(easyeda_cp_cad_data=cad_data)
         easyeda_footprint = importer.get_footprint()
@@ -92,7 +92,7 @@ class easyeda2kicad_wrapper:
         footprint_path = f"{output}.pretty"
         model_3d_path = f"{output}.3dshapes".replace("\\", "/").replace("./", "/")
 
-        model_3d_path = f"${{{lib_name}}}/EasyEDA.3dshapes"
+        model_3d_path = f"{lib_name}/EasyEDA.3dshapes"
 
         ki_footprint.export(
             footprint_full_path=f"{footprint_path}/{footprint_filename}",
@@ -150,7 +150,7 @@ class easyeda2kicad_wrapper:
         component_id="C2040",
         base_folder=False,
         overwrite=False,
-        lib_var="KICAD_3RD_PARTY",
+        lib_var="${EASYEDA2KICAD}",
     ):
 
         base_folder = os.path.expanduser(base_folder)

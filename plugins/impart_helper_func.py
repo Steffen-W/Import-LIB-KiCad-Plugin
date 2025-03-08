@@ -4,8 +4,10 @@ import configparser
 from pathlib import Path
 import re
 
-from .s_expression_parse import readFile2var, parse_sexp, convert_list_to_dicts
-
+try:
+    from .s_expression_parse import readFile2var, parse_sexp, convert_list_to_dicts
+except:
+    from s_expression_parse import readFile2var, parse_sexp, convert_list_to_dicts
 
 class filehandler:
     def __init__(self, path):
@@ -239,7 +241,7 @@ class KiCad_Settings:
         SearchLib_name = SearchLib.split(".")[0]
         SearchLib_name_short = SearchLib_name.split("_")[0]
 
-        SymbolTable = self.get_sym_table()
+        SymbolTable = self.get_sym_table()  # TODO: Handle local lib
         SymbolLibs = {lib["name"]: lib for lib in SymbolTable}
         SymbolLibsUri = {lib["uri"]: lib for lib in SymbolTable}
 
