@@ -102,10 +102,24 @@ class impartGUI ( wx.Dialog ):
         self.m_dirPicker_sourcepath = wx.DirPickerCtrl( self, wx.ID_ANY, u".", u"Select a folder", wx.DefaultPosition, wx.DefaultSize, wx.DIRP_DEFAULT_STYLE )
         bSizer.Add( self.m_dirPicker_sourcepath, 0, wx.ALL|wx.EXPAND, 5 )
 
+        bSizer2 = wx.BoxSizer(wx.HORIZONTAL)
+
         self.m_staticText_librarypath = wx.StaticText( self, wx.ID_ANY, u"Library save location:", wx.DefaultPosition, wx.DefaultSize, 0 )
         self.m_staticText_librarypath.Wrap( -1 )
 
-        bSizer.Add( self.m_staticText_librarypath, 0, wx.ALL, 5 )
+        bSizer2.Add(self.m_staticText_librarypath, 0, wx.ALL, 5)
+
+        self.m_checkBoxLocaLib = wx.CheckBox(
+            self,
+            wx.ID_ANY,
+            "Save local, in the project folder",
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            0,
+        )
+        bSizer2.Add(self.m_checkBoxLocaLib, 0, wx.ALL, 5)
+
+        bSizer.Add(bSizer2, 0, 0, 5)
 
         self.m_dirPicker_librarypath = wx.DirPickerCtrl( self, wx.ID_ANY, u".", u"Select a folder", wx.DefaultPosition, wx.DefaultSize, wx.DIRP_DEFAULT_STYLE )
         bSizer.Add( self.m_dirPicker_librarypath, 0, wx.ALL|wx.EXPAND, 5 )
@@ -141,6 +155,7 @@ class impartGUI ( wx.Dialog ):
         self.m_buttonImportManual.Bind( wx.EVT_BUTTON, self.ButtomManualImport )
         self.m_textCtrl2.Bind( wx.EVT_TEXT_ENTER, self.ButtomManualImport )
         self.m_dirPicker_sourcepath.Bind( wx.EVT_DIRPICKER_CHANGED, self.DirChange )
+        self.m_checkBoxLocaLib.Bind(wx.EVT_CHECKBOX, self.m_checkBoxLocaLibOnCheckBox)
         self.m_dirPicker_librarypath.Bind( wx.EVT_DIRPICKER_CHANGED, self.DirChange )
 
     def __del__( self ):
@@ -160,9 +175,8 @@ class impartGUI ( wx.Dialog ):
     def ButtomManualImport( self, event ):
         event.Skip()
 
-
     def DirChange( self, event ):
         event.Skip()
 
-
-
+    def m_checkBoxLocaLibOnCheckBox(self, event):
+        event.Skip()
