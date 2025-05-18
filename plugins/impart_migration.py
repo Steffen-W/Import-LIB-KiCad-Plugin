@@ -1,5 +1,6 @@
 from pathlib import Path
 import logging
+from typing import Union
 
 from .kicad_cli import kicad_cli
 
@@ -8,9 +9,9 @@ cli = kicad_cli()
 
 
 def find_old_lib_files(
-    folder_path: str,
+    folder_path: Union[str, Path],
     libs: list[str] = ["Octopart", "Samacsys", "UltraLibrarian", "Snapeda", "EasyEDA"],
-) -> list:
+) -> dict:
 
     folder_path = Path(folder_path).expanduser()
     found_files = {}
