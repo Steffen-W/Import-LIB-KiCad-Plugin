@@ -1,0 +1,28 @@
+{
+  "$schema": "https://go.kicad.org/api/schemas/v1",
+  "identifier": "com.github.Steffen-W.impartGUI",
+  "name": "impart GUI for KiCad",
+  "description": "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA",
+  "runtime": {
+    "type": "python",
+    "version": "3"
+  },
+  "actions": [
+    {
+      "identifier": "impart_action-action",
+      "name": "impart action",
+      "description": "impart_action",
+      "show-button": true,
+      "scopes": [
+        "pcb"
+      ],
+      "entrypoint": "impart_action.py",
+      "icons-light": [
+        "icon.png"
+      ],
+      "icons-dark": [
+        "icon.png"
+      ]
+    }
+  ]
+}
