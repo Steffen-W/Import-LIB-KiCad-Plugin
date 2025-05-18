@@ -17,6 +17,8 @@ from kiutils.footprint import Footprint, Model, Coordinate
 from kiutils.symbol import SymbolLib, Property, Effects
 from kiutils.items.common import Position, Font
 
+from kiutils.libraries import Library, LibTable
+
 from kicad_cli import kicad_cli
 
 cli = kicad_cli()
