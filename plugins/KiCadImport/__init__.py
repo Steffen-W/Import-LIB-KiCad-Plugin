@@ -19,7 +19,7 @@ from kiutils.items.common import Position, Font
 
 from kiutils.libraries import Library, LibTable
 
-from kicad_cli import kicad_cli
+from ..kicad_cli import kicad_cli
 
 cli = kicad_cli()
 
@@ -78,7 +78,7 @@ class REMOTE_TYPES(Enum):
     Snapeda = 3
 
 
-class import_lib:
+class LibImporter:
     def print(self, txt):
         print("->" + txt)
 
@@ -580,7 +580,7 @@ def main(
         print(f"Error file {lib_folder} to be imported was not found!")
         return 0
 
-    impart = import_lib()
+    impart = LibImporter()
     impart.KICAD_3RD_PARTY_LINK = KICAD_3RD_PARTY_LINK
     impart.set_DEST_PATH(lib_folder)
     try:
