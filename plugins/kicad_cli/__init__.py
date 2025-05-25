@@ -1,23 +1,25 @@
 import subprocess
 import logging
 import shutil
+from typing import Optional, List, Tuple
 
 
 class kicad_cli:
+    def __init__(self) -> None:
+        """Initialize the KiCad CLI wrapper with logger and command discovery."""
+        self.logger: logging.Logger = logging.getLogger(__name__)
+        self.kicad_cmd: str = self._find_kicad_cli()
 
-    def __init__(self):
-        self.logger = logging.getLogger(__name__)
-        self.kicad_cmd = self._find_kicad_cli()
-
-    def _find_kicad_cli(self):
-        """Find KiCad CLI command across different platforms"""
-        possible_commands = ["kicad-cli", "kicad-cli.exe"]
+    def _find_kicad_cli(self) -> str:
+        """Find KiCad CLI command across different platforms."""
+        possible_commands: List[str] = ["kicad-cli", "kicad-cli.exe"]
         for cmd in possible_commands:
             if shutil.which(cmd):
                 return cmd
         return "kicad-cli"  # fallback to original
 
-    def run_kicad_cli(self, command):
+    def run_kicad_cli(self, command: List[str]) -> Optional[bool]:
+        """Execute a KiCad CLI command with error handling and timeout."""
         try:
             result = subprocess.run(
                 [self.kicad_cmd] + command,
@@ -41,14 +43,20 @@ class kicad_cli:
             self.logger.error(f"Unexpected error running command: {e}")
             return None
 
-    def exists(self):
-        def version_to_tuple(version_str):
-            try:
-                return tuple(map(int, version_str.split("-")[0].split(".")))
-            except (ValueError, AttributeError) as e:
-                self.logger.error(f"Version extraction error '{version_str}': {e}")
-                return (0, 0, 0)
+    def version_to_tuple(self, version_str: str) -> Tuple[int, int, int]:
+        """Convert a version string like '8.0.4' or '8.0.4-rc1' to tuple."""
+        try:
+            clean_version: str = version_str.split("-")[0]
+            parts: List[str] = clean_version.split(".")
+            # Ensure we have at least 3 parts
+            while len(parts) < 3:
+                parts.append("0")
+            return (int(parts[0]), int(parts[1]), int(parts[2]))
+        except (ValueError, AttributeError, TypeError, IndexError):
+            return (0, 0, 0)
 
+    def exists(self) -> bool:
+        """Check if KiCad CLI exists and meets minimum version requirements."""
         try:
             result = subprocess.run(
                 [self.kicad_cmd, "--version"],
@@ -58,11 +66,11 @@ class kicad_cli:
                 text=True,
                 timeout=10,
             )
-            version = result.stdout.strip()
-            min_version = "8.0.4"
-            kicad_vers = version_to_tuple(version)
+            version: str = result.stdout.strip()
+            min_version: str = "8.0.4"
+            kicad_vers: Tuple[int, int, int] = self.version_to_tuple(version)
 
-            if not kicad_vers or kicad_vers < version_to_tuple(min_version):
+            if not kicad_vers or kicad_vers < self.version_to_tuple(min_version):
                 self.logger.warning(f"KiCad Version: {version}")
                 self.logger.warning(f"Minimum required KiCad version is: {min_version}")
                 return False
@@ -79,23 +87,25 @@ class kicad_cli:
             self.logger.error(f"Unexpected error checking KiCad: {e}")
             return False
 
-    def upgrade_sym_lib(self, input_file, output_file):
+    def upgrade_sym_lib(self, input_file: str, output_file: str) -> Optional[bool]:
+        """Upgrade a KiCad symbol library file to current format."""
         return self.run_kicad_cli(["sym", "upgrade", input_file, "-o", output_file])
 
-    def upgrade_footprint_lib(self, pretty_folder):
+    def upgrade_footprint_lib(self, pretty_folder: str) -> Optional[bool]:
+        """Upgrade a KiCad footprint library folder to current format."""
         return self.run_kicad_cli(["fp", "upgrade", pretty_folder])
 
 
 if __name__ == "__main__":
+    """Main entry point for the KiCad CLI wrapper script."""
     # Configure logging
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
-    cli = kicad_cli()
+    cli: kicad_cli = kicad_cli()
     if cli.exists():
-        input_file = "UltraLibrarian_kicad_sym.kicad_sym"
-        output_file = "UltraLibrarian.kicad_sym"
-
+        input_file: str = "UltraLibrarian_kicad_sym.kicad_sym"
+        output_file: str = "UltraLibrarian.kicad_sym"
         cli.upgrade_sym_lib(input_file, output_file)
         cli.upgrade_footprint_lib("test.pretty")
