@@ -62,7 +62,6 @@ class impartGUI ( wx.Dialog ):
 
         fgSizer2.Add( self.m_textCtrl2, 0, wx.EXPAND|wx.ALL, 5 )
 
-
         bSizer.Add( fgSizer2, 0, wx.ALIGN_CENTER_HORIZONTAL, 5 )
 
         self.m_staticline12 = wx.StaticLine( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL )
@@ -91,7 +90,6 @@ class impartGUI ( wx.Dialog ):
         self.m_check_autoLib = wx.CheckBox( self, wx.ID_ANY, u"auto KiCad setting", wx.DefaultPosition, wx.DefaultSize, 0 )
         fgSizer1.Add( self.m_check_autoLib, 0, wx.ALL, 5 )
 
-
         bSizer.Add( fgSizer1, 0, wx.ALIGN_CENTER, 5 )
 
         self.m_staticText_sourcepath = wx.StaticText( self, wx.ID_ANY, u"Folder of the library to import:", wx.DefaultPosition, wx.DefaultSize, 0 )
@@ -109,7 +107,7 @@ class impartGUI ( wx.Dialog ):
 
         bSizer2.Add(self.m_staticText_librarypath, 0, wx.ALL, 5)
 
-        self.m_checkBoxLocaLib = wx.CheckBox(
+        self.m_checkBoxLocalLib = wx.CheckBox(
             self,
             wx.ID_ANY,
             "Save local, in the project folder",
@@ -117,7 +115,7 @@ class impartGUI ( wx.Dialog ):
             wx.DefaultSize,
             0,
         )
-        bSizer2.Add(self.m_checkBoxLocaLib, 0, wx.ALL, 5)
+        bSizer2.Add(self.m_checkBoxLocalLib, 0, wx.ALL, 5)
 
         bSizer.Add(bSizer2, 0, 0, 5)
 
@@ -142,7 +140,6 @@ class impartGUI ( wx.Dialog ):
         self.m_hyperlink = wx.adv.HyperlinkCtrl( self, wx.ID_ANY, u"github.com/Steffen-W/Import-LIB-KiCad-Plugin", u"https://github.com/Steffen-W/Import-LIB-KiCad-Plugin", wx.DefaultPosition, wx.DefaultSize, wx.adv.HL_DEFAULT_STYLE )
         bSizer.Add( self.m_hyperlink, 0, wx.BOTTOM|wx.RIGHT|wx.LEFT, 5 )
 
-
         self.SetSizer( bSizer )
         self.Layout()
 
@@ -155,12 +152,11 @@ class impartGUI ( wx.Dialog ):
         self.m_buttonImportManual.Bind( wx.EVT_BUTTON, self.ButtomManualImport )
         self.m_textCtrl2.Bind( wx.EVT_TEXT_ENTER, self.ButtomManualImport )
         self.m_dirPicker_sourcepath.Bind( wx.EVT_DIRPICKER_CHANGED, self.DirChange )
-        self.m_checkBoxLocaLib.Bind(wx.EVT_CHECKBOX, self.m_checkBoxLocaLibOnCheckBox)
+        self.m_checkBoxLocalLib.Bind(wx.EVT_CHECKBOX, self.m_checkBoxLocalLibOnCheckBox)
         self.m_dirPicker_librarypath.Bind( wx.EVT_DIRPICKER_CHANGED, self.DirChange )
 
     def __del__( self ):
         pass
-
 
     # Virtual event handlers, override them in your derived class
     def on_close( self, event ):
@@ -178,5 +174,5 @@ class impartGUI ( wx.Dialog ):
     def DirChange( self, event ):
         event.Skip()
 
-    def m_checkBoxLocaLibOnCheckBox(self, event):
+    def m_checkBoxLocalLibOnCheckBox(self, event):
         event.Skip()
