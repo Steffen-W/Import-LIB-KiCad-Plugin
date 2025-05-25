@@ -1,11 +1,9 @@
 import os.path
 from pathlib import Path
-import wx
 from time import sleep
 from threading import Thread
 import sys
 import traceback
-import subprocess
 import os
 import venv
 import logging
@@ -29,156 +27,20 @@ try:
         sys.path.insert(0, venv_site_packages)
 
     import wx
-    from kipy import KiCad, errors, board
 except Exception as e:
     logging.exception("Import Module")
 
 
 try:
-    if __name__ == "__main__":
-        from impart_gui import impartGUI
-        from impart_migration import find_old_lib_files, convert_lib_list
-        from FileHandler import FileHandler
-        from KiCad_Settings import KiCad_Settings
-        from ConfigHandler import ConfigHandler
-        from KiCadImport import LibImporter
-    else:
-        # relative import is required in kicad
-        from .impart_gui import impartGUI
-        from .impart_migration import find_old_lib_files, convert_lib_list
-        from .FileHandler import FileHandler
-        from .KiCad_Settings import KiCad_Settings
-        from .ConfigHandler import ConfigHandler
-        from .KiCadImport import LibImporter
+    from .impart_gui import impartGUI
+    from .FileHandler import FileHandler
+    from .KiCad_Settings import KiCad_Settings
+    from .ConfigHandler import ConfigHandler
+    from .KiCadImport import LibImporter
+    from .KiCadSettingsPaths import KiCadApp
+    from .impart_migration import find_old_lib_files, convert_lib_list
 except Exception as e:
     print(traceback.format_exc())
-
-
-def connect_kicad():
-    try:
-        kicad = KiCad()
-        kicad.get_version()
-        return kicad
-    except BaseException as e:
-        print(f"Not connected to KiCad: {e}")
-        return None
-
-
-# kicad = connect_kicad()
-# kicad_board = kicad.get_board()
-# print(kicad_board.name)
-# print(kicad_board.document.project)
-
-
-try:
-    import pcbnew
-
-    class KiCad_App:
-        def __init__(self):
-            """Initializes the KiCad_App class and loads basic information."""
-            self.path_settings = pcbnew.SETTINGS_MANAGER().GetUserSettingsPath()
-            self.kicad_version = self.version_to_tuple(pcbnew.Version())
-            self.full_version = pcbnew.FullVersion()
-            self.min_version = "8.0.4"
-
-        def get_board_filename(self):
-            """Returns the filename of the current board."""
-            try:
-                return pcbnew.GetBoard().GetFileName()
-            except Exception as e:
-                print(f"Error getting board filename: {e}")
-                return None
-
-        def get_project_dir(self):
-            """Returns the directory of the current KiCad project."""
-            import os
-
-            board_filename = self.get_board_filename()
-            if board_filename:
-                return os.path.dirname(board_filename)
-            return None
-
-        def version_to_tuple(self, version_str):
-            """Converts a version string to a tuple of integers."""
-            try:
-                return tuple(map(int, version_str.split("-")[0].split(".")))
-            except (ValueError, AttributeError) as e:
-                print(f"Version extraction error '{version_str}': {e}")
-                return None
-
-        def check_min_version(self, output_func=print):
-            """Checks if the current KiCad version meets the minimum required version.
-
-            Args:
-                output_func: Function for outputting messages (e.g., print or self.print2buffer)
-
-            Returns:
-                bool: True if the version is sufficient, False otherwise
-            """
-            try:
-                min_version_tuple = self.version_to_tuple(self.min_version)
-                if not self.kicad_version or self.kicad_version < min_version_tuple:
-                    output_func("KiCad Version: " + str(self.full_version))
-                    output_func("Minimum required KiCad version is " + self.min_version)
-                    output_func("This can limit the functionality of the plugin.")
-                    return False
-                return True
-            except Exception as e:
-                print(f"Error: KiCad Version check - {e}")
-                return False
-
-except Exception as e:
-    print(e)
-
-
-def activate_virtualenv(venv_dir):
-    """Activates a virtual environment, but creates it first if it does not exist."""
-    venv_dir = os.path.abspath(venv_dir)
-
-    if os.name == "nt":  # Windows
-        if not os.path.exists(venv_dir):
-            # venv.create(venv_dir, with_pip=True) # dont work
-            kicad_executable = sys.executable
-            kicad_bin_dir = os.path.dirname(kicad_executable)
-            python_executable = os.path.join(kicad_bin_dir, "python.exe")
-            subprocess.run(
-                [python_executable, "-m", "venv", venv_dir],
-                check=True,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-            )
-            print(f"Virtual environment not found. Create new in {venv_dir} ...")
-
-        python_executable = os.path.join(venv_dir, "Scripts", "python.exe")
-        site_packages = os.path.join(venv_dir, "Lib", "site-packages")
-    else:  # Linux / macOS
-        if not os.path.exists(venv_dir):
-            venv.create(venv_dir, with_pip=True)
-            print(f"Virtual environment not found. Create new in {venv_dir} ...")
-        python_executable = os.path.join(venv_dir, "bin", "python")
-        site_packages = os.path.join(
-            venv_dir,
-            "lib",
-            f"python{sys.version_info.major}.{sys.version_info.minor}",
-            "site-packages",
-        )
-
-    sys.path.insert(0, site_packages)
-    return python_executable
-
-
-def ensure_package(package_name, python_executable="python"):
-    try:
-        __import__(package_name)
-        return True
-    except ModuleNotFoundError:
-        try:
-            cmd = [python_executable, "-m", "pip", "install", package_name]
-            print(" ".join(cmd))
-            subprocess.check_call(cmd)
-            __import__(package_name)
-            return True
-        except:
-            return False
 
 
 EVT_UPDATE_ID = wx.NewIdRef()
@@ -219,10 +81,10 @@ class impart_backend:
 
     def __init__(self):
         path2config = os.path.join(os.path.dirname(__file__), "config.ini")
-        self.kicad_app = KiCad_App()
+        self.kicad_app = KiCadApp(prefer_ipc=True, min_version="8.0.4")
 
         self.config = ConfigHandler(path2config)
-        self.KiCad_Settings = KiCad_Settings(self.kicad_app.path_settings())
+        self.KiCad_Settings = KiCad_Settings(self.kicad_app.settings_path)
         self.runThread = False
         self.autoImport = False
         self.overwriteImport = False
@@ -542,33 +404,33 @@ class impart_frontend(impartGUI):
         event.Skip()
 
 
-class ActionImpartPlugin(pcbnew.ActionPlugin):
-    def defaults(self):
-        plugin_dir = Path(__file__).resolve().parent
-        self.resources_dir = plugin_dir.parent.parent / "resources" / plugin_dir.name
-        self.plugin_dir = plugin_dir
+try:
+    import pcbnew
 
-        self.name = "impartGUI"
-        self.category = "Import library files"
-        self.description = "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA"
-        self.show_toolbar_button = True
+    class ActionImpartPlugin(pcbnew.ActionPlugin):
+        def defaults(self):
+            plugin_dir = Path(__file__).resolve().parent
+            self.resources_dir = (
+                plugin_dir.parent.parent / "resources" / plugin_dir.name
+            )
+            self.plugin_dir = plugin_dir
 
-        self.icon_file_name = str(self.resources_dir / "icon.png")
-        self.dark_icon_file_name = self.icon_file_name
+            self.name = "impartGUI"
+            self.category = "Import library files"
+            self.description = "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA"
+            self.show_toolbar_button = True
 
-    def Run(self):
-        # Use virtual env
-        # TODO: Does not work completely reliably
-        python_executable = activate_virtualenv(venv_dir=self.plugin_dir / "venv")
-        if not ensure_package("pydantic", python_executable):
-            print("Problems with loading", "pydantic")
-        if not ensure_package("easyeda2kicad", python_executable):
-            print("Problems with loading", "easyeda2kicad")
+            self.icon_file_name = str(self.resources_dir / "icon.png")
+            self.dark_icon_file_name = self.icon_file_name
 
-        # Start GUI
-        Impart_h = impart_frontend()
-        Impart_h.ShowModal()
-        Impart_h.Destroy()
+        def Run(self):
+            # Start GUI
+            Impart_h = impart_frontend()
+            Impart_h.ShowModal()
+            Impart_h.Destroy()
+
+except:
+    pass
 
 
 if __name__ == "__main__":
