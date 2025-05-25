@@ -2,7 +2,10 @@ from pathlib import Path
 import logging
 from typing import Union
 
-from .kicad_cli import kicad_cli
+if __name__ == "__main__":
+    from .kicad_cli import kicad_cli
+else:
+    from kicad_cli import kicad_cli
 
 logger = logging.getLogger(__name__)
 cli = kicad_cli()

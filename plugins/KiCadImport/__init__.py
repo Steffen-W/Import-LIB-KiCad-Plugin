@@ -19,7 +19,10 @@ from kiutils.items.common import Position, Font
 
 from kiutils.libraries import Library, LibTable
 
-from ..kicad_cli import kicad_cli
+if __name__ == "__main__":
+    from kicad_cli import kicad_cli
+else:
+    from ..kicad_cli import kicad_cli
 
 cli = kicad_cli()
 
