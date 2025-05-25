@@ -98,7 +98,7 @@ def convert_lib(SRC: Path, DES: Path, drymode=True):
         if DES_dcm.exists() and DES_dcm.is_file():
             return []
 
-        if not cli.upgrade_sym_lib(SRC, DES) or not DES.exists():
+        if not cli.upgrade_sym_lib(str(SRC), str(DES)) or not DES.exists():
             logger.error(f"converting {SRC.name} to {DES.name} produced an error")
             return []
         msg.append([SRC.stem, DES.stem])
