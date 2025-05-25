@@ -1,4 +1,3 @@
-import pcbnew
 import os.path
 from pathlib import Path
 import wx
@@ -9,23 +8,127 @@ import traceback
 import subprocess
 import os
 import venv
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s [%(filename)s:%(lineno)d]: %(message)s",
+    filename=Path(__file__).resolve().parent / "plugin.log",
+    filemode="w",
+)
+
+try:
+    venv = os.environ.get("VIRTUAL_ENV")
+    if venv:
+        version = "python{}.{}".format(sys.version_info.major, sys.version_info.minor)
+        venv_site_packages = os.path.join(venv, "lib", version, "site-packages")
+
+        if venv_site_packages in sys.path:
+            sys.path.remove(venv_site_packages)
+
+        sys.path.insert(0, venv_site_packages)
+
+    import wx
+    from kipy import KiCad, errors, board
+except Exception as e:
+    logging.exception("Import Module")
 
 
 try:
-    from FileHandler import FileHandler
-    from KiCad_Settings import KiCad_Settings
-    from ConfigHandler import ConfigHandler
-    from KiCadImport import import_lib
-
     if __name__ == "__main__":
         from impart_gui import impartGUI
         from impart_migration import find_old_lib_files, convert_lib_list
+        from FileHandler import FileHandler
+        from KiCad_Settings import KiCad_Settings
+        from ConfigHandler import ConfigHandler
+        from KiCadImport import LibImporter
     else:
         # relative import is required in kicad
         from .impart_gui import impartGUI
         from .impart_migration import find_old_lib_files, convert_lib_list
+        from .FileHandler import FileHandler
+        from .KiCad_Settings import KiCad_Settings
+        from .ConfigHandler import ConfigHandler
+        from .KiCadImport import LibImporter
 except Exception as e:
     print(traceback.format_exc())
+
+
+def connect_kicad():
+    try:
+        kicad = KiCad()
+        kicad.get_version()
+        return kicad
+    except BaseException as e:
+        print(f"Not connected to KiCad: {e}")
+        return None
+
+
+# kicad = connect_kicad()
+# kicad_board = kicad.get_board()
+# print(kicad_board.name)
+# print(kicad_board.document.project)
+
+
+try:
+    import pcbnew
+
+    class KiCad_App:
+        def __init__(self):
+            """Initializes the KiCad_App class and loads basic information."""
+            self.path_settings = pcbnew.SETTINGS_MANAGER().GetUserSettingsPath()
+            self.kicad_version = self.version_to_tuple(pcbnew.Version())
+            self.full_version = pcbnew.FullVersion()
+            self.min_version = "8.0.4"
+
+        def get_board_filename(self):
+            """Returns the filename of the current board."""
+            try:
+                return pcbnew.GetBoard().GetFileName()
+            except Exception as e:
+                print(f"Error getting board filename: {e}")
+                return None
+
+        def get_project_dir(self):
+            """Returns the directory of the current KiCad project."""
+            import os
+
+            board_filename = self.get_board_filename()
+            if board_filename:
+                return os.path.dirname(board_filename)
+            return None
+
+        def version_to_tuple(self, version_str):
+            """Converts a version string to a tuple of integers."""
+            try:
+                return tuple(map(int, version_str.split("-")[0].split(".")))
+            except (ValueError, AttributeError) as e:
+                print(f"Version extraction error '{version_str}': {e}")
+                return None
+
+        def check_min_version(self, output_func=print):
+            """Checks if the current KiCad version meets the minimum required version.
+
+            Args:
+                output_func: Function for outputting messages (e.g., print or self.print2buffer)
+
+            Returns:
+                bool: True if the version is sufficient, False otherwise
+            """
+            try:
+                min_version_tuple = self.version_to_tuple(self.min_version)
+                if not self.kicad_version or self.kicad_version < min_version_tuple:
+                    output_func("KiCad Version: " + str(self.full_version))
+                    output_func("Minimum required KiCad version is " + self.min_version)
+                    output_func("This can limit the functionality of the plugin.")
+                    return False
+                return True
+            except Exception as e:
+                print(f"Error: KiCad Version check - {e}")
+                return False
+
+except Exception as e:
+    print(e)
 
 
 def activate_virtualenv(venv_dir):
@@ -116,9 +219,10 @@ class impart_backend:
 
     def __init__(self):
         path2config = os.path.join(os.path.dirname(__file__), "config.ini")
+        self.kicad_app = KiCad_App()
+
         self.config = ConfigHandler(path2config)
-        path_seting = pcbnew.SETTINGS_MANAGER().GetUserSettingsPath()
-        self.KiCad_Settings = KiCad_Settings(path_seting)
+        self.KiCad_Settings = KiCad_Settings(self.kicad_app.path_settings())
         self.runThread = False
         self.autoImport = False
         self.overwriteImport = False
@@ -129,25 +233,10 @@ class impart_backend:
             ".", min_size=1_000, max_size=50_000_000, file_extension=".zip"
         )
         self.print_buffer = ""
-        self.importer = import_lib()
+        self.importer = LibImporter()
         self.importer.print = self.print2buffer
 
-        def version_to_tuple(version_str):
-            try:
-                return tuple(map(int, version_str.split("-")[0].split(".")))
-            except (ValueError, AttributeError) as e:
-                print(f"Version extractions error '{version_str}': {e}")
-                return None
-
-        try:
-            minVersion = "8.0.4"
-            KiCadVers = version_to_tuple(pcbnew.Version())
-            if not KiCadVers or KiCadVers < version_to_tuple(minVersion):
-                self.print2buffer("KiCad Version: " + str(pcbnew.FullVersion()))
-                self.print2buffer("Minimum required KiCad version is " + minVersion)
-                self.print2buffer("This can limit the functionality of the plugin.")
-        except:
-            print("Error: KiCad Version check")
+        self.kicad_app.check_min_version(output_func=self.print2buffer)
 
         if not self.config.config_is_set:
             self.print2buffer(
@@ -174,7 +263,7 @@ class impart_backend:
             return 0
 
         while True:
-            newfilelist = self.folderhandler.GetNewFiles(path)
+            newfilelist = self.folderhandler.get_new_files(path)
             for lib in newfilelist:
                 try:
                     (res,) = self.importer.import_all(
@@ -193,9 +282,6 @@ class impart_backend:
                 self.print2buffer("")
 
             if not self.runThread:
-                break
-            if not pcbnew.GetBoard():
-                # print("pcbnew close")
                 break
             sleep(1)
 
@@ -245,11 +331,9 @@ def checkImport(add_if_possible=True):
 class impart_frontend(impartGUI):
     global backend_h
 
-    def __init__(self, board: pcbnew.BOARD, action: pcbnew.ActionPlugin):
+    def __init__(self):
         super(impart_frontend, self).__init__(None)
-        self.board = board
-        self.KiCad_Project = os.path.dirname(board.GetFileName())
-        self.action = action
+        self.KiCad_Project = backend_h.kicad_app.get_project_dir()
 
         self.m_dirPicker_sourcepath.SetPath(backend_h.config.get_SRC_PATH())
         self.m_dirPicker_librarypath.SetPath(backend_h.config.get_DEST_PATH())
@@ -315,7 +399,7 @@ class impart_frontend(impartGUI):
 
         tmp = self.m_overwrite.IsChecked()
         if tmp and not tmp == backend_h.overwriteImport:
-            backend_h.folderhandler.filelist = []
+            backend_h.folderhandler.known_files = set()
         backend_h.overwriteImport = self.m_overwrite.IsChecked()
 
         backend_h.autoLib = self.m_check_autoLib.IsChecked()
@@ -356,7 +440,7 @@ class impart_frontend(impartGUI):
     def DirChange(self, event):
         backend_h.config.set_SRC_PATH(self.m_dirPicker_sourcepath.GetPath())
         backend_h.config.set_DEST_PATH(self.m_dirPicker_librarypath.GetPath())
-        backend_h.folderhandler.filelist = []
+        backend_h.folderhandler.known_files = set()
         self.test_migrate_possible()
         event.Skip()
 
@@ -482,8 +566,7 @@ class ActionImpartPlugin(pcbnew.ActionPlugin):
             print("Problems with loading", "easyeda2kicad")
 
         # Start GUI
-        board = pcbnew.GetBoard()
-        Impart_h = impart_frontend(board, self)
+        Impart_h = impart_frontend()
         Impart_h.ShowModal()
         Impart_h.Destroy()
 
@@ -491,6 +574,6 @@ class ActionImpartPlugin(pcbnew.ActionPlugin):
 if __name__ == "__main__":
     app = wx.App()
     frame = wx.Frame(None, title="KiCad Plugin")
-    Impart_t = impart_frontend(None, None)
+    Impart_t = impart_frontend()
     Impart_t.ShowModal()
     Impart_t.Destroy()
