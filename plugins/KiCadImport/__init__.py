@@ -668,13 +668,27 @@ if __name__ == "__main__":
         else:
             component_id = str(args.easyeda).strip()
             print("Try to import EasyEDA / LCSC Part# : ", component_id)
-            from impart_easyeda import easyeda2kicad_wrapper
+            from impart_easyeda import EasyEDAImporter, ImportConfig
 
-            easyeda_import = easyeda2kicad_wrapper()
+            try:
+                config = ImportConfig(
+                    base_folder=lib_folder,
+                    lib_name="EasyEDA",
+                    overwrite=args.overwrite_if_exists,
+                    lib_var=path_variable,
+                )
 
-            easyeda_import.full_import(
-                component_id=component_id,
-                base_folder=lib_folder,
-                overwrite=args.overwrite_if_exists,
-                lib_var=path_variable,
-            )
+                paths = EasyEDAImporter(config).import_component(component_id)
+
+                # Print results
+                if paths.symbol_lib:
+                    print(f"Library path : {paths.symbol_lib}")
+                if paths.footprint_file:
+                    print(f"Footprint path: {paths.footprint_file}")
+                if paths.model_wrl:
+                    print(f"3D model path (wrl): {paths.model_wrl}")
+                if paths.model_step:
+                    print(f"3D model path (step): {paths.model_step}")
+
+            except Exception as e:
+                print(f"Error importing component: {e}")

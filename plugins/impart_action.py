@@ -440,7 +440,7 @@ class ImpartFrontend(impartGUI):
 
     def _perform_easyeda_import(self) -> None:
         """Perform EasyEDA component import."""
-        from .impart_easyeda import easyeda2kicad_wrapper
+        from .impart_easyeda import EasyEDAImporter, ImportConfig
 
         if self.backend.local_lib:
             path_variable = "${KIPRJMOD}"
@@ -449,20 +449,48 @@ class ImpartFrontend(impartGUI):
             path_variable = "${KICAD_3RD_PARTY}"
             base_folder = self.backend.config.get_DEST_PATH()
 
+        # Setup configuration
+        config = ImportConfig(
+            base_folder=base_folder,
+            lib_name="EasyEDA",
+            overwrite=self.m_overwrite.IsChecked(),
+            lib_var=path_variable,
+        )
+
         component_id = self.m_textCtrl2.GetValue().strip()
-        overwrite = self.m_overwrite.IsChecked()
+
+        # Get existing logger
+        logger = logging.getLogger(__name__)
 
         self.backend.print_to_buffer("")
         self.backend.print_to_buffer(
             f"Try to import EasyEDA / LCSC Part#: {component_id}"
         )
 
-        easyeda_import = easyeda2kicad_wrapper()
-        # Create a wrapper function that matches the expected signature
-        easyeda_import.print = lambda txt: self.backend.print_to_buffer(txt)
-        easyeda_import.full_import(
-            component_id, base_folder, overwrite, lib_var=path_variable
-        )
+        try:
+            # Import component
+            paths = EasyEDAImporter(config).import_component(component_id)
+
+            # Log to file
+            logger.info(f"Imported EasyEDA component {component_id}")
+
+            # Print paths to buffer
+            for attr, label in [
+                ("symbol_lib", "Library path"),
+                ("footprint_file", "Footprint path"),
+                ("model_wrl", "3D model path (wrl)"),
+                ("model_step", "3D model path (step)"),
+            ]:
+                if path := getattr(paths, attr):
+                    self.backend.print_to_buffer(f"{label}: {path}")
+                    logger.debug(f"{label}: {path}")
+
+        except (ValueError, RuntimeError) as e:
+            self.backend.print_to_buffer(f"easyeda:Error: {e}")
+            logger.error(f"Failed to import {component_id}: {e}")
+        except Exception as e:
+            self.backend.print_to_buffer(f"easyeda:Unexpected error: {e}")
+            logger.exception(f"Unexpected error importing {component_id}")
 
     def get_old_lib_files(self) -> dict:
         """Get list of old library files for migration."""
