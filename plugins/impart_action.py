@@ -451,7 +451,7 @@ class ImpartFrontend(impartGUI):
 
         # Setup configuration
         config = ImportConfig(
-            base_folder=base_folder,
+            base_folder=Path(base_folder),
             lib_name="EasyEDA",
             overwrite=self.m_overwrite.IsChecked(),
             lib_var=path_variable,

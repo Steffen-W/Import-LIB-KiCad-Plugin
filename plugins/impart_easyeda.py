@@ -66,7 +66,7 @@ class EasyEDAImporter:
             raise RuntimeError("Required easyeda2kicad library not available")
 
         self.config = config
-        self.config.base_folder = self.config.base_folder.expanduser()
+        self.config.base_folder = Path(self.config.base_folder).expanduser()
         self.api = EasyedaApi()
 
         # Paths that will be used
