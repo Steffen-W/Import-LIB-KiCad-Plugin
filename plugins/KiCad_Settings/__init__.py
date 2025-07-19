@@ -9,6 +9,7 @@ from pathlib import Path
 
 class KiCad_Settings:
     def __init__(self, SettingPath: str) -> None:
+        self.logger = logging.getLogger(__name__)
         base_path = Path(SettingPath)
 
         if (
@@ -38,7 +39,6 @@ class KiCad_Settings:
         else:
             self.SettingPath = SettingPath
 
-        self.logger = logging.getLogger(__name__)
         self.logger.info(f"Initializing KiCad_Settings with path: {SettingPath}")
 
     def get_sym_table(self) -> List[Dict[str, str]]:
