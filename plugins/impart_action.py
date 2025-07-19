@@ -174,6 +174,7 @@ class ImpartBackend:
             self.importer.print = lambda txt: self.print_to_buffer(txt)
 
             logging.info("Successfully initialized all backend components")
+            logging.info(f"KiCad settings path: {self.kicad_settings.SettingPath}")
 
         except Exception as e:
             logging.exception("Failed to initialize backend components")

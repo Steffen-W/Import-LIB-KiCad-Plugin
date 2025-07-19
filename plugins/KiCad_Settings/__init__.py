@@ -4,11 +4,40 @@ import re
 import logging
 from typing import List, Dict, Tuple, Any, Optional
 from kiutils.libraries import LibTable, Library
+from pathlib import Path
 
 
 class KiCad_Settings:
     def __init__(self, SettingPath: str) -> None:
-        self.SettingPath = SettingPath
+        base_path = Path(SettingPath)
+
+        if (
+            not (base_path / "sym-lib-table").exists()
+            and not (base_path / "fp-lib-table").exists()
+        ):
+            version_dirs = [
+                d
+                for d in base_path.iterdir()
+                if d.is_dir() and d.name.replace(".", "").isdigit()
+            ]
+
+            if version_dirs:
+                # Sort by version and take the highest
+                latest_version = max(
+                    version_dirs,
+                    key=lambda x: tuple(
+                        int(p) for p in x.name.split(".") if p.isdigit()
+                    ),
+                )
+                self.SettingPath = str(latest_version)
+                self.logger.info(
+                    f"Auto-detected KiCad version directory: {self.SettingPath}"
+                )
+            else:
+                self.SettingPath = SettingPath
+        else:
+            self.SettingPath = SettingPath
+
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"Initializing KiCad_Settings with path: {SettingPath}")
 
