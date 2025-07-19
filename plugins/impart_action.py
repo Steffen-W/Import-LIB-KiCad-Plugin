@@ -12,6 +12,20 @@ from time import sleep
 from threading import Thread
 from typing import Optional, List, Tuple, Any
 
+# Fix module path issues for debugging and standalone execution
+if __name__ == "__main__":
+    # When running as main script, add parent directory to path
+    script_dir = Path(__file__).resolve().parent
+    project_root = script_dir.parent
+
+    # Add project root to Python path if not already there
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
+    # Also add current directory for local imports
+    if str(script_dir) not in sys.path:
+        sys.path.insert(0, str(script_dir))
+
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
@@ -38,21 +52,44 @@ def setup_virtual_env() -> None:
 try:
     setup_virtual_env()
     import wx
+
+    logging.info("Successfully imported wx module")
 except Exception as e:
     logging.exception("Failed to import wx module")
     raise
 
-# Import local modules
 try:
-    from .impart_gui import impartGUI
-    from .FileHandler import FileHandler
-    from .KiCad_Settings import KiCad_Settings
-    from .ConfigHandler import ConfigHandler
-    from .KiCadImport import LibImporter
-    from .KiCadSettingsPaths import KiCadApp
-    from .impart_migration import find_old_lib_files, convert_lib_list
+    # Try relative imports first (when running as module)
+    try:
+        from .impart_gui import impartGUI
+        from .FileHandler import FileHandler
+        from .KiCad_Settings import KiCad_Settings
+        from .ConfigHandler import ConfigHandler
+        from .KiCadImport import LibImporter
+        from .KiCadSettingsPaths import KiCadApp
+        from .impart_migration import find_old_lib_files, convert_lib_list
+
+        logging.info("Successfully imported all local modules using relative imports")
+
+    except (ImportError, ValueError) as e:
+        logging.debug(f"Relative imports failed: {e}")
+        # Fall back to absolute imports (when running as script)
+        from plugins.impart_gui import impartGUI
+        from plugins.FileHandler import FileHandler
+        from plugins.KiCad_Settings import KiCad_Settings
+        from plugins.ConfigHandler import ConfigHandler
+        from plugins.KiCadImport import LibImporter
+        from plugins.KiCadSettingsPaths import KiCadApp
+        from plugins.impart_migration import find_old_lib_files, convert_lib_list
+
+        logging.info("Successfully imported all local modules using absolute imports")
+
 except Exception as e:
     logging.exception("Failed to import local modules")
+    print(f"Import error: {e}")
+    print(f"Python path: {sys.path}")
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Script directory: {Path(__file__).resolve().parent}")
     print(traceback.format_exc())
     raise
 
@@ -112,22 +149,30 @@ class ImpartBackend:
 
     def __init__(self) -> None:
         """Initialize backend components."""
+        logging.info("Initializing ImpartBackend")
 
         """Setup file paths."""
         self.config_path = os.path.join(os.path.dirname(__file__), "config.ini")
 
         """Initialize core components."""
-        self.kicad_app = KiCadApp(prefer_ipc=True, min_version="8.0.4")
-        self.config = ConfigHandler(self.config_path)
-        self.kicad_settings = KiCad_Settings(self.kicad_app.settings_path)
+        try:
+            self.kicad_app = KiCadApp(prefer_ipc=True, min_version="8.0.4")
+            self.config = ConfigHandler(self.config_path)
+            self.kicad_settings = KiCad_Settings(self.kicad_app.settings_path)
 
-        self.folder_handler = FileHandler(
-            ".", min_size=1_000, max_size=50_000_000, file_extension=".zip"
-        )
+            self.folder_handler = FileHandler(
+                ".", min_size=1_000, max_size=50_000_000, file_extension=".zip"
+            )
 
-        self.importer = LibImporter()
-        # Create a wrapper function that matches the expected signature
-        self.importer.print = lambda txt: self.print_to_buffer(txt)
+            self.importer = LibImporter()
+            # Create a wrapper function that matches the expected signature
+            self.importer.print = lambda txt: self.print_to_buffer(txt)
+
+            logging.info("Successfully initialized all backend components")
+
+        except Exception as e:
+            logging.exception("Failed to initialize backend components")
+            raise
 
         """Initialize control flags."""
         self.run_thread = False
@@ -139,7 +184,10 @@ class ImpartBackend:
         self.print_buffer = ""
 
         """Check initial configuration and version."""
-        self.kicad_app.check_min_version(output_func=self.print_to_buffer)
+        try:
+            self.kicad_app.check_min_version(output_func=self.print_to_buffer)
+        except Exception as e:
+            logging.warning(f"Failed to check KiCad version: {e}")
 
         if not self.config.config_is_set:
             self._print_initial_warnings()
@@ -440,27 +488,97 @@ class ImpartFrontend(impartGUI):
 
     def _perform_easyeda_import(self) -> None:
         """Perform EasyEDA component import."""
-        from .impart_easyeda import EasyEDAImporter, ImportConfig
+        try:
+            try:
+                from .impart_easyeda import EasyEDAImporter, ImportConfig
+            except ImportError:
+                from plugins.impart_easyeda import EasyEDAImporter, ImportConfig
+        except ImportError as e:
+            self.backend.print_to_buffer(f"Failed to import EasyEDA module: {e}")
+            logging.error(f"EasyEDA import module not available: {e}")
+            return
 
         if self.backend.local_lib:
+            if not self.kicad_project:
+                self.backend.print_to_buffer(
+                    "Error: Local library mode selected, but no KiCad project is open."
+                )
+                self.backend.print_to_buffer("Please either:")
+                self.backend.print_to_buffer("  1. Open a KiCad project first, or")
+                self.backend.print_to_buffer(
+                    "  2. Uncheck 'Local Library' to use global library path"
+                )
+                logging.error(
+                    "Local library mode selected but no KiCad project available"
+                )
+                return
+
+            # Verify the project path exists and is valid
+            project_path = Path(self.kicad_project)
+            if not project_path.exists() or not project_path.is_dir():
+                self.backend.print_to_buffer(
+                    f"Error: KiCad project directory does not exist: {self.kicad_project}"
+                )
+                self.backend.print_to_buffer("Please check your KiCad project setup.")
+                logging.error(f"KiCad project directory invalid: {self.kicad_project}")
+                return
+
             path_variable = "${KIPRJMOD}"
-            base_folder = self.kicad_project
+            base_folder = project_path
         else:
             path_variable = "${KICAD_3RD_PARTY}"
             base_folder = self.backend.config.get_DEST_PATH()
 
-        # Setup configuration
+        overwrite_enabled = self.m_overwrite.IsChecked()
+
         config = ImportConfig(
             base_folder=Path(base_folder),
             lib_name="EasyEDA",
-            overwrite=self.m_overwrite.IsChecked(),
+            overwrite=overwrite_enabled,
             lib_var=path_variable,
         )
 
         component_id = self.m_textCtrl2.GetValue().strip()
 
-        # Get existing logger
-        logger = logging.getLogger(__name__)
+        # Create custom logging handler that captures EasyEDA logs
+        class EasyEDABufferHandler(logging.Handler):
+            def __init__(self, print_buffer_func):
+                super().__init__()
+                self.print_buffer_func = print_buffer_func
+                # Set a formatter for cleaner output
+                formatter = logging.Formatter("%(message)s")
+                self.setFormatter(formatter)
+
+            def emit(self, record):
+                try:
+                    if record.name.startswith(
+                        "impart_easyeda"
+                    ) or record.name.startswith("easyeda2kicad"):
+                        msg = self.format(record)
+                        # Only show INFO, WARNING, ERROR levels in GUI
+                        if record.levelno >= logging.INFO:
+                            self.print_buffer_func(f"EasyEDA: {msg}")
+                except Exception:
+                    pass
+
+        # Get the EasyEDA logger and configure it
+        easyeda_logger = logging.getLogger("impart_easyeda")
+        easyeda2kicad_logger = logging.getLogger("easyeda2kicad")
+
+        # Create and add our custom handler
+        buffer_handler = EasyEDABufferHandler(self.backend.print_to_buffer)
+        buffer_handler.setLevel(logging.INFO)
+
+        # Temporarily add handler to both potential logger names
+        easyeda_logger.addHandler(buffer_handler)
+        easyeda2kicad_logger.addHandler(buffer_handler)
+
+        # Set appropriate log levels
+        easyeda_logger.setLevel(logging.INFO)
+        easyeda2kicad_logger.setLevel(logging.INFO)
+
+        # Get existing main logger
+        main_logger = logging.getLogger(__name__)
 
         self.backend.print_to_buffer("")
         self.backend.print_to_buffer(
@@ -468,29 +586,56 @@ class ImpartFrontend(impartGUI):
         )
 
         try:
-            # Import component
-            paths = EasyEDAImporter(config).import_component(component_id)
+            importer = EasyEDAImporter(config)
+            paths = importer.import_component(component_id)
 
-            # Log to file
-            logger.info(f"Imported EasyEDA component {component_id}")
+            # Log to main plugin file
+            main_logger.info(f"Imported EasyEDA component {component_id}")
 
             # Print paths to buffer
+            results_found = False
             for attr, label in [
-                ("symbol_lib", "Library path"),
-                ("footprint_file", "Footprint path"),
-                ("model_wrl", "3D model path (wrl)"),
-                ("model_step", "3D model path (step)"),
+                ("symbol_lib", "Symbol library"),
+                ("footprint_file", "Footprint file"),
+                ("model_wrl", "3D model (WRL)"),
+                ("model_step", "3D model (STEP)"),
             ]:
                 if path := getattr(paths, attr):
-                    self.backend.print_to_buffer(f"{label}: {path}")
-                    logger.debug(f"{label}: {path}")
+                    self.backend.print_to_buffer(f"  ✓ {label}: {path}")
+                    main_logger.debug(f"EasyEDA {label}: {path}")
+                    results_found = True
+                else:
+                    self.backend.print_to_buffer(f"  ✗ {label}: Not created")
 
-        except (ValueError, RuntimeError) as e:
-            self.backend.print_to_buffer(f"easyeda:Error: {e}")
-            logger.error(f"Failed to import {component_id}: {e}")
+            if results_found:
+                self.backend.print_to_buffer("\nEasyEDA import completed successfully!")
+            else:
+                self.backend.print_to_buffer(
+                    "\nEasyEDA import completed, but no files were generated."
+                )
+
+        except ValueError as e:
+            error_msg = f"EasyEDA Error: {e}"
+            self.backend.print_to_buffer(error_msg)
+            main_logger.error(f"Failed to import {component_id}: {e}")
+
+        except RuntimeError as e:
+            error_msg = f"EasyEDA Runtime Error: {e}"
+            self.backend.print_to_buffer(error_msg)
+            main_logger.error(f"Runtime error importing {component_id}: {e}")
+
         except Exception as e:
-            self.backend.print_to_buffer(f"easyeda:Unexpected error: {e}")
-            logger.exception(f"Unexpected error importing {component_id}")
+            error_msg = f"EasyEDA Unexpected Error: {e}"
+            self.backend.print_to_buffer(error_msg)
+            main_logger.exception(f"Unexpected error importing {component_id}")
+
+        finally:
+            # Clean up: Remove our handlers to prevent memory leaks
+            easyeda_logger.removeHandler(buffer_handler)
+            easyeda2kicad_logger.removeHandler(buffer_handler)
+
+            # Close the handler
+            buffer_handler.close()
 
     def get_old_lib_files(self) -> dict:
         """Get list of old library files for migration."""
@@ -597,11 +742,18 @@ class ImpartFrontend(impartGUI):
 
 
 # Global backend instance
-backend_handler = ImpartBackend()
+try:
+    backend_handler = ImpartBackend()
+    logging.info("Successfully created backend handler")
+except Exception as e:
+    logging.exception("Failed to create backend handler")
+    raise
 
 # KiCad Plugin Integration (SWIG)
 try:
     import pcbnew
+
+    logging.info("Successfully imported pcbnew module")
 
     class ActionImpartPlugin(pcbnew.ActionPlugin):
         """KiCad Action Plugin for library import."""
@@ -625,16 +777,26 @@ try:
 
         def Run(self) -> None:
             """Run the plugin."""
-            frontend = ImpartFrontend()
-            frontend.ShowModal()
-            frontend.Destroy()
+            try:
+                frontend = ImpartFrontend()
+                frontend.ShowModal()
+                frontend.Destroy()
+            except Exception as e:
+                logging.exception("Failed to run plugin frontend")
+                raise
 
 except ImportError:
     logging.info("pcbnew module not available - running in standalone mode")
 
 if __name__ == "__main__":
-    app = wx.App()
-    frame = wx.Frame(None, title="KiCad Plugin")
-    frontend = ImpartFrontend()
-    frontend.ShowModal()
-    frontend.Destroy()
+    logging.info("Starting application in standalone mode")
+    try:
+        app = wx.App()
+        frame = wx.Frame(None, title="KiCad Plugin")
+        frontend = ImpartFrontend()
+        frontend.ShowModal()
+        frontend.Destroy()
+        logging.info("Application finished successfully")
+    except Exception as e:
+        logging.exception("Failed to run standalone application")
+        raise
