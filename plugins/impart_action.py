@@ -29,7 +29,7 @@ if __name__ == "__main__":
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s [%(filename)s:%(lineno)d]: %(message)s",
+    format="%(asctime)s %(levelname)s [%(name)s:%(filename)s:%(lineno)d]: %(message)s",
     filename=Path(__file__).resolve().parent / "plugin.log",
     filemode="w",
 )
@@ -41,16 +41,27 @@ def setup_virtual_env() -> None:
     venv = os.environ.get("VIRTUAL_ENV")
     if venv:
         version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        logging.info(f"Venv: {os.path.basename(venv)} {version}")
         venv_site_packages = os.path.join(venv, "lib", version, "site-packages")
-
         if venv_site_packages in sys.path:
             sys.path.remove(venv_site_packages)
         sys.path.insert(0, venv_site_packages)
+    else:
+        logging.warning("No virtual environment active.")
 
 
-# Import wx with error handling
+# Setup script directory for imports
+def setup_script_path() -> None:
+    """Add script directory to Python path for local imports."""
+    script_dir = Path(__file__).resolve().parent
+    if str(script_dir) not in sys.path:
+        sys.path.insert(0, str(script_dir))
+    logging.debug(f"Script directory added to path: {script_dir}")
+
+
 try:
     setup_virtual_env()
+    # setup_script_path()
     import wx
 
     logging.info("Successfully imported wx module")
@@ -59,38 +70,32 @@ except Exception as e:
     raise
 
 try:
-    # Try relative imports first (when running as module)
-    try:
-        from .impart_gui import impartGUI
-        from .FileHandler import FileHandler
-        from .KiCad_Settings import KiCad_Settings
-        from .ConfigHandler import ConfigHandler
-        from .KiCadImport import LibImporter
-        from .KiCadSettingsPaths import KiCadApp
-        from .impart_migration import find_old_lib_files, convert_lib_list
+    import impart_gui
+    import FileHandler
+    import KiCad_Settings
+    import ConfigHandler
+    import KiCadImport
+    import KiCadSettingsPaths
+    import impart_migration
 
-        logging.info("Successfully imported all local modules using relative imports")
+    # Alle benötigten Klassen/Funktionen zuweisen
+    impartGUI = impart_gui.impartGUI
+    FileHandler = FileHandler.FileHandler
+    KiCad_Settings = KiCad_Settings.KiCad_Settings
+    ConfigHandler = ConfigHandler.ConfigHandler
+    LibImporter = KiCadImport.LibImporter
+    KiCadApp = KiCadSettingsPaths.KiCadApp
+    find_old_lib_files = impart_migration.find_old_lib_files
+    convert_lib_list = impart_migration.convert_lib_list
 
-    except (ImportError, ValueError) as e:
-        logging.debug(f"Relative imports failed: {e}")
-        # Fall back to absolute imports (when running as script)
-        from plugins.impart_gui import impartGUI
-        from plugins.FileHandler import FileHandler
-        from plugins.KiCad_Settings import KiCad_Settings
-        from plugins.ConfigHandler import ConfigHandler
-        from plugins.KiCadImport import LibImporter
-        from plugins.KiCadSettingsPaths import KiCadApp
-        from plugins.impart_migration import find_old_lib_files, convert_lib_list
+    logging.info("Successfully imported all local modules using direct imports")
 
-        logging.info("Successfully imported all local modules using absolute imports")
-
-except Exception as e:
+except ImportError as e:
     logging.exception("Failed to import local modules")
     print(f"Import error: {e}")
     print(f"Python path: {sys.path}")
     print(f"Current working directory: {os.getcwd()}")
     print(f"Script directory: {Path(__file__).resolve().parent}")
-    print(traceback.format_exc())
     raise
 
 # Event handling

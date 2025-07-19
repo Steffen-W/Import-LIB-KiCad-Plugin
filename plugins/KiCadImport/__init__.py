@@ -19,7 +19,10 @@ from kiutils.items.common import Position, Font
 
 from kiutils.libraries import Library, LibTable
 
-from ..kicad_cli import kicad_cli
+try:
+    from ..kicad_cli import kicad_cli
+except ImportError:
+    from kicad_cli import kicad_cli
 
 cli = kicad_cli()
 

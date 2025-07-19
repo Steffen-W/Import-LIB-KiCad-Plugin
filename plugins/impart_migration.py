@@ -4,7 +4,10 @@ from typing import Union
 
 logger = logging.getLogger(__name__)
 
-from .kicad_cli import kicad_cli
+try:
+    from .kicad_cli import kicad_cli
+except ImportError:
+    from kicad_cli import kicad_cli
 
 cli = kicad_cli()
 
