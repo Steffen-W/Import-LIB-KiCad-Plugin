@@ -111,9 +111,7 @@ class EasyEDAImporter:
             )
 
             if is_existing and not self.config.overwrite:
-                logger.warning(
-                    f"Symbol '{component_name}' already exists. Set overwrite=True to update."
-                )
+                logger.warning(f"Symbol '{component_name}' already exists.")
                 return False, component_name
 
             # Export symbol
@@ -200,9 +198,7 @@ class EasyEDAImporter:
             # Check existing files
             if not self.config.overwrite:
                 if filepath_wrl.exists() or filepath_step.exists():
-                    logger.warning(
-                        "3D model files already exist. Set overwrite=True to replace."
-                    )
+                    logger.warning("3D model files already exist.")
                     return None, None
 
             # Export models
@@ -242,7 +238,6 @@ class EasyEDAImporter:
         self._ensure_symbol_library()
 
         # Fetch CAD data
-        logger.info(f"Fetching CAD data for {component_id}...")
         cad_data = self.api.get_cad_data_of_component(lcsc_id=component_id)
 
         if not cad_data:
@@ -262,7 +257,7 @@ class EasyEDAImporter:
         )
 
         # Log summary
-        logger.info(f"\nImport summary for {component_id}:")
+        logger.info(f"Import summary for {component_id}:")
         logger.info(f"  Symbol library: {result.symbol_lib}")
         logger.info(f"  Footprint: {result.footprint_file}")
         logger.info(f"  3D Model (WRL): {result.model_wrl}")

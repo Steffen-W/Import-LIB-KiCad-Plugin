@@ -491,13 +491,57 @@ class ImpartFrontend(impartGUI):
         finally:
             event.Skip()
 
+    def ensure_easyeda_module(self):
+        """Make sure that easyeda2kicad is available"""
+
+        try:
+            import easyeda2kicad
+
+            return True
+        except ImportError:
+            pass
+
+        self.backend.print_to_buffer("easyeda2kicad not found. Installing...")
+
+        try:
+            import subprocess
+            import sys
+
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "easyeda2kicad"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+
+            if result.returncode == 0:
+                self.backend.print_to_buffer("✓ easyeda2kicad installed successfully")
+
+                try:
+                    import easyeda2kicad
+
+                    self.backend.print_to_buffer(
+                        "✓ easyeda2kicad imported successfully"
+                    )
+                    return True
+                except ImportError as e:
+                    self.backend.print_to_buffer(f"✗ Import still failed: {e}")
+                    return False
+            else:
+                self.backend.print_to_buffer(f"✗ Installation failed: {result.stderr}")
+                return False
+
+        except Exception as e:
+            self.backend.print_to_buffer(f"✗ Installation error: {e}")
+            return False
+
     def _perform_easyeda_import(self) -> None:
         """Perform EasyEDA component import."""
+        if not self.ensure_easyeda_module():
+            return
+
         try:
-            try:
-                from .impart_easyeda import EasyEDAImporter, ImportConfig
-            except ImportError:
-                from plugins.impart_easyeda import EasyEDAImporter, ImportConfig
+            from impart_easyeda import EasyEDAImporter, ImportConfig
         except ImportError as e:
             self.backend.print_to_buffer(f"Failed to import EasyEDA module: {e}")
             logging.error(f"EasyEDA import module not available: {e}")
