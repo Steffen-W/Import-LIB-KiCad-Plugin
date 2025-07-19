@@ -491,57 +491,10 @@ class ImpartFrontend(impartGUI):
         finally:
             event.Skip()
 
-    def ensure_easyeda_module(self):
-        """Make sure that easyeda2kicad is available"""
-
-        try:
-            import easyeda2kicad
-
-            return True
-        except ImportError:
-            pass
-
-        self.backend.print_to_buffer("easyeda2kicad not found. Installing...")
-
-        try:
-            import subprocess
-            import sys
-
-            result = subprocess.run(
-                [sys.executable, "-m", "pip", "install", "easyeda2kicad"],
-                capture_output=True,
-                text=True,
-                timeout=120,
-            )
-
-            if result.returncode == 0:
-                self.backend.print_to_buffer("✓ easyeda2kicad installed successfully")
-
-                try:
-                    import easyeda2kicad
-
-                    self.backend.print_to_buffer(
-                        "✓ easyeda2kicad imported successfully"
-                    )
-                    return True
-                except ImportError as e:
-                    self.backend.print_to_buffer(f"✗ Import still failed: {e}")
-                    return False
-            else:
-                self.backend.print_to_buffer(f"✗ Installation failed: {result.stderr}")
-                return False
-
-        except Exception as e:
-            self.backend.print_to_buffer(f"✗ Installation error: {e}")
-            return False
-
     def _perform_easyeda_import(self) -> None:
         """Perform EasyEDA component import."""
-        if not self.ensure_easyeda_module():
-            return
-
         try:
-            from impart_easyeda import EasyEDAImporter, ImportConfig
+            from impart_easyeda import import_easyeda_component, ImportConfig
         except ImportError as e:
             self.backend.print_to_buffer(f"Failed to import EasyEDA module: {e}")
             logging.error(f"EasyEDA import module not available: {e}")
@@ -578,113 +531,31 @@ class ImpartFrontend(impartGUI):
             path_variable = "${KICAD_3RD_PARTY}"
             base_folder = self.backend.config.get_DEST_PATH()
 
-        overwrite_enabled = self.m_overwrite.IsChecked()
-
         config = ImportConfig(
             base_folder=Path(base_folder),
             lib_name="EasyEDA",
-            overwrite=overwrite_enabled,
+            overwrite=self.m_overwrite.IsChecked(),
             lib_var=path_variable,
         )
 
         component_id = self.m_textCtrl2.GetValue().strip()
 
-        # Create custom logging handler that captures EasyEDA logs
-        class EasyEDABufferHandler(logging.Handler):
-            def __init__(self, print_buffer_func):
-                super().__init__()
-                self.print_buffer_func = print_buffer_func
-                # Set a formatter for cleaner output
-                formatter = logging.Formatter("%(message)s")
-                self.setFormatter(formatter)
-
-            def emit(self, record):
-                try:
-                    if record.name.startswith(
-                        "impart_easyeda"
-                    ) or record.name.startswith("easyeda2kicad"):
-                        msg = self.format(record)
-                        # Only show INFO, WARNING, ERROR levels in GUI
-                        if record.levelno >= logging.INFO:
-                            self.print_buffer_func(f"EasyEDA: {msg}")
-                except Exception:
-                    pass
-
-        # Get the EasyEDA logger and configure it
-        easyeda_logger = logging.getLogger("impart_easyeda")
-        easyeda2kicad_logger = logging.getLogger("easyeda2kicad")
-
-        # Create and add our custom handler
-        buffer_handler = EasyEDABufferHandler(self.backend.print_to_buffer)
-        buffer_handler.setLevel(logging.INFO)
-
-        # Temporarily add handler to both potential logger names
-        easyeda_logger.addHandler(buffer_handler)
-        easyeda2kicad_logger.addHandler(buffer_handler)
-
-        # Set appropriate log levels
-        easyeda_logger.setLevel(logging.INFO)
-        easyeda2kicad_logger.setLevel(logging.INFO)
-
-        # Get existing main logger
-        main_logger = logging.getLogger(__name__)
-
-        self.backend.print_to_buffer("")
-        self.backend.print_to_buffer(
-            f"Try to import EasyEDA / LCSC Part#: {component_id}"
-        )
-
         try:
-            importer = EasyEDAImporter(config)
-            paths = importer.import_component(component_id)
-
-            # Log to main plugin file
-            main_logger.info(f"Imported EasyEDA component {component_id}")
-
-            # Print paths to buffer
-            results_found = False
-            for attr, label in [
-                ("symbol_lib", "Symbol library"),
-                ("footprint_file", "Footprint file"),
-                ("model_wrl", "3D model (WRL)"),
-                ("model_step", "3D model (STEP)"),
-            ]:
-                if path := getattr(paths, attr):
-                    self.backend.print_to_buffer(f"  ✓ {label}: {path}")
-                    main_logger.debug(f"EasyEDA {label}: {path}")
-                    results_found = True
-                else:
-                    self.backend.print_to_buffer(f"  ✗ {label}: Not created")
-
-            if results_found:
-                self.backend.print_to_buffer("\nEasyEDA import completed successfully!")
-            else:
-                self.backend.print_to_buffer(
-                    "\nEasyEDA import completed, but no files were generated."
-                )
+            paths = import_easyeda_component(
+                component_id=component_id,
+                config=config,
+                print_func=self.backend.print_to_buffer,
+            )
+            self.backend.print_to_buffer("")
+            logging.info(f"Successfully imported EasyEDA component {component_id}")
 
         except ValueError as e:
-            error_msg = f"EasyEDA Error: {e}"
-            self.backend.print_to_buffer(error_msg)
-            main_logger.error(f"Failed to import {component_id}: {e}")
-
+            logging.error(f"Invalid component ID {component_id}: {e}")
         except RuntimeError as e:
-            error_msg = f"EasyEDA Runtime Error: {e}"
-            self.backend.print_to_buffer(error_msg)
-            main_logger.error(f"Runtime error importing {component_id}: {e}")
-
+            logging.error(f"Runtime error importing {component_id}: {e}")
         except Exception as e:
-            error_msg = f"EasyEDA Unexpected Error: {e}"
-            self.backend.print_to_buffer(error_msg)
-            main_logger.exception(f"Unexpected error importing {component_id}")
-
-        finally:
-            # Clean up: Remove our handlers to prevent memory leaks
-            easyeda_logger.removeHandler(buffer_handler)
-            easyeda2kicad_logger.removeHandler(buffer_handler)
-
-            # Close the handler
-            buffer_handler.close()
+            self.backend.print_to_buffer(f"Unexpected error during import: {e}")
+            logging.exception(f"Unexpected error importing {component_id}")
 
     def get_old_lib_files(self) -> dict:
         """Get list of old library files for migration."""
