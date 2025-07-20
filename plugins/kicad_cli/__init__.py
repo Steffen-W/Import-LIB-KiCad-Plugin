@@ -88,8 +88,12 @@ class kicad_cli:
             return False
 
     def upgrade_sym_lib(self, input_file: str, output_file: str) -> Optional[bool]:
-        """Upgrade a KiCad symbol library file to current format."""
-        return self.run_kicad_cli(["sym", "upgrade", input_file, "-o", output_file])
+            """Upgrade a KiCad symbol library file to current format."""
+            if input_file == output_file:
+                # If input and output are the same, omit -o parameter to avoid conflict
+                return self.run_kicad_cli(["sym", "upgrade", input_file])
+            else:
+                return self.run_kicad_cli(["sym", "upgrade", input_file, "-o", output_file])
 
     def upgrade_footprint_lib(self, pretty_folder: str) -> Optional[bool]:
         """Upgrade a KiCad footprint library folder to current format."""
