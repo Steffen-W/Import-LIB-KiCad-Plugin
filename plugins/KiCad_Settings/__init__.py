@@ -8,8 +8,11 @@ from pathlib import Path
 
 
 class KiCad_Settings:
-    def __init__(self, SettingPath: str) -> None:
+    def __init__(
+        self, SettingPath: str, path_prefix: str = "${KICAD_3RD_PARTY}"
+    ) -> None:
         self.logger = logging.getLogger(__name__)
+        self.path_prefix = path_prefix
         base_path = Path(SettingPath)
 
         if (
@@ -178,7 +181,7 @@ class KiCad_Settings:
                     )
                     raise ValueError(f"Entry with the name '{libname}' already exists.")
 
-            uri_lib = "${KICAD_3RD_PARTY}/" + libname + ".pretty"
+            uri_lib = self.path_prefix + "/" + libname + ".pretty"
             new_lib = Library(
                 name=libname, type="KiCad", uri=uri_lib, options="", description=""
             )
@@ -278,7 +281,7 @@ class KiCad_Settings:
             FootprintTable = self.get_lib_table()
             FootprintLibs = {lib["name"]: lib for lib in FootprintTable}
 
-            temp_path = "${KICAD_3RD_PARTY}/" + SearchLib + ".pretty"
+            temp_path = self.path_prefix + "/" + SearchLib + ".pretty"
             if SearchLib in FootprintLibs:
                 if not FootprintLibs[SearchLib]["uri"] == temp_path:
                     msg += "\n" + SearchLib
@@ -321,7 +324,7 @@ class KiCad_Settings:
             SymbolLibs = {lib["name"]: lib for lib in SymbolTable}
             SymbolLibsUri = {lib["uri"]: lib for lib in SymbolTable}
 
-            temp_path = "${KICAD_3RD_PARTY}/" + SearchLib
+            temp_path = self.path_prefix + "/" + SearchLib
 
             if temp_path not in SymbolLibsUri:
                 msg += (
@@ -411,7 +414,7 @@ class KiCad_Settings:
         libraries_to_rename: List[Dict[str, str]] = []
 
         def lib_entry(lib: str) -> str:
-            return "${KICAD_3RD_PARTY}/" + lib
+            return self.path_prefix + "/" + lib
 
         msg = ""
         for old_lib, new_lib in libs_to_migrate:

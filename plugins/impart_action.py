@@ -271,35 +271,33 @@ def check_library_import(backend: ImpartBackend, add_if_possible: bool = True) -
         if not project_dir:
             return "\nLocal library mode enabled but no KiCad project available."
 
-        project_fp_lib_table = Path(project_dir) / "fp-lib-table"
-        if project_fp_lib_table.exists():
-            try:
-                project_kicad_settings = KiCad_Settings.KiCad_Settings(str(project_dir))
-                for lib_name in ImpartBackend.SUPPORTED_LIBRARIES:
-                    msg += "TODO: check import"
-                logging.info("Project-specific library check completed")
-            except Exception as e:
-                logging.error(f"Failed to read project settings: {e}")
-                msg += f"\nCould not read project library settings."
-        else:
-            msg += (
-                f"\nNo project fp-lib-table found. Libraries saved but not configured."
-            )
+        try:
+            kicad_settings = KiCad_Settings(str(project_dir), path_prefix="${KIPRJMOD}")
+            dest_path = project_dir
+            logging.info("Project-specific library check completed")
+        except Exception as e:
+            logging.error(f"Failed to read project settings: {e}")
+            return "\nCould not read project library settings."
     else:
+        kicad_settings = backend.kicad_settings
         dest_path = backend.config.get_DEST_PATH()
-        msg += backend.kicad_settings.check_GlobalVar(dest_path, add_if_possible)
+        msg = kicad_settings.check_GlobalVar(dest_path, add_if_possible)
 
-        for lib_name in ImpartBackend.SUPPORTED_LIBRARIES:
-            msg += _check_single_library(backend, lib_name, add_if_possible)
+    for lib_name in ImpartBackend.SUPPORTED_LIBRARIES:
+        msg += _check_single_library(
+            kicad_settings, lib_name, dest_path, add_if_possible
+        )
 
     return msg
 
 
 def _check_single_library(
-    backend: ImpartBackend, lib_name: str, add_if_possible: bool
+    kicad_settings: KiCad_Settings,
+    lib_name: str,
+    dest_path: str,
+    add_if_possible: bool,
 ) -> str:
     """Check a single library for import."""
-    dest_path = backend.config.get_DEST_PATH()
     msg = ""
 
     # Check for symbol libraries
@@ -310,15 +308,13 @@ def _check_single_library(
     ]
 
     for variant in symbol_variants:
-        lib_path = os.path.join(dest_path, variant)
-        if os.path.isfile(lib_path):
-            msg += backend.kicad_settings.check_symbollib(variant, add_if_possible)
+        if os.path.isfile(os.path.join(dest_path, variant)):
+            msg += kicad_settings.check_symbollib(variant, add_if_possible)
             break
 
     # Check for footprint libraries
-    footprint_path = os.path.join(dest_path, f"{lib_name}.pretty")
-    if os.path.isdir(footprint_path):
-        msg += backend.kicad_settings.check_footprintlib(lib_name, add_if_possible)
+    if os.path.isdir(os.path.join(dest_path, f"{lib_name}.pretty")):
+        msg += kicad_settings.check_footprintlib(lib_name, add_if_possible)
 
     return msg
 
