@@ -49,6 +49,13 @@ class KiCad_Settings:
         self.logger.debug(f"Attempting to read symbol library table from: {path}")
 
         try:
+            if not os.path.exists(path):
+                self.logger.info(
+                    f"Symbol library table not found, creating empty table: {path}"
+                )
+                empty_table = LibTable()
+                empty_table.to_file(path)
+
             sym_table = LibTable.from_file(path)
             self.logger.info(
                 f"Successfully loaded symbol library table with {len(sym_table.libs)} entries"
@@ -81,6 +88,13 @@ class KiCad_Settings:
         )
 
         try:
+            if not os.path.exists(path):
+                self.logger.info(
+                    f"Symbol library table not found, creating empty table: {path}"
+                )
+                empty_table = LibTable()
+                empty_table.to_file(path)
+
             sym_table = LibTable.from_file(path)
 
             # Check if library already exists
@@ -139,6 +153,13 @@ class KiCad_Settings:
         self.logger.debug(f"Attempting to read footprint library table from: {path}")
 
         try:
+            if not os.path.exists(path):
+                self.logger.info(
+                    f"Footprint library table not found, creating empty table: {path}"
+                )
+                empty_table = LibTable()
+                empty_table.to_file(path)
+
             fp_table = LibTable.from_file(path)
             self.logger.info(
                 f"Successfully loaded footprint library table with {len(fp_table.libs)} entries"
@@ -171,6 +192,13 @@ class KiCad_Settings:
         self.logger.debug(f"Adding footprint library '{libname}' to {path}")
 
         try:
+            if not os.path.exists(path):
+                self.logger.info(
+                    f"Footprint library table not found, creating empty table: {path}"
+                )
+                empty_table = LibTable()
+                empty_table.to_file(path)
+
             fp_table = LibTable.from_file(path)
 
             # Check if library already exists
