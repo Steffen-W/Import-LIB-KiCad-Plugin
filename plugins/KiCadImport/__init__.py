@@ -9,6 +9,7 @@ import zipfile
 import tempfile
 import shutil
 import logging
+import time
 from enum import Enum
 from typing import Tuple, Union, List, Dict, Any, Optional
 from pathlib import Path
@@ -25,6 +26,7 @@ except ImportError:
     from kicad_cli import kicad_cli
 
 cli = kicad_cli()
+logger = logging.getLogger(__name__)
 
 
 class Modification(Enum):
@@ -79,6 +81,7 @@ class REMOTE_TYPES(Enum):
     Samacsys = 1
     UltraLibrarian = 2
     Snapeda = 3
+    Partial = 4  # For archives with incomplete data
 
 
 class LibImporter:
@@ -100,8 +103,11 @@ class LibImporter:
     def cleanName(self, name):
         invalid = '<>:"/\\|?* '
         name = name.strip()
+        original_name = name
         for char in invalid:  # remove invalid characters
             name = name.replace(char, "_")
+        if original_name != name:
+            logger.debug(f"Cleaned name: {original_name} -> {name}")
         return name
 
     def identify_remote_type(
@@ -151,6 +157,7 @@ class LibImporter:
             and find_in_zip(root_path, "device.dcm") is not None
         )
         if octopart_check:
+            logger.info("Identified as Octopart format")
             files["symbol"] = find_in_zip(root_path, "device.lib")
             files["dcm"] = find_in_zip(root_path, "device.dcm")
             files["footprint"] = footprint_pretty
@@ -160,6 +167,7 @@ class LibImporter:
         # Check for Samacsys format
         kicad_dir = find_in_zip(root_path, "KiCad")
         if kicad_dir and kicad_dir.is_dir():
+            logger.info("Identified as Samacsys format")
             files["symbol"] = find_in_zip(kicad_dir, ".lib") or find_in_zip(
                 kicad_dir, ".kicad_sym"
             )
@@ -171,6 +179,7 @@ class LibImporter:
         # Check for UltraLibrarian format
         kicad_dir = find_in_zip(root_path, "KiCAD")
         if kicad_dir and kicad_dir.is_dir():
+            logger.info("Identified as UltraLibrarian format")
             files["symbol"] = find_in_zip(kicad_dir, ".lib") or find_in_zip(
                 kicad_dir, ".kicad_sym"
             )
@@ -186,6 +195,7 @@ class LibImporter:
         )
 
         if symbol_file:
+            logger.info("Identified as Snapeda format")
             files["symbol"] = symbol_file
             files["dcm"] = find_in_zip(root_path, ".dcm")
             files["footprint"] = footprint_file
@@ -194,12 +204,20 @@ class LibImporter:
 
         # If we can't determine the type but have essential files, default to Snapeda
         if sym_path or lib_path:
+            logger.warning("Defaulting to Snapeda format")
             files["symbol"] = sym_path or lib_path
             files["dcm"] = dcm_path
             files["footprint"] = footprint_file
             files["model"] = model_path
             return REMOTE_TYPES.Snapeda, files
 
+        # Handle partial archives (e.g., only 3D models)
+        if model_path:
+            logger.warning(f"Archive contains only partial data: 3D model found")
+            files["model"] = model_path
+            return REMOTE_TYPES.Partial, files
+
+        logger.error("Unable to identify library format - no usable files found")
         raise ValueError("Unable to identify library format. Missing essential files.")
 
     def extract_file_to_temp(
@@ -212,13 +230,18 @@ class LibImporter:
             Tuple of (temp_dir, extracted_file_path)
         """
         if not file_path:
+            logger.error("No file path provided for extraction")
             raise ValueError("No file path")
 
         temp_dir = Path(tempfile.mkdtemp())
         extracted = temp_dir / file_path.name
 
-        with file_path.open("rb") as src, open(extracted, "wb") as dst:
-            shutil.copyfileobj(src, dst)
+        try:
+            with file_path.open("rb") as src, open(extracted, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+        except Exception as e:
+            logger.error(f"Failed to extract {file_path}: {e}")
+            raise
 
         return temp_dir, extracted
 
@@ -232,6 +255,7 @@ class LibImporter:
             Tuple of (SymbolLib object, symbol name)
         """
         if not symbol_path:
+            logger.error("No symbol path provided")
             raise ValueError("No symbol path")
 
         temp_dir, extracted_path = self.extract_file_to_temp(symbol_path)
@@ -244,10 +268,12 @@ class LibImporter:
                     if new_path.exists():
                         symbol_lib = SymbolLib().from_file(str(new_path))
                     else:
+                        logger.error(f"Conversion failed for {extracted_path}")
                         raise ValueError(
                             f"Failed to convert {extracted_path} to KiCad 7 format"
                         )
                 else:
+                    logger.error("KiCad CLI not available for .lib conversion")
                     raise ValueError("KiCad CLI not available for .lib conversion")
             else:  # .kicad_sym - still try to convert just to be sure
                 if cli.exists():
@@ -255,14 +281,19 @@ class LibImporter:
                     cli.upgrade_sym_lib(str(extracted_path), str(new_path))
                     symbol_lib = SymbolLib().from_file(str(new_path))
                 else:
+                    logger.warning("KiCad CLI not available, loading file directly")
                     symbol_lib = SymbolLib().from_file(str(extracted_path))
 
             # Get the symbol name from the first symbol
             if not symbol_lib.symbols:
+                logger.error("No symbols found in library")
                 raise ValueError("No symbols found in library")
 
             symbol_name = symbol_lib.symbols[0].entryName
             return symbol_lib, symbol_name
+        except Exception as e:
+            logger.error(f"Failed to load symbol library: {e}")
+            raise
         finally:
             shutil.rmtree(temp_dir)
 
@@ -287,12 +318,16 @@ class LibImporter:
                     break
 
             if not footprint_file or footprint_file.is_dir():
+                logger.warning("No .kicad_mod file found in directory")
                 return None
 
         temp_dir, extracted_path = self.extract_file_to_temp(footprint_file)
         try:
             footprint = Footprint().from_file(str(extracted_path))
             return footprint
+        except Exception as e:
+            logger.error(f"Failed to load footprint: {e}")
+            return None
         finally:
             shutil.rmtree(temp_dir)
 
@@ -308,7 +343,12 @@ class LibImporter:
         if not model_path:
             return (None, None)
 
-        return self.extract_file_to_temp(model_path)
+        try:
+            result = self.extract_file_to_temp(model_path)
+            return result
+        except Exception as e:
+            logger.error(f"Failed to load 3D model: {e}")
+            return (None, None)
 
     def update_footprint_with_model(
         self, footprint: Footprint, model_name: str, remote_type: REMOTE_TYPES
@@ -366,8 +406,12 @@ class LibImporter:
 
             if footprint_prop:
                 # Update the footprint reference with library prefix
+                old_value = footprint_prop.value
                 footprint_prop.value = (
                     f"{remote_type.name}:{self.cleanName(footprint_name)}"
+                )
+                logger.debug(
+                    f"Updated footprint property: {old_value} -> {footprint_prop.value}"
                 )
             else:
                 # Add footprint property if it doesn't exist
@@ -405,6 +449,8 @@ class LibImporter:
         Returns:
             True if successful, False otherwise
         """
+        success_items = []
+
         # 1. Save symbol library
         if symbol_lib:
             lib_file_path = self.DEST_PATH / f"{remote_type.name}.kicad_sym"
@@ -414,40 +460,46 @@ class LibImporter:
                 existing_lib = SymbolLib().from_file(str(lib_file_path))
                 for existing_symbol in existing_lib.symbols:
                     if existing_symbol.entryName == symbol_name:
+                        logger.info(f"Symbol {symbol_name} already exists, skipping")
                         self.print(
                             f"Symbol {symbol_name} already exists in library. Skipping."
                         )
                         self.lib_skipped = True
-                        return False
-
-            # Merge with existing library or create new
-            if lib_file_path.exists():
-                existing_lib = SymbolLib().from_file(str(lib_file_path))
-
-                # Remove existing symbol with same name if overwrite is enabled
-                if overwrite_if_exists:
-                    existing_lib.symbols = [
-                        s for s in existing_lib.symbols if s.entryName != symbol_name
-                    ]
-                    # Add the new symbols
-                    existing_lib.symbols.extend(symbol_lib.symbols)
-                    existing_lib.to_file(str(lib_file_path))
-                    self.print(f"Updated symbol {symbol_name} in library")
-                else:
-                    # Add only if not already present
-                    existing_names = [s.entryName for s in existing_lib.symbols]
-                    for symbol in symbol_lib.symbols:
-                        if symbol.entryName not in existing_names:
-                            existing_lib.symbols.append(symbol)
-                    existing_lib.to_file(str(lib_file_path))
-                    self.print(f"Added symbol {symbol_name} to library")
+                        break
             else:
-                # Create new library
-                check_file(lib_file_path)
-                symbol_lib.to_file(str(lib_file_path))
-                self.print(f"Created new symbol library with {symbol_name}")
+                # Merge with existing library or create new
+                if lib_file_path.exists():
+                    existing_lib = SymbolLib().from_file(str(lib_file_path))
 
-            modified_objects.append(lib_file_path, Modification.MODIFIED_FILE)
+                    # Remove existing symbol with same name if overwrite is enabled
+                    if overwrite_if_exists:
+                        existing_lib.symbols = [
+                            s
+                            for s in existing_lib.symbols
+                            if s.entryName != symbol_name
+                        ]
+                        # Add the new symbols
+                        existing_lib.symbols.extend(symbol_lib.symbols)
+                        existing_lib.to_file(str(lib_file_path))
+                        success_items.append(f"updated symbol {symbol_name}")
+                        self.print(f"Updated symbol {symbol_name} in library")
+                    else:
+                        # Add only if not already present
+                        existing_names = [s.entryName for s in existing_lib.symbols]
+                        for symbol in symbol_lib.symbols:
+                            if symbol.entryName not in existing_names:
+                                existing_lib.symbols.append(symbol)
+                        existing_lib.to_file(str(lib_file_path))
+                        success_items.append(f"added symbol {symbol_name}")
+                        self.print(f"Added symbol {symbol_name} to library")
+                else:
+                    # Create new library
+                    check_file(lib_file_path)
+                    symbol_lib.to_file(str(lib_file_path))
+                    success_items.append(f"created symbol library with {symbol_name}")
+                    self.print(f"Created new symbol library with {symbol_name}")
+
+                modified_objects.append(lib_file_path, Modification.MODIFIED_FILE)
 
         # 2. Save footprint if available
         if footprint:
@@ -460,11 +512,13 @@ class LibImporter:
             footprint_file = footprint_dir / f"{self.footprint_name}.kicad_mod"
 
             if footprint_file.exists() and not overwrite_if_exists:
+                logger.info(f"Footprint {self.footprint_name} already exists, skipping")
                 self.print(f"Footprint {self.footprint_name} already exists. Skipping.")
                 self.footprint_skipped = True
             else:
                 footprint.to_file(str(footprint_file))
                 modified_objects.append(footprint_file, Modification.MODIFIED_FILE)
+                success_items.append(f"saved footprint {self.footprint_name}")
                 self.print(f"Saved footprint {self.footprint_name}")
 
         # 3. Save 3D model if available
@@ -477,12 +531,18 @@ class LibImporter:
             model_file = model_dir / model_path.name
 
             if model_file.exists() and not overwrite_if_exists:
+                logger.info(f"3D model {model_path.name} already exists, skipping")
                 self.print(f"3D model {model_path.name} already exists. Skipping.")
                 self.model_skipped = True
             else:
                 shutil.copy2(model_path, model_file)
                 modified_objects.append(model_file, Modification.EXTRACTED_FILE)
+                success_items.append(f"saved 3D model {model_path.name}")
                 self.print(f"Saved 3D model {model_path.name}")
+
+        # Log summary of what was saved
+        if success_items:
+            logger.info(f"Saved: {', '.join(success_items)}")
 
         return True
 
@@ -490,7 +550,10 @@ class LibImporter:
         self, zip_file: Path, overwrite_if_exists=True, import_old_format=True
     ):
         """Import symbols, footprints, and 3D models from a zip file"""
+        logger.info(f"Importing {zip_file.name}")
+
         if not zipfile.is_zipfile(zip_file):
+            logger.error(f"{zip_file} is not a valid zip file")
             self.print(f"Error: {zip_file} is not a valid zip file")
             return None
 
@@ -502,14 +565,25 @@ class LibImporter:
             with zipfile.ZipFile(zip_file) as zf:
                 # Identify library type and locate files
                 remote_type, files = self.identify_remote_type(zf)
+                logger.info(f"Type: {remote_type.name}")
                 self.print(f"Identified as {remote_type.name}")
 
-                # Load symbol library
-                if not files["symbol"]:
-                    self.print("Error: No symbol library found in zip file")
-                    return None
+                # Handle partial archives
+                if remote_type == REMOTE_TYPES.Partial:
+                    logger.warning(
+                        "Archive contains incomplete data - partial import only"
+                    )
+                    self.print("Warning: Archive contains incomplete data")
+                    if not files["model"]:
+                        self.print("No usable content found in archive")
+                        return None
 
-                symbol_lib, symbol_name = self.load_symbol_lib(files["symbol"])
+                # Load symbol library
+                symbol_lib = None
+                symbol_name = "unknown"
+                if files["symbol"]:
+                    symbol_lib, symbol_name = self.load_symbol_lib(files["symbol"])
+                    logger.info(f"Loaded symbol: {symbol_name}")
 
                 # Load footprint
                 footprint: Optional[Footprint] = None
@@ -517,7 +591,9 @@ class LibImporter:
                     footprint = self.load_footprint(files["footprint"])
                     if footprint:
                         self.footprint_name = self.cleanName(footprint.entryName)
+                        logger.info(f"Loaded footprint: {self.footprint_name}")
                     else:
+                        logger.warning("Unable to load footprint")
                         self.print("Warning: Unable to load footprint")
 
                 # Load 3D model
@@ -525,7 +601,9 @@ class LibImporter:
                 model_path = None
                 if files["model"]:
                     model_temp_dir, model_path = self.load_model(files["model"])
-                    temp_dirs.append(model_temp_dir)
+                    if model_temp_dir:
+                        temp_dirs.append(model_temp_dir)
+                        logger.info(f"Loaded 3D model: {model_path.name}")
 
                     # Update footprint with model reference if we have both
                     if footprint and model_path:
@@ -540,23 +618,51 @@ class LibImporter:
                     )
 
                 # Save everything to the library
-                success = self.save_to_library(
-                    symbol_lib=symbol_lib,
-                    footprint=footprint,
-                    model_path=model_path,
-                    remote_type=remote_type,
-                    symbol_name=symbol_name,
-                    overwrite_if_exists=overwrite_if_exists,
-                )
+                if symbol_lib or footprint or model_path:
+                    success = self.save_to_library(
+                        symbol_lib=symbol_lib,
+                        footprint=footprint,
+                        model_path=model_path,
+                        remote_type=remote_type,
+                        symbol_name=symbol_name,
+                        overwrite_if_exists=overwrite_if_exists,
+                    )
 
-                if success:
-                    self.print("Import successful")
-                    return ("OK",)
+                    if success:
+                        # Check if anything was actually changed
+                        if (
+                            self.lib_skipped
+                            and self.footprint_skipped
+                            and self.model_skipped
+                        ):
+                            logger.info(
+                                "Import completed - all files already exist"
+                            )
+                            self.print("Import completed")
+                            return ("OK",)
+                        elif (
+                            self.lib_skipped
+                            or self.footprint_skipped
+                            or self.model_skipped
+                        ):
+                            logger.info("Import completed with some items skipped")
+                            self.print("Import successful (some items already existed)")
+                            return ("OK",)
+                        else:
+                            logger.info("Import completed successfully")
+                            self.print("Import successful")
+                            return ("OK",)
+                    else:
+                        logger.warning("Import failed during save")
+                        self.print("Import failed during save")
+                        return ("Warning",)
                 else:
-                    self.print("Import completed with warnings")
+                    logger.warning("No content to import")
+                    self.print("Warning: No content found to import")
                     return ("Warning",)
 
         except Exception as e:
+            logger.error(f"Import failed: {str(e)}")
             self.print(f"Error during import: {str(e)}")
             logging.exception("Import error")
             return None
@@ -573,13 +679,16 @@ def main(
     lib_folder = Path(lib_folder)
     lib_file = Path(lib_file)
 
+    logger.info(f"Starting import: {lib_file.name} -> {lib_folder}")
     print("overwrite", overwrite)
 
     if not lib_folder.is_dir():
+        logger.error(f"Destination folder {lib_folder} does not exist")
         print(f"Error destination folder {lib_folder} does not exist!")
         return 0
 
     if not lib_file.is_file():
+        logger.error(f"File {lib_file} not found")
         print(f"Error file {lib_folder} to be imported was not found!")
         return 0
 
@@ -588,8 +697,10 @@ def main(
     impart.set_DEST_PATH(lib_folder)
     try:
         result = impart.import_all(lib_file, overwrite_if_exists=overwrite)
+        logger.info(f"Import result: {result}")
         print(result)
     except Exception as e:
+        logger.error(f"Main import error: {e}")
         print(f"Error: {e}")
         logging.exception("Import error")
 
@@ -650,12 +761,17 @@ if __name__ == "__main__":
         )
     elif args.download_folder:
         download_folder = Path(args.download_folder)
+        logger.info(f"Processing folder: {download_folder}")
         if not download_folder.is_dir():
+            logger.error(f"Source folder {download_folder} does not exist")
             print(f"Error Source folder {download_folder} does not exist!")
         elif not lib_folder.is_dir():
+            logger.error(f"Destination folder {lib_folder} does not exist")
             print(f"Error destination folder {lib_folder} does not exist!")
         else:
-            for zip_file in download_folder.glob("*.zip"):
+            zip_files = list(download_folder.glob("*.zip"))
+            logger.info(f"Found {len(zip_files)} zip files to process")
+            for zip_file in zip_files:
                 if (
                     zip_file.is_file() and zip_file.stat().st_size >= 1024
                 ):  # Check if it's a file and at least 1 KB
@@ -665,8 +781,12 @@ if __name__ == "__main__":
                         overwrite=args.overwrite_if_exists,
                         KICAD_3RD_PARTY_LINK=path_variable,
                     )
+                else:
+                    logger.warning(f"Skipping {zip_file}: too small or not a file")
     elif args.easyeda:
+        logger.info(f"Processing EasyEDA component: {args.easyeda}")
         if not lib_folder.is_dir():
+            logger.error(f"Destination folder {lib_folder} does not exist")
             print(f"Error destination folder {lib_folder} does not exist!")
         else:
             component_id = str(args.easyeda).strip()
@@ -681,7 +801,9 @@ if __name__ == "__main__":
                     lib_var=path_variable,
                 )
 
+                logger.debug(f"EasyEDA config: {config}")
                 paths = EasyEDAImporter(config).import_component(component_id)
+                logger.info(f"EasyEDA import completed for {component_id}")
 
                 # Print results
                 if paths.symbol_lib:
@@ -694,4 +816,5 @@ if __name__ == "__main__":
                     print(f"3D model path (step): {paths.model_step}")
 
             except Exception as e:
+                logger.error(f"EasyEDA import failed for {component_id}: {e}")
                 print(f"Error importing component: {e}")
