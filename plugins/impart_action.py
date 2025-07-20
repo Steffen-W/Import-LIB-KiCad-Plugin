@@ -267,13 +267,30 @@ def check_library_import(backend: ImpartBackend, add_if_possible: bool = True) -
     msg = ""
 
     if backend.local_lib:
+        project_dir = backend.kicad_app.get_project_dir()
+        if not project_dir:
+            return "\nLocal library mode enabled but no KiCad project available."
+
+        project_fp_lib_table = Path(project_dir) / "fp-lib-table"
+        if project_fp_lib_table.exists():
+            try:
+                project_kicad_settings = KiCad_Settings.KiCad_Settings(str(project_dir))
+                for lib_name in ImpartBackend.SUPPORTED_LIBRARIES:
+                    msg += "TODO: check import"
+                logging.info("Project-specific library check completed")
+            except Exception as e:
+                logging.error(f"Failed to read project settings: {e}")
+                msg += f"\nCould not read project library settings."
+        else:
+            msg += (
+                f"\nNo project fp-lib-table found. Libraries saved but not configured."
+            )
+    else:
         dest_path = backend.config.get_DEST_PATH()
         msg += backend.kicad_settings.check_GlobalVar(dest_path, add_if_possible)
-    else:
-        logging.info("TODO: Implement project-specific library check")
 
-    for lib_name in ImpartBackend.SUPPORTED_LIBRARIES:
-        msg += _check_single_library(backend, lib_name, add_if_possible)
+        for lib_name in ImpartBackend.SUPPORTED_LIBRARIES:
+            msg += _check_single_library(backend, lib_name, add_if_possible)
 
     return msg
 
@@ -317,6 +334,7 @@ class ImpartFrontend(impartGUI):
         self._setup_gui()
         self._setup_events()
         self._start_monitoring_thread()
+        self._print_initial_paths()
 
     def _setup_gui(self) -> None:
         """Initialize GUI components."""
@@ -344,6 +362,40 @@ class ImpartFrontend(impartGUI):
         """Start the monitoring thread."""
         self.thread = PluginThread(self)
 
+    def _print_initial_paths(self) -> None:
+        """Print initial source and destination paths."""
+        src_path = self.backend.config.get_SRC_PATH()
+
+        if self.backend.local_lib and self.kicad_project:
+            dest_path = self.kicad_project
+            lib_mode = "Local Project Library"
+        else:
+            dest_path = self.backend.config.get_DEST_PATH()
+            lib_mode = "Global Library"
+
+        self.backend.print_to_buffer(f"Library Mode: {lib_mode}")
+        self.backend.print_to_buffer(f"Source Directory: {src_path}")
+        self.backend.print_to_buffer(f"Destination Directory: {dest_path}")
+        self.backend.print_to_buffer("=" * 50)
+
+    def _print_path_change(self, change_type: str, new_value: str = "") -> None:
+        """Print path change information."""
+        if change_type == "library_mode":
+            if self.backend.local_lib and self.kicad_project:
+                dest_path = self.kicad_project
+                lib_mode = "Local Project Library"
+            else:
+                dest_path = self.backend.config.get_DEST_PATH()
+                lib_mode = "Global Library"
+
+            self.backend.print_to_buffer(f"New Library Mode: {lib_mode}")
+            self.backend.print_to_buffer(f"New Destination Directory: {dest_path}")
+        elif change_type == "source":
+            self.backend.print_to_buffer(f"New Source Directory: {new_value}")
+        elif change_type == "destination":
+            if not self.backend.local_lib:
+                self.backend.print_to_buffer(f"New Destination Directory: {new_value}")
+
     def _update_button_label(self) -> None:
         """Update the main button label based on current state."""
         if self.backend.run_thread:
@@ -358,8 +410,14 @@ class ImpartFrontend(impartGUI):
 
     def m_checkBoxLocalLibOnCheckBox(self, event: wx.CommandEvent) -> None:
         """Handle local library checkbox change."""
+        old_local_lib = self.backend.local_lib
         self.backend.local_lib = self.m_checkBoxLocalLib.IsChecked()
         self.m_dirPicker_librarypath.Enable(not self.backend.local_lib)
+
+        # Print change information
+        if old_local_lib != self.backend.local_lib:
+            self._print_path_change("library_mode")
+
         event.Skip()
 
     def on_close(self, event: wx.CloseEvent) -> None:
@@ -475,9 +533,23 @@ class ImpartFrontend(impartGUI):
 
     def DirChange(self, event: wx.CommandEvent) -> None:
         """Handle directory path changes."""
-        self.backend.config.set_SRC_PATH(self.m_dirPicker_sourcepath.GetPath())
-        self.backend.config.set_DEST_PATH(self.m_dirPicker_librarypath.GetPath())
+        # Get old values for comparison
+        old_src = self.backend.config.get_SRC_PATH()
+        old_dest = self.backend.config.get_DEST_PATH()
+
+        # Update paths
+        new_src = self.m_dirPicker_sourcepath.GetPath()
+        new_dest = self.m_dirPicker_librarypath.GetPath()
+
+        self.backend.config.set_SRC_PATH(new_src)
+        self.backend.config.set_DEST_PATH(new_dest)
         self.backend.folder_handler.known_files = set()
+
+        if old_src != new_src:
+            self._print_path_change("source", new_src)
+        if old_dest != new_dest:
+            self._print_path_change("destination", new_dest)
+
         self._check_migration_possible()
         event.Skip()
 
