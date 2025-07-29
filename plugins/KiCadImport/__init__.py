@@ -444,107 +444,187 @@ class LibImporter:
         overwrite_if_exists: bool = True,
     ) -> bool:
         """
-        Save the component to the KiCad library
+        Save the component to the KiCad library with backup protection
 
         Returns:
             True if successful, False otherwise
         """
         success_items = []
+        backup_files = {}  # Track backup files for rollback
 
-        # 1. Save symbol library
-        if symbol_lib:
-            lib_file_path = self.DEST_PATH / f"{remote_type.name}.kicad_sym"
+        try:
+            # 1. Save symbol library with atomic write
+            if symbol_lib:
+                lib_file_path = self.DEST_PATH / f"{remote_type.name}.kicad_sym"
 
-            # Check if symbol already exists
-            if lib_file_path.exists() and not overwrite_if_exists:
-                existing_lib = SymbolLib().from_file(str(lib_file_path))
-                for existing_symbol in existing_lib.symbols:
-                    if existing_symbol.entryName == symbol_name:
-                        logger.info(f"Symbol {symbol_name} already exists, skipping")
-                        self.print(
-                            f"Symbol {symbol_name} already exists in library. Skipping."
-                        )
-                        self.lib_skipped = True
-                        break
-            else:
-                # Merge with existing library or create new
+                # Create backup if file exists
+                backup_path = None
                 if lib_file_path.exists():
+                    backup_path = lib_file_path.with_suffix(".kicad_sym.backup")
+                    shutil.copy2(lib_file_path, backup_path)
+                    backup_files[lib_file_path] = backup_path
                     existing_lib = SymbolLib().from_file(str(lib_file_path))
+                else:
+                    existing_lib = SymbolLib()
+                    check_file(lib_file_path)
 
-                    # Remove existing symbol with same name if overwrite is enabled
-                    if overwrite_if_exists:
+                # Check if symbol already exists
+                existing_names = [s.entryName for s in existing_lib.symbols]
+                symbol_exists = symbol_name in existing_names
+
+                # Decide what to do
+                if symbol_exists and not overwrite_if_exists:
+                    self.print(
+                        f"Symbol {symbol_name} already exists in library. Skipping."
+                    )
+                    self.lib_skipped = True
+                else:
+                    # Single place for symbol insertion/update
+                    if symbol_exists and overwrite_if_exists:
+                        # Remove existing symbol
                         existing_lib.symbols = [
                             s
                             for s in existing_lib.symbols
                             if s.entryName != symbol_name
                         ]
-                        # Add the new symbols
-                        existing_lib.symbols.extend(symbol_lib.symbols)
-                        existing_lib.to_file(str(lib_file_path))
+                        action = "updated"
+                    else:
+                        action = "added" if symbol_exists == False else "created"
+
+                    # Add new symbols
+                    existing_lib.symbols.extend(symbol_lib.symbols)
+
+                    # Atomic write: Save to temporary file first
+                    temp_lib_path = lib_file_path.with_suffix(".tmp")
+                    existing_lib.to_file(str(temp_lib_path))
+
+                    # Verify the written file
+                    try:
+                        test_lib = SymbolLib().from_file(str(temp_lib_path))
+                        if not test_lib.symbols:
+                            raise ValueError("Written library is empty")
+                    except Exception as e:
+                        if temp_lib_path.exists():
+                            temp_lib_path.unlink()
+                        raise ValueError(f"Library verification failed: {e}")
+
+                    # Replace original with temp file (atomic on most filesystems)
+                    if lib_file_path.exists():
+                        lib_file_path.unlink()
+                    temp_lib_path.rename(lib_file_path)
+
+                    modified_objects.append(lib_file_path, Modification.MODIFIED_FILE)
+
+                    # Output message
+                    if action == "created":
+                        success_items.append(
+                            f"created symbol library with {symbol_name}"
+                        )
+                        self.print(f"Created new symbol library with {symbol_name}")
+                    elif action == "updated":
                         success_items.append(f"updated symbol {symbol_name}")
                         self.print(f"Updated symbol {symbol_name} in library")
-                    else:
-                        # Add only if not already present
-                        existing_names = [s.entryName for s in existing_lib.symbols]
-                        for symbol in symbol_lib.symbols:
-                            if symbol.entryName not in existing_names:
-                                existing_lib.symbols.append(symbol)
-                        existing_lib.to_file(str(lib_file_path))
+                    else:  # added
                         success_items.append(f"added symbol {symbol_name}")
                         self.print(f"Added symbol {symbol_name} to library")
+
+            # 2. Save footprint with atomic write
+            if footprint:
+                footprint_dir = self.DEST_PATH / f"{remote_type.name}.pretty"
+                if not footprint_dir.exists():
+                    footprint_dir.mkdir(parents=True, exist_ok=True)
+                    modified_objects.append(footprint_dir, Modification.MKDIR)
+
+                self.footprint_name = self.cleanName(footprint.entryName)
+                footprint_file = footprint_dir / f"{self.footprint_name}.kicad_mod"
+
+                if footprint_file.exists() and not overwrite_if_exists:
+                    self.print(
+                        f"Footprint {self.footprint_name} already exists. Skipping."
+                    )
+                    self.footprint_skipped = True
                 else:
-                    # Create new library
-                    check_file(lib_file_path)
-                    symbol_lib.to_file(str(lib_file_path))
-                    success_items.append(f"created symbol library with {symbol_name}")
-                    self.print(f"Created new symbol library with {symbol_name}")
+                    # Create backup if file exists
+                    if footprint_file.exists():
+                        backup_path = footprint_file.with_suffix(".kicad_mod.backup")
+                        shutil.copy2(footprint_file, backup_path)
+                        backup_files[footprint_file] = backup_path
 
-                modified_objects.append(lib_file_path, Modification.MODIFIED_FILE)
+                    # Atomic write for footprint
+                    temp_footprint_path = footprint_file.with_suffix(".tmp")
+                    footprint.to_file(str(temp_footprint_path))
 
-        # 2. Save footprint if available
-        if footprint:
-            footprint_dir = self.DEST_PATH / f"{remote_type.name}.pretty"
-            if not footprint_dir.exists():
-                footprint_dir.mkdir(parents=True, exist_ok=True)
-                modified_objects.append(footprint_dir, Modification.MKDIR)
+                    # Replace original with temp file
+                    if footprint_file.exists():
+                        footprint_file.unlink()
+                    temp_footprint_path.rename(footprint_file)
 
-            self.footprint_name = self.cleanName(footprint.entryName)
-            footprint_file = footprint_dir / f"{self.footprint_name}.kicad_mod"
+                    modified_objects.append(footprint_file, Modification.MODIFIED_FILE)
+                    success_items.append(f"saved footprint {self.footprint_name}")
+                    self.print(f"Saved footprint {self.footprint_name}")
 
-            if footprint_file.exists() and not overwrite_if_exists:
-                logger.info(f"Footprint {self.footprint_name} already exists, skipping")
-                self.print(f"Footprint {self.footprint_name} already exists. Skipping.")
-                self.footprint_skipped = True
-            else:
-                footprint.to_file(str(footprint_file))
-                modified_objects.append(footprint_file, Modification.MODIFIED_FILE)
-                success_items.append(f"saved footprint {self.footprint_name}")
-                self.print(f"Saved footprint {self.footprint_name}")
+            # 3. Save 3D model
+            if model_path:
+                model_dir = self.DEST_PATH / f"{remote_type.name}.3dshapes"
+                if not model_dir.exists():
+                    model_dir.mkdir(parents=True, exist_ok=True)
+                    modified_objects.append(model_dir, Modification.MKDIR)
 
-        # 3. Save 3D model if available
-        if model_path:
-            model_dir = self.DEST_PATH / f"{remote_type.name}.3dshapes"
-            if not model_dir.exists():
-                model_dir.mkdir(parents=True, exist_ok=True)
-                modified_objects.append(model_dir, Modification.MKDIR)
+                model_file = model_dir / model_path.name
 
-            model_file = model_dir / model_path.name
+                if model_file.exists() and not overwrite_if_exists:
+                    self.print(f"3D model {model_path.name} already exists. Skipping.")
+                    self.model_skipped = True
+                else:
+                    # Create backup if file exists
+                    if model_file.exists():
+                        backup_path = model_file.with_suffix(
+                            f"{model_file.suffix}.backup"
+                        )
+                        shutil.copy2(model_file, backup_path)
+                        backup_files[model_file] = backup_path
 
-            if model_file.exists() and not overwrite_if_exists:
-                logger.info(f"3D model {model_path.name} already exists, skipping")
-                self.print(f"3D model {model_path.name} already exists. Skipping.")
-                self.model_skipped = True
-            else:
-                shutil.copy2(model_path, model_file)
-                modified_objects.append(model_file, Modification.EXTRACTED_FILE)
-                success_items.append(f"saved 3D model {model_path.name}")
-                self.print(f"Saved 3D model {model_path.name}")
+                    # Copy model file
+                    shutil.copy2(model_path, model_file)
+                    modified_objects.append(model_file, Modification.EXTRACTED_FILE)
+                    success_items.append(f"saved 3D model {model_path.name}")
+                    self.print(f"Saved 3D model {model_path.name}")
 
-        # Log summary of what was saved
-        if success_items:
-            logger.info(f"Saved: {', '.join(success_items)}")
+            # Success - clean up backup files
+            for backup_path in backup_files.values():
+                if backup_path and backup_path.exists():
+                    backup_path.unlink()
 
-        return True
+            # Log summary of what was saved
+            if success_items:
+                logger.info(f"Saved: {', '.join(success_items)}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error during save_to_library: {e}")
+            self.print(f"Error during save: {e}")
+
+            # Rollback: Restore original files from backups
+            for original_path, backup_path in backup_files.items():
+                if backup_path and backup_path.exists():
+                    try:
+                        if original_path.exists():
+                            original_path.unlink()
+                        shutil.move(backup_path, original_path)
+                        logger.info(f"Restored backup for: {original_path}")
+                    except Exception as restore_error:
+                        logger.error(
+                            f"Failed to restore backup {backup_path}: {restore_error}"
+                        )
+
+            # Clean up any remaining temporary files
+            for pattern in [f"{remote_type.name}.kicad_sym.tmp", "*.tmp"]:
+                for temp_file in self.DEST_PATH.glob(pattern):
+                    if temp_file.exists():
+                        temp_file.unlink(missing_ok=True)
+
+            return False
 
     def import_all(
         self, zip_file: Path, overwrite_if_exists=True, import_old_format=True
@@ -635,9 +715,7 @@ class LibImporter:
                             and self.footprint_skipped
                             and self.model_skipped
                         ):
-                            logger.info(
-                                "Import completed - all files already exist"
-                            )
+                            logger.info("Import completed - all files already exist")
                             self.print("Import completed")
                             return ("OK",)
                         elif (
