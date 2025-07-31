@@ -168,8 +168,8 @@ class LibImporter:
         kicad_dir = find_in_zip(root_path, "KiCad")
         if kicad_dir and kicad_dir.is_dir():
             logger.info("Identified as Samacsys format")
-            files["symbol"] = find_in_zip(kicad_dir, ".lib") or find_in_zip(
-                kicad_dir, ".kicad_sym"
+            files["symbol"] = find_in_zip(kicad_dir, ".kicad_sym") or find_in_zip(
+                kicad_dir, ".lib"
             )
             files["dcm"] = find_in_zip(kicad_dir, ".dcm")
             files["footprint"] = kicad_dir  # Footprints are stored in this directory
@@ -180,8 +180,8 @@ class LibImporter:
         kicad_dir = find_in_zip(root_path, "KiCAD")
         if kicad_dir and kicad_dir.is_dir():
             logger.info("Identified as UltraLibrarian format")
-            files["symbol"] = find_in_zip(kicad_dir, ".lib") or find_in_zip(
-                kicad_dir, ".kicad_sym"
+            files["symbol"] = find_in_zip(kicad_dir, ".kicad_sym") or find_in_zip(
+                kicad_dir, ".lib"
             )
             files["dcm"] = find_in_zip(kicad_dir, ".dcm")
             files["footprint"] = find_in_zip(kicad_dir, ".pretty")
@@ -190,8 +190,8 @@ class LibImporter:
 
         # Default to Snapeda format if we have symbols and footprints
         footprint_file = find_in_zip(root_path, ".kicad_mod")
-        symbol_file = find_in_zip(root_path, ".lib") or find_in_zip(
-            root_path, ".kicad_sym"
+        symbol_file = find_in_zip(root_path, ".kicad_sym") or find_in_zip(
+            root_path, ".lib"
         )
 
         if symbol_file:
@@ -270,7 +270,7 @@ class LibImporter:
                     else:
                         logger.error(f"Conversion failed for {extracted_path}")
                         raise ValueError(
-                            f"Failed to convert {extracted_path} to KiCad 7 format"
+                            f"Failed to convert {extracted_path} to new KiCad format"
                         )
                 else:
                     logger.error("KiCad CLI not available for .lib conversion")
@@ -513,6 +513,13 @@ class LibImporter:
                         lib_file_path.unlink()
                     temp_lib_path.rename(lib_file_path)
 
+                    result = cli.upgrade_sym_lib(str(lib_file_path), str(lib_file_path))
+                    if not result.success:
+                        raise ValueError(
+                            f"Updating {lib_file_path} failed: {result.message} "
+                            + f"details: {result.stderr}"
+                        )
+
                     modified_objects.append(lib_file_path, Modification.MODIFIED_FILE)
 
                     # Output message
@@ -683,7 +690,8 @@ class LibImporter:
                     model_temp_dir, model_path = self.load_model(files["model"])
                     if model_temp_dir:
                         temp_dirs.append(model_temp_dir)
-                        logger.info(f"Loaded 3D model: {model_path.name}")
+                        if model_path:
+                            logger.info(f"Loaded 3D model: {model_path.name}")
 
                     # Update footprint with model reference if we have both
                     if footprint and model_path:
