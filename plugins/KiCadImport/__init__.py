@@ -10,15 +10,14 @@ import tempfile
 import shutil
 import logging
 import time
+import re
 from enum import Enum
 from typing import Tuple, Union, List, Dict, Any, Optional
 from pathlib import Path
 
-from kiutils.footprint import Footprint, Model, Coordinate
 from kiutils.symbol import SymbolLib, Property, Effects
 from kiutils.items.common import Position, Font
-
-from kiutils.libraries import Library, LibTable
+from .footprint_model_parser import FootprintModelParser
 
 try:
     from ..kicad_cli import kicad_cli
@@ -96,6 +95,7 @@ class LibImporter:
         self.footprint_skipped = False
         self.model_skipped = False
         self.footprint_name = None
+        self.footprint_parser = FootprintModelParser()
 
     def set_DEST_PATH(self, DEST_PATH_=Path.home() / "KiCad"):
         self.DEST_PATH = Path(DEST_PATH_)
@@ -297,20 +297,14 @@ class LibImporter:
         finally:
             shutil.rmtree(temp_dir)
 
-    def load_footprint(
-        self, footprint_path: Optional[Union[Path, zipfile.Path]]
-    ) -> Optional[Footprint]:
-        """
-        Load a footprint from a path in a zip file
-
-        Returns:
-            Footprint object
-        """
+    def extract_footprint_to_file(
+        self, footprint_path: Optional[Union[Path, zipfile.Path]], dest_file: Path
+    ) -> Optional[str]:
+        """Extract footprint to destination file with upgrade and return footprint name"""
         if not footprint_path:
             return None
 
         footprint_file = footprint_path
-        # If directory, find a .kicad_mod file in it
         if footprint_path.is_dir():
             for item in footprint_path.iterdir():
                 if item.name.endswith(".kicad_mod"):
@@ -321,12 +315,79 @@ class LibImporter:
                 logger.warning("No .kicad_mod file found in directory")
                 return None
 
-        temp_dir, extracted_path = self.extract_file_to_temp(footprint_file)
+        temp_dir = Path(tempfile.mkdtemp())
         try:
-            footprint = Footprint().from_file(str(extracted_path))
-            return footprint
+            # Extract to temporary file
+            temp_file = temp_dir / footprint_file.name
+            with footprint_file.open("rb") as src, open(temp_file, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+
+            # Upgrade footprint using CLI if available
+            if cli.exists():
+                try:
+                    # Create temporary .pretty directory for upgrade
+                    temp_pretty = temp_dir / "temp.pretty"
+                    temp_pretty.mkdir()
+
+                    # Copy footprint to .pretty structure
+                    pretty_footprint = temp_pretty / temp_file.name
+                    shutil.copy2(temp_file, pretty_footprint)
+
+                    # Upgrade in-place (no output folder)
+                    result = cli.upgrade_footprint_lib(
+                        pretty_folder=str(temp_pretty), force=True
+                    )
+
+                    if result.success:
+                        # Use upgraded file from same directory
+                        upgraded_file = temp_pretty / temp_file.name
+
+                        if upgraded_file.exists():
+                            temp_file = upgraded_file
+                            logger.info(
+                                f"Successfully upgraded footprint: {temp_file.name}"
+                            )
+                        else:
+                            logger.warning(
+                                f"Upgrade output not found for {temp_file.name}"
+                            )
+                    else:
+                        logger.warning(f"Footprint upgrade failed: {result.message}")
+
+                except Exception as upgrade_error:
+                    logger.warning(f"Footprint upgrade failed: {upgrade_error}")
+            else:
+                logger.debug("KiCad CLI not available - skipping footprint upgrade")
+
+            # Parse footprint name from file content
+            content = temp_file.read_text(encoding="utf-8")
+
+            # Validate content
+            if not content.strip():
+                raise ValueError("Empty footprint content")
+
+            if not re.search(r"\((module|footprint)\s+", content):
+                raise ValueError(
+                    "Invalid footprint format: no module/footprint declaration"
+                )
+
+            match = re.search(r'\((module|footprint)\s+"([^"]*)"', content)
+            if match:
+                name = match.group(2)
+                if not name.strip():
+                    raise ValueError("Empty module name")
+                footprint_name = self.cleanName(name)
+            else:
+                raise ValueError("Could not extract module name")
+
+            # Copy to final destination
+            shutil.copy2(temp_file, dest_file)
+
+            logger.info(f"Successfully extracted footprint: {footprint_name}")
+            return footprint_name
+
         except Exception as e:
-            logger.error(f"Failed to load footprint: {e}")
+            logger.error(f"Failed to extract footprint: {e}")
             return None
         finally:
             shutil.rmtree(temp_dir)
@@ -351,38 +412,26 @@ class LibImporter:
             return (None, None)
 
     def update_footprint_with_model(
-        self, footprint: Footprint, model_name: str, remote_type: REMOTE_TYPES
-    ) -> Footprint:
-        """
-        Update a footprint with a 3D model reference
+        self, footprint_file: Path, model_name: str, remote_type: REMOTE_TYPES
+    ) -> bool:
+        """Update footprint file with model using string manipulation"""
+        if not footprint_file.exists():
+            return False
 
-        Returns:
-            Updated footprint
-        """
-        if not footprint or not model_name:
-            return footprint
-
-        # Create model path with proper linking
         model_path = (
             f"{self.KICAD_3RD_PARTY_LINK}/{remote_type.name}.3dshapes/{model_name}"
         )
 
-        # Check if there's already any model
-        if footprint.models:
-            # Just update path of the existing model
-            for existing_model in footprint.models:
-                existing_model.path = model_path
-        else:
-            # Add new model with standard values
-            new_model = Model(
-                path=model_path,
-                scale=Coordinate(1.0, 1.0, 1.0),
-                pos=Coordinate(0.0, 0.0, 0.0),
-                rotate=Coordinate(0.0, 0.0, 0.0),
+        try:
+            content = footprint_file.read_text(encoding="utf-8")
+            updated_content = self.footprint_parser.update_or_add_model(
+                content, model_path
             )
-            footprint.models.append(new_model)
-
-        return footprint
+            footprint_file.write_text(updated_content, encoding="utf-8")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update footprint model: {e}")
+            return False
 
     def update_symbol_properties(
         self, symbol_lib: SymbolLib, footprint_name: str, remote_type: REMOTE_TYPES
@@ -437,7 +486,7 @@ class LibImporter:
     def save_to_library(
         self,
         symbol_lib: Optional[SymbolLib],
-        footprint: Optional[Footprint],
+        footprint_file_path: Optional[Path],
         model_path: Optional[Path],
         remote_type: REMOTE_TYPES,
         symbol_name: str,
@@ -535,40 +584,19 @@ class LibImporter:
                         success_items.append(f"added symbol {symbol_name}")
                         self.print(f"Added symbol {symbol_name} to library")
 
-            # 2. Save footprint with atomic write
-            if footprint:
-                footprint_dir = self.DEST_PATH / f"{remote_type.name}.pretty"
-                if not footprint_dir.exists():
-                    footprint_dir.mkdir(parents=True, exist_ok=True)
-                    modified_objects.append(footprint_dir, Modification.MKDIR)
-
-                self.footprint_name = self.cleanName(footprint.entryName)
-                footprint_file = footprint_dir / f"{self.footprint_name}.kicad_mod"
-
-                if footprint_file.exists() and not overwrite_if_exists:
+            # 2. Handle footprint (already extracted to destination)
+            if footprint_file_path and footprint_file_path.exists():
+                if not overwrite_if_exists and footprint_file_path.exists():
                     self.print(
-                        f"Footprint {self.footprint_name} already exists. Skipping."
+                        f"Footprint {footprint_file_path.name} already exists. Skipping."
                     )
                     self.footprint_skipped = True
                 else:
-                    # Create backup if file exists
-                    if footprint_file.exists():
-                        backup_path = footprint_file.with_suffix(".kicad_mod.backup")
-                        shutil.copy2(footprint_file, backup_path)
-                        backup_files[footprint_file] = backup_path
-
-                    # Atomic write for footprint
-                    temp_footprint_path = footprint_file.with_suffix(".tmp")
-                    footprint.to_file(str(temp_footprint_path))
-
-                    # Replace original with temp file
-                    if footprint_file.exists():
-                        footprint_file.unlink()
-                    temp_footprint_path.rename(footprint_file)
-
-                    modified_objects.append(footprint_file, Modification.MODIFIED_FILE)
-                    success_items.append(f"saved footprint {self.footprint_name}")
-                    self.print(f"Saved footprint {self.footprint_name}")
+                    modified_objects.append(
+                        footprint_file_path, Modification.MODIFIED_FILE
+                    )
+                    success_items.append(f"saved footprint {footprint_file_path.stem}")
+                    self.print(f"Saved footprint {footprint_file_path.stem}")
 
             # 3. Save 3D model
             if model_path:
@@ -596,6 +624,16 @@ class LibImporter:
                     modified_objects.append(model_file, Modification.EXTRACTED_FILE)
                     success_items.append(f"saved 3D model {model_path.name}")
                     self.print(f"Saved 3D model {model_path.name}")
+
+                    # Update footprint with model reference
+                    if footprint_file_path and footprint_file_path.exists():
+                        model_update_success = self.update_footprint_with_model(
+                            footprint_file_path, model_path.name, remote_type
+                        )
+                        if not model_update_success:
+                            logger.warning(
+                                "Failed to update footprint with model reference"
+                            )
 
             # Success - clean up backup files
             for backup_path in backup_files.values():
@@ -672,16 +710,54 @@ class LibImporter:
                     symbol_lib, symbol_name = self.load_symbol_lib(files["symbol"])
                     logger.info(f"Loaded symbol: {symbol_name}")
 
-                # Load footprint
-                footprint: Optional[Footprint] = None
+                # Handle footprint - extract directly to destination
+                footprint_file_path = None
                 if files["footprint"]:
-                    footprint = self.load_footprint(files["footprint"])
-                    if footprint:
-                        self.footprint_name = self.cleanName(footprint.entryName)
-                        logger.info(f"Loaded footprint: {self.footprint_name}")
+                    footprint_dir = self.DEST_PATH / f"{remote_type.name}.pretty"
+                    if not footprint_dir.exists():
+                        footprint_dir.mkdir(parents=True, exist_ok=True)
+                        modified_objects.append(footprint_dir, Modification.MKDIR)
+
+                    # Generate initial footprint filename
+                    temp_footprint_name = None
+                    if files["footprint"].is_dir():
+                        for item in files["footprint"].iterdir():
+                            if item.name.endswith(".kicad_mod"):
+                                temp_footprint_name = self.cleanName(item.name[:-10])
+                                break
                     else:
-                        logger.warning("Unable to load footprint")
-                        self.print("Warning: Unable to load footprint")
+                        temp_footprint_name = self.cleanName(
+                            files["footprint"].name[:-10]
+                        )
+
+                    if temp_footprint_name:
+                        footprint_file_path = (
+                            footprint_dir / f"{temp_footprint_name}.kicad_mod"
+                        )
+
+                        # Extract footprint with upgrade
+                        extracted_name = self.extract_footprint_to_file(
+                            files["footprint"], footprint_file_path
+                        )
+
+                        if extracted_name:
+                            self.footprint_name = extracted_name
+                            # Rename file if name changed after parsing
+                            if extracted_name != temp_footprint_name:
+                                new_footprint_path = (
+                                    footprint_dir / f"{extracted_name}.kicad_mod"
+                                )
+                                if footprint_file_path.exists():
+                                    footprint_file_path.rename(new_footprint_path)
+                                    footprint_file_path = new_footprint_path
+
+                            logger.info(
+                                f"Successfully processed footprint: {self.footprint_name}"
+                            )
+                        else:
+                            logger.warning("Failed to extract footprint")
+                            self.print("Warning: Failed to extract footprint")
+                            footprint_file_path = None
 
                 # Load 3D model
                 model_temp_dir = None
@@ -693,12 +769,6 @@ class LibImporter:
                         if model_path:
                             logger.info(f"Loaded 3D model: {model_path.name}")
 
-                    # Update footprint with model reference if we have both
-                    if footprint and model_path:
-                        footprint = self.update_footprint_with_model(
-                            footprint, model_path.name, remote_type
-                        )
-
                 # Update symbol with footprint reference
                 if symbol_lib and self.footprint_name:
                     symbol_lib = self.update_symbol_properties(
@@ -706,10 +776,10 @@ class LibImporter:
                     )
 
                 # Save everything to the library
-                if symbol_lib or footprint or model_path:
+                if symbol_lib or footprint_file_path or model_path:
                     success = self.save_to_library(
                         symbol_lib=symbol_lib,
-                        footprint=footprint,
+                        footprint_file_path=footprint_file_path,
                         model_path=model_path,
                         remote_type=remote_type,
                         symbol_name=symbol_name,

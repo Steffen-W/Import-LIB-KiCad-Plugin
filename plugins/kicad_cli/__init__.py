@@ -242,7 +242,7 @@ class kicad_cli:
     ) -> CommandResult:
         """Upgrade a KiCad footprint library folder to current format."""
         pretty_folder = str(pretty_folder)
-        output_folder = str(output_folder)
+
         if not os.path.exists(pretty_folder):
             error_msg = f"Footprint folder does not exist: {pretty_folder}"
             self.logger.error(error_msg)
@@ -255,7 +255,8 @@ class kicad_cli:
 
         command = ["fp", "upgrade", pretty_folder]
 
-        if output_folder:
+        if output_folder is not None:
+            output_folder = str(output_folder)
             command.extend(["-o", output_folder])
 
         if force:
@@ -263,7 +264,7 @@ class kicad_cli:
 
         result = self.run_kicad_cli(command)
 
-        target_folder = output_folder if output_folder else pretty_folder
+        target_folder = output_folder if output_folder is not None else pretty_folder
 
         if result.success and not os.path.exists(target_folder):
             result.success = False
@@ -272,7 +273,12 @@ class kicad_cli:
             )
             self.logger.error(result.message)
         elif result.success:
-            result.message = "Footprint library upgrade completed successfully"
+            upgrade_mode = (
+                "to output folder" if output_folder is not None else "in-place"
+            )
+            result.message = (
+                f"Footprint library upgrade completed successfully ({upgrade_mode})"
+            )
             self.logger.info(result.message)
 
         return result
