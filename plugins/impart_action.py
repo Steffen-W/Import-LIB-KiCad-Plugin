@@ -60,8 +60,8 @@ def setup_script_path() -> None:
 
 
 try:
-    setup_virtual_env()
-    # setup_script_path()
+    # setup_virtual_env()
+    setup_script_path()
     import wx
 
     logging.info("Successfully imported wx module")
@@ -213,7 +213,7 @@ class ImpartBackend:
 
         self.print_to_buffer(warning_msg)
         self.print_to_buffer(info_msg)
-        self.print_to_buffer("\n" + "=" * 30 + "\n")
+        self.print_to_buffer("\n" + "=" * 50 + "\n")
 
     def print_to_buffer(self, *args: Any) -> None:
         """Add text to print buffer."""
@@ -324,6 +324,14 @@ class ImpartFrontend(impartGUI):
 
     def __init__(self) -> None:
         super().__init__(None)
+        try:
+            icon_path = Path(__file__).resolve().parent / "icon.png"
+            if icon_path.exists():
+                icon = wx.Icon(str(icon_path), wx.BITMAP_TYPE_PNG)
+                self.SetIcon(icon)
+        except Exception as e:
+            logging.warning(f"Could not set window icon: {e}")
+
         self.backend = backend_handler
         self.thread: Optional[PluginThread] = None
 
@@ -524,7 +532,7 @@ class ImpartFrontend(impartGUI):
         dlg = wx.MessageDialog(None, full_msg, "WARNING", wx.OK | wx.ICON_WARNING)
 
         if dlg.ShowModal() == wx.ID_OK:
-            separator = "\n" + "=" * 30 + "\n"
+            separator = "\n" + "=" * 50 + "\n"
             self.backend.print_to_buffer(separator + full_msg + separator)
 
     def DirChange(self, event: wx.CommandEvent) -> None:
@@ -750,9 +758,6 @@ try:
         def defaults(self) -> None:
             """Set plugin defaults."""
             plugin_dir = Path(__file__).resolve().parent
-            self.resources_dir = (
-                plugin_dir.parent.parent / "resources" / plugin_dir.name
-            )
             self.plugin_dir = plugin_dir
 
             self.name = "impartGUI"
@@ -760,7 +765,8 @@ try:
             self.description = "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA"
             self.show_toolbar_button = True
 
-            icon_path = self.resources_dir / "icon.png"
+            icon_path = plugin_dir / "icon.png"
+            logging.info(icon_path)
             self.icon_file_name = str(icon_path)
             self.dark_icon_file_name = str(icon_path)
 
