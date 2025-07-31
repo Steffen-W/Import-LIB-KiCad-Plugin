@@ -5,63 +5,27 @@ Supports Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA.
 
 import os
 import sys
-import traceback
 import logging
 from pathlib import Path
 from time import sleep
 from threading import Thread
 from typing import Optional, List, Tuple, Any
 
-# Fix module path issues for debugging and standalone execution
-if __name__ == "__main__":
-    # When running as main script, add parent directory to path
-    script_dir = Path(__file__).resolve().parent
-    project_root = script_dir.parent
-
-    # Add project root to Python path if not already there
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
-
-    # Also add current directory for local imports
-    if str(script_dir) not in sys.path:
-        sys.path.insert(0, str(script_dir))
+# Setup paths for local imports
+script_dir = Path(__file__).resolve().parent
+if str(script_dir) not in sys.path:
+    sys.path.insert(0, str(script_dir))
 
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s [%(name)s:%(filename)s:%(lineno)d]: %(message)s",
-    filename=Path(__file__).resolve().parent / "plugin.log",
+    filename=script_dir / "plugin.log",
     filemode="w",
 )
 
-
-# Setup virtual environment path
-def setup_virtual_env() -> None:
-    """Setup virtual environment Python path if available."""
-    venv = os.environ.get("VIRTUAL_ENV")
-    if venv:
-        version = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        logging.info(f"Venv: {os.path.basename(venv)} {version}")
-        venv_site_packages = os.path.join(venv, "lib", version, "site-packages")
-        if venv_site_packages in sys.path:
-            sys.path.remove(venv_site_packages)
-        sys.path.insert(0, venv_site_packages)
-    else:
-        logging.warning("No virtual environment active.")
-
-
-# Setup script directory for imports
-def setup_script_path() -> None:
-    """Add script directory to Python path for local imports."""
-    script_dir = Path(__file__).resolve().parent
-    if str(script_dir) not in sys.path:
-        sys.path.insert(0, str(script_dir))
-    logging.debug(f"Script directory added to path: {script_dir}")
-
-
+# Import dependencies
 try:
-    # setup_virtual_env()
-    setup_script_path()
     import wx
 
     logging.info("Successfully imported wx module")
@@ -77,8 +41,8 @@ try:
     import KiCadImport
     import KiCadSettingsPaths
     import impart_migration
+    from single_instance_manager import SingleInstanceManager
 
-    # Alle benötigten Klassen/Funktionen zuweisen
     impartGUI = impart_gui.impartGUI
     FileHandler = FileHandler.FileHandler
     KiCad_Settings = KiCad_Settings.KiCad_Settings
@@ -88,14 +52,14 @@ try:
     find_old_lib_files = impart_migration.find_old_lib_files
     convert_lib_list = impart_migration.convert_lib_list
 
-    logging.info("Successfully imported all local modules using direct imports")
+    logging.info("Successfully imported all local modules")
 
 except ImportError as e:
     logging.exception("Failed to import local modules")
     print(f"Import error: {e}")
     print(f"Python path: {sys.path}")
     print(f"Current working directory: {os.getcwd()}")
-    print(f"Script directory: {Path(__file__).resolve().parent}")
+    print(f"Script directory: {script_dir}")
     raise
 
 # Event handling
@@ -319,11 +283,16 @@ def _check_single_library(
     return msg
 
 
+instance_manager = SingleInstanceManager()  # Create global instance manager
+
+
 class ImpartFrontend(impartGUI):
-    """Frontend GUI for the import plugin."""
+    """Frontend GUI with IPC-based singleton."""
 
     def __init__(self) -> None:
         super().__init__(None)
+        instance_manager.frontend_instance = self  # Register with instance manager
+
         try:
             icon_path = Path(__file__).resolve().parent / "icon.png"
             if icon_path.exists():
@@ -428,11 +397,16 @@ class ImpartFrontend(impartGUI):
         """Handle window close event."""
         if self.backend.run_thread:
             if not self._confirm_background_process():
+                event.Veto()
                 return
 
         self._save_settings()
         if self.thread:
             self.thread.stop_thread = True
+
+        instance_manager.stop_server()
+        logging.info("Frontend instance closed and IPC server stopped")
+
         event.Skip()
 
     def _confirm_background_process(self) -> bool:
@@ -785,13 +759,25 @@ except ImportError:
 
 if __name__ == "__main__":
     logging.info("Starting application in standalone mode")
+
+    if instance_manager.is_already_running():
+        logging.info("Plugin already running - focus command sent")
+        sys.exit(0)
+
     try:
         app = wx.App()
         frame = wx.Frame(None, title="KiCad Plugin")
         frontend = ImpartFrontend()
+
+        if not instance_manager.start_server(frontend):
+            logging.warning("Failed to start IPC server - continuing anyway")
+
         frontend.ShowModal()
         frontend.Destroy()
         logging.info("Application finished successfully")
+
     except Exception as e:
         logging.exception("Failed to run standalone application")
         raise
+    finally:
+        instance_manager.stop_server()
