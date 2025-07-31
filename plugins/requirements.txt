@@ -2,4 +2,4 @@ kicad-python>=0.3.0
 wxPython # GUI
 easyeda2kicad>=0.6.5
 # kiutils>=1.4.8
-git+https://github.com/Steffen-W/kiutils
+git+https://github.com/Steffen-W/kiutils@v1.4.9
