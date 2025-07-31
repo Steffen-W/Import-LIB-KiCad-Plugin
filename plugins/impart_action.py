@@ -721,38 +721,38 @@ except Exception as e:
     raise
 
 # KiCad Plugin Integration (SWIG)
-try:
-    import pcbnew
+# try:
+#     import pcbnew
 
-    logging.info("Successfully imported pcbnew module")
+#     logging.info("Successfully imported pcbnew module")
 
-    class ActionImpartPlugin(pcbnew.ActionPlugin):
-        """KiCad Action Plugin for library import."""
+#     class ActionImpartPlugin(pcbnew.ActionPlugin):
+#         """KiCad Action Plugin for library import."""
 
-        def defaults(self) -> None:
-            """Set plugin defaults."""
-            plugin_dir = Path(__file__).resolve().parent
-            self.plugin_dir = plugin_dir
+#         def defaults(self) -> None:
+#             """Set plugin defaults."""
+#             plugin_dir = Path(__file__).resolve().parent
+#             self.plugin_dir = plugin_dir
 
-            self.name = "impartGUI"
-            self.category = "Import library files"
-            self.description = "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA"
-            self.show_toolbar_button = True
+#             self.name = "impartGUI"
+#             self.category = "Import library files"
+#             self.description = "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA"
+#             self.show_toolbar_button = True
 
-            icon_path = plugin_dir / "icon.png"
-            logging.info(icon_path)
-            self.icon_file_name = str(icon_path)
-            self.dark_icon_file_name = str(icon_path)
+#             icon_path = plugin_dir / "icon.png"
+#             logging.info(icon_path)
+#             self.icon_file_name = str(icon_path)
+#             self.dark_icon_file_name = str(icon_path)
 
-        def Run(self) -> None:
-            """Run the plugin."""
-            try:
-                frontend = ImpartFrontend()
-                frontend.ShowModal()
-                frontend.Destroy()
-            except Exception as e:
-                logging.exception("Failed to run plugin frontend")
-                raise
+#         def Run(self) -> None:
+#             """Run the plugin."""
+#             try:
+#                 frontend = ImpartFrontend()
+#                 frontend.ShowModal()
+#                 frontend.Destroy()
+#             except Exception as e:
+#                 logging.exception("Failed to run plugin frontend")
+#                 raise
 
 except ImportError:
     logging.info("pcbnew module not available - running in standalone mode")

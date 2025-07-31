@@ -1,6 +1,6 @@
-try:
-    from .impart_action import ActionImpartPlugin
+# try:
+#     from .impart_action import ActionImpartPlugin
 
-    ActionImpartPlugin().register()
-except:
-    pass
+#     ActionImpartPlugin().register()
+# except:
+#     pass
