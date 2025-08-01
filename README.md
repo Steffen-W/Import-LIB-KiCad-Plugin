@@ -1,4 +1,4 @@
-![Static Badge](https://img.shields.io/badge/Supports_KiCad-v6%2C_v7%2C_v8-%23314cb0)
+![Static Badge](https://img.shields.io/badge/Supports_KiCad-v6%2C_v7%2C_v8%2C_v9-%23314cb0)
 ![Static Badge](https://img.shields.io/badge/Supports-Windows%2C_Mac%2C_Linux-Green)
 
 [![Static Badge](https://img.shields.io/badge/Samacsys-Works_(Component_Search_Engine)-1e8449)](https://componentsearchengine.com/)
@@ -28,7 +28,7 @@ You can also download the latest version [here](https://github.com/Steffen-W/Imp
 
 The import window is accessible in the **PCB Editor** -> **Tools** -> **External Plugins** -> **impartGUI**
 
-![Screenshot_GUI](doc/2024-08-17_Example_Import.png)
+![Screenshot_GUI](doc/2025-08_Example_Import.png)
 
 The libraries to import must be located in the folder specified as **Folder of the library** to import. After pressing Start, the libraries will be imported into the specified folder (**Library save location**). Provided that the paths have been [added correctly in KiCad](#including-the-imported-libraries-in-kicad), the parts can be used immediately in KiCad. If the libraries have not been imported correctly, a warning will indicate this.
 
@@ -74,10 +74,10 @@ Depending on the setup, further changes may be necessary. You will be notified i
 
 ## CLI Support
 
-The import process can also be done completely without the GUI. ```python plugins/KiCadImport.py```
+The import process can also be done completely without the GUI. ```python -m plugins.KiCadImport -h```
 
 ```bash
-usage: KiCadImport.py [-h] (--download-folder DOWNLOAD_FOLDER | --download-file DOWNLOAD_FILE) --lib-folder LIB_FOLDER [--overwrite-if-exists] [--path-variable PATH_VARIABLE]
+usage: __main__.py [-h] (--download-folder DOWNLOAD_FOLDER | --download-file DOWNLOAD_FILE | --easyeda EASYEDA) --lib-folder LIB_FOLDER [--overwrite-if-exists] [--path-variable PATH_VARIABLE]
 
 Import KiCad libraries from a file or folder.
 
@@ -87,6 +87,7 @@ options:
                         Path to the folder with the zip files to be imported.
   --download-file DOWNLOAD_FILE
                         Path to the zip file to import.
+  --easyeda EASYEDA     Import easyeda part. example: C2040
   --lib-folder LIB_FOLDER
                         Destination folder for the imported KiCad files.
   --overwrite-if-exists
@@ -117,8 +118,6 @@ Yes, this is of course always possible. But you should keep in mind that the exi
 **If I import from one source, do I have to stay with that source, or can I import from all sources?**
 For each source, a separate library is created for KiCad. Maximum actually three (Samacsys, Ultralibrarian and Snapeda), Octopart components as well as from other suppliers can be found in the Snapeda library. So if you import from a new source, a new library can be created. But maximum three.
 
-**Why are there two symbol libraries?**
-In the latest version both the old and the "new" (since KiCad 6) symbol library format is imported. It is possible to prevent this by deselecting "import also old format". An automatic conversion from the old to the new format should only be done if you are an experienced KiCad user.
 
 ### General KiCad Questions
 
@@ -130,10 +129,12 @@ Yes, you can always do that. The libraries are neither deleted nor edited in any
 
 ## Todo List
 
-- [ ] Add digikey support
-- [ ] Reloading the dependency pydantic for [uPesy/easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py)
-- [ ] Updating the library before an import `kicad-cli sym upgrade`
-- [ ] Updating the footprint library `kicad-cli fp upgrade *.pretty`
+- [x] add as local project Lib 
+- [x] plugin in schematic windows
+- [x] Add digikey support
+- [x] Reloading the dependency pydantic for [uPesy/easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py)
+- [x] Updating the library before an import `kicad-cli sym upgrade`
+- [x] Updating the footprint library `kicad-cli fp upgrade *.pretty`
 - [x] add [jlcpcb parts](https://jlcpcb.com/parts) to import (integrate [uPesy/easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py))
 - [x] Automatic background import
 - [x] Test on a Mac
