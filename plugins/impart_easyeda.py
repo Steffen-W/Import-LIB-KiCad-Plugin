@@ -58,53 +58,6 @@ class ImportConfig:
     lib_var: str = "${EASYEDA2KICAD}"
 
 
-def ensure_easyeda_module(print_func: Callable[[str], None]) -> bool:
-    try:
-        import easyeda2kicad
-
-        return True
-    except ImportError:
-        pass
-
-    print_func("easyeda2kicad not found. Attempting installation...")
-
-    try:
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "install", "easyeda2kicad"],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-
-        if result.returncode == 0:
-            print_func("easyeda2kicad installed successfully")
-
-            # Try to import again
-            try:
-                import easyeda2kicad
-
-                print_func("easyeda2kicad imported successfully")
-
-                # Reload the global DEPENDENCIES_AVAILABLE flag
-                global DEPENDENCIES_AVAILABLE
-                DEPENDENCIES_AVAILABLE = True
-
-                return True
-            except ImportError as e:
-                print_func(f"Import still failed after installation: {e}")
-                return False
-        else:
-            print_func(f"Installation failed: {result.stderr}")
-            return False
-
-    except subprocess.TimeoutExpired:
-        print_func("Installation timed out after 120 seconds")
-        return False
-    except Exception as e:
-        print_func(f"Installation error: {e}")
-        return False
-
-
 class EasyEDAImporter:
     """EasyEDA to KiCad component importer - focused on new symbol format only"""
 
@@ -349,11 +302,6 @@ class EasyEDAImporter:
 def import_easyeda_component(
     component_id: str, config: ImportConfig, print_func: Callable[[str], None]
 ) -> ImportPaths:
-    if not ensure_easyeda_module(print_func):
-        raise RuntimeError(
-            "easyeda2kicad module is not available and could not be installed"
-        )
-
     importer = EasyEDAImporter(config, print_func)
     return importer.import_component(component_id)
 
