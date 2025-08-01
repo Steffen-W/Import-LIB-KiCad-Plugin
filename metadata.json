@@ -35,9 +35,9 @@
     ],
     "versions": [
         {
-            "version": "2024.00.00",
+            "version": "2025.00.00",
             "status": "stable",
-            "kicad_version": "8.00"
+            "kicad_version": "9.00"
         }
     ]
 }
