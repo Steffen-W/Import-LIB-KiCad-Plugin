@@ -291,8 +291,15 @@ class ImpartFrontend(impartGUI):
 
     def __init__(self) -> None:
         super().__init__(None)
-        instance_manager.frontend_instance = self  # Register with instance manager
 
+        # Register with instance manager
+        if not instance_manager.register_frontend(self):
+            # Another instance already exists - this shouldn't happen
+            logging.warning("Frontend instance already exists - destroying this one")
+            self.Destroy()
+            return
+
+        # Set window icon
         try:
             icon_path = Path(__file__).resolve().parent / "icon.png"
             if icon_path.exists():
@@ -396,32 +403,61 @@ class ImpartFrontend(impartGUI):
     def on_close(self, event: wx.CloseEvent) -> None:
         """Handle window close event."""
         if self.backend.run_thread:
-            if not self._confirm_background_process():
+            choice = self._confirm_background_process()
+            if choice == "cancel":
                 event.Veto()
                 return
+            elif choice == "background":
+                self._save_settings()
+                if not self.IsIconized():
+                    self.Iconize(True)
+                # self.Hide()
+                logging.info("Frontend hidden - running in background with IPC active")
+                event.Veto()
+                return
+            else:  # choice == "close"
+                self.backend.run_thread = False
+                self._save_settings()
+                if self.thread:
+                    self.thread.stop_thread = True
+                instance_manager.stop_server()
+                logging.info("Frontend and background process stopped")
+                event.Skip()
+        else:
+            self._save_settings()
+            if self.thread:
+                self.thread.stop_thread = True
+            instance_manager.stop_server()
+            logging.info("Frontend instance closed and IPC server stopped")
+            event.Skip()
 
-        self._save_settings()
-        if self.thread:
-            self.thread.stop_thread = True
-
-        instance_manager.stop_server()
-        logging.info("Frontend instance closed and IPC server stopped")
-
-        event.Skip()
-
-    def _confirm_background_process(self) -> bool:
-        """Confirm closure when background process is running."""
+    def _confirm_background_process(self) -> str:
+        """Confirm what to do when background process is running."""
         msg = (
-            "The automatic import process continues in the background. "
-            "If this is not desired, it must be stopped.\n"
-            "As soon as the PCB Editor window is closed, the import process also ends."
+            "Import process runs in automatic mode.\n\n"
+            "• HIDE: Keep running, hide window\n"
+            "• STOP: Stop import and close\n"
+            "• CANCEL: Back to window"
         )
 
         dlg = wx.MessageDialog(
-            None, msg, "WARNING: impart background process", wx.OK | wx.ICON_WARNING
+            None,
+            msg,
+            "Import Running",
+            wx.YES_NO | wx.CANCEL | wx.ICON_QUESTION,
         )
 
-        return dlg.ShowModal() == wx.ID_OK
+        dlg.SetYesNoLabels("&Hide", "&Stop")
+
+        result = dlg.ShowModal()
+        dlg.Destroy()
+
+        if result == wx.ID_YES:
+            return "background"
+        elif result == wx.ID_NO:
+            return "close"
+        else:
+            return "cancel"
 
     def _save_settings(self) -> None:
         """Save current settings to backend."""
@@ -754,19 +790,22 @@ except Exception as e:
 #                 logging.exception("Failed to run plugin frontend")
 #                 raise
 
-except ImportError:
-    logging.info("pcbnew module not available - running in standalone mode")
+# except ImportError:
+#     logging.info("pcbnew module not available - running in standalone mode")
 
 if __name__ == "__main__":
     logging.info("Starting application in standalone mode")
 
     if instance_manager.is_already_running():
         logging.info("Plugin already running - focus command sent")
+        # Wait a bit for the command to be processed
+        import time
+
+        time.sleep(0.5)
         sys.exit(0)
 
     try:
         app = wx.App()
-        frame = wx.Frame(None, title="KiCad Plugin")
         frontend = ImpartFrontend()
 
         if not instance_manager.start_server(frontend):
