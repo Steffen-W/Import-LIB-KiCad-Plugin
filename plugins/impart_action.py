@@ -80,6 +80,30 @@ class ResultEvent(wx.PyEvent):
         self.data = data
 
 
+class FileDropTarget(wx.FileDropTarget):
+    """Drop target for ZIP files on the text control."""
+    
+    def __init__(self, window, callback):
+        wx.FileDropTarget.__init__(self)
+        self.window = window
+        self.callback = callback
+    
+    def OnDropFiles(self, x, y, filenames):
+        """Called when files are dropped on the text control."""
+        zip_files = [f for f in filenames if f.lower().endswith('.zip')]
+        
+        if zip_files:
+            self.callback(zip_files)
+            return True
+        else:
+            wx.MessageBox(
+                "Only .zip files are supported!", 
+                "Invalid file type", 
+                wx.OK | wx.ICON_WARNING
+            )
+            return False
+
+
 class PluginThread(Thread):
     """Background thread for monitoring import status."""
 
@@ -333,10 +357,54 @@ class ImpartFrontend(impartGUI):
 
         self._update_button_label()
         self._check_migration_possible()
+        
+        # Add drag & drop support
+        self._setup_drag_drop()
+        self._add_drag_drop_hint()
 
     def _setup_events(self) -> None:
         """Setup event handlers."""
         EVT_UPDATE(self, self.update_display)
+
+    def _setup_drag_drop(self) -> None:
+        """Configure drag & drop for the text control."""
+        drop_target = FileDropTarget(self.m_text, self._on_files_dropped)
+        self.m_text.SetDropTarget(drop_target)
+        
+        self.m_text.SetToolTip(
+            "Drag ZIP files here for direct import\n"
+            "Supported: Samacsys, UltraLibrarian, Snapeda"
+        )
+
+    def _add_drag_drop_hint(self) -> None:
+        """Add visual hint for drag & drop functionality."""
+        current_text = self.m_text.GetValue()
+        if not current_text.strip():
+            hint_text = (
+                "Tip: You can drag ZIP files directly into this window!\n"
+                + "=" * 50 + "\n"
+            )
+            self.backend.print_to_buffer(hint_text)
+
+    def _on_files_dropped(self, zip_files: List[str]) -> None:
+        """Callback when ZIP files are dropped on the text control."""
+        self.backend.print_to_buffer(f"\n{len(zip_files)} file(s) received via drag & drop:")
+        
+        for zip_file in zip_files:
+            self.backend.print_to_buffer(f"  • {os.path.basename(zip_file)}")
+        
+        self.backend.print_to_buffer("")
+        self._import_dropped_files(zip_files)
+
+    def _import_dropped_files(self, zip_files: List[str]) -> None:
+        """Import files received via drag & drop."""
+        self._update_backend_settings()
+        
+        for zip_file in zip_files:
+            self.backend._import_single_file(zip_file)
+        
+        # Check library settings after import
+        self._check_and_show_library_warnings()
 
     def _start_monitoring_thread(self) -> None:
         """Start the monitoring thread."""
