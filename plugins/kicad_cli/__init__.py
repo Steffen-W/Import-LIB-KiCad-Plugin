@@ -177,10 +177,25 @@ class kicad_cli:
             self.logger.error(error_msg)
             return CommandResult(False, "", error_msg, -1, error_msg)
 
-        if not self._is_valid_symbol_file(input_file):
-            error_msg = f"Input file is not a valid KiCad symbol file: {input_file}"
-            self.logger.error(error_msg)
-            return CommandResult(False, "", error_msg, -1, error_msg)
+        # Validate file format
+        if input_file.endswith(".lib"):
+            try:
+                with open(input_file, "r", encoding="utf-8") as f:
+                    if not f.readline().strip().startswith("EESchema-LIBRARY"):
+                        error_msg = (
+                            f"Input file is not a valid KiCad .lib file: {input_file}"
+                        )
+                        self.logger.error(error_msg)
+                        return CommandResult(False, "", error_msg, -1, error_msg)
+            except Exception as e:
+                error_msg = f"Failed to read file {input_file}: {e}"
+                self.logger.error(error_msg)
+                return CommandResult(False, "", error_msg, -1, error_msg)
+        else:
+            if not self._is_valid_symbol_file(input_file):
+                error_msg = f"Input file is not a valid KiCad symbol file: {input_file}"
+                self.logger.error(error_msg)
+                return CommandResult(False, "", error_msg, -1, error_msg)
 
         backup_path = None
         if input_file == output_file:

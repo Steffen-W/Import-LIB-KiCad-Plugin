@@ -248,7 +248,9 @@ class LibImporter:
         return temp_dir, extracted
 
     def load_symbol_lib(
-        self, symbol_path: Optional[Union[Path, zipfile.Path]]
+        self,
+        symbol_path: Optional[Union[Path, zipfile.Path]],
+        dcm_path: Optional[Union[Path, zipfile.Path]] = None,
     ) -> Tuple[SymbolLib, str]:
         """
         Load a symbol library from a path in a zip file
@@ -261,6 +263,17 @@ class LibImporter:
             raise ValueError("No symbol path")
 
         temp_dir, extracted_path = self.extract_file_to_temp(symbol_path)
+
+        # Extract DCM file to same directory if available
+        if dcm_path:
+            try:
+                _, dcm_extracted_path = self.extract_file_to_temp(dcm_path)
+                dcm_target = temp_dir / dcm_path.name
+                if dcm_extracted_path != dcm_target:
+                    shutil.copy2(dcm_extracted_path, dcm_target)
+            except Exception as e:
+                logger.warning(f"Failed to extract DCM file: {e}")
+
         try:
             # Always try to convert to new format
             if extracted_path.suffix == ".lib":
@@ -694,7 +707,9 @@ class LibImporter:
                 symbol_lib = None
                 symbol_name = "unknown"
                 if files["symbol"]:
-                    symbol_lib, symbol_name = self.load_symbol_lib(files["symbol"])
+                    symbol_lib, symbol_name = self.load_symbol_lib(
+                        files["symbol"], files.get("dcm")
+                    )
                     logger.info(f"Loaded symbol: {symbol_name}")
 
                 # Handle footprint - extract directly to destination
