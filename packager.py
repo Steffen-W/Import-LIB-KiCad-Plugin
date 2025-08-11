@@ -50,19 +50,21 @@ def install_pip_dependencies(target_dir):
     site_packages = target_dir / "site-packages"
     site_packages.mkdir(parents=True, exist_ok=True)
 
+    # Install with dependencies to get all required packages
     pip_dependencies = ["easyeda2kicad>=0.6.5"]
 
     success_count = 0
     for dep in pip_dependencies:
         try:
+            # Install without dependencies to avoid conflicts
             subprocess.run(
                 [
                     "pip",
                     "install",
                     "--target",
                     str(site_packages),
-                    "--no-deps",
                     "--disable-pip-version-check",
+                    "--no-deps",
                     "--upgrade",
                     dep,
                 ],
@@ -202,12 +204,69 @@ def cleanup_dependencies(site_packages_dir):
         print(f"  Cleaned {removed_count} files")
 
 
-def create_requirements_txt(build_dir):
+def create_dependency_loader(build_dir):
+    print("Creating dependency loader...")
+
+    loader_content = '''"""
+Dependency loader for KiCad Plugin
+Handles both system-wide and embedded dependencies
+"""
+
+import sys
+import os
+from pathlib import Path
+
+def setup_embedded_dependencies():
+    """Setup embedded dependencies if system-wide not available"""
+    plugin_dir = Path(__file__).resolve().parent
+    embedded_paths = [
+        plugin_dir / "lib" / "site-packages",
+        plugin_dir / "lib"
+    ]
+    
+    for path in embedded_paths:
+        if path.exists() and str(path) not in sys.path:
+            sys.path.insert(0, str(path))
+
+def safe_import_kiutils():
+    """Safely import kiutils with fallback to embedded version"""
+    try:
+        import kiutils
+        return True
+    except ImportError:
+        setup_embedded_dependencies()
+        try:
+            import kiutils
+            return True
+        except ImportError:
+            return False
+
+def safe_import_easyeda2kicad():
+    """Safely import easyeda2kicad with fallback to embedded version"""
+    try:
+        import easyeda2kicad
+        return True
+    except ImportError:
+        setup_embedded_dependencies()
+        try:
+            import easyeda2kicad
+            return True
+        except ImportError:
+            return False
+
+# Auto-setup when module is imported
+safe_import_kiutils()
+safe_import_easyeda2kicad()
+'''
+
+    loader_path = build_dir / "plugins" / "dependency_loader.py"
+    with open(loader_path, "w", encoding="utf-8") as f:
+        f.write(loader_content)
     print("Creating requirements.txt...")
 
     requirements_content = """# KiCad Plugin Requirements (New Plugin Manager API)
 kicad-python>=0.3.0
-easyeda2kicad>=0.6.5
+easyeda2kicad==0.6.5
 git+https://github.com/Steffen-W/kiutils@v1.4.9
 """
 
@@ -266,7 +325,7 @@ def main():
     lib_dir.mkdir(parents=True, exist_ok=True)
     print(f"Installing to: {lib_dir}")
     
-    pip_dependencies = ['easyeda2kicad>=0.6.5']
+    pip_dependencies = ['easyeda2kicad==0.6.5']
     git_dependencies = [{
         'name': 'kiutils',
         'url': 'https://github.com/Steffen-W/kiutils.git',
@@ -347,6 +406,9 @@ def copy_plugin_files(build_dir):
             "*.egg-info",
             "venv",
             "env",
+            "*.log",
+            "*.fbp",
+            "*.svg",
         ]
 
         ignored = []
@@ -427,6 +489,7 @@ def main():
             if pip_success > 0 or git_success > 0:
                 cleanup_dependencies(lib_dir / "site-packages")
 
+            create_dependency_loader(build_dir)
             create_requirements_txt(build_dir)
             update_metadata(build_dir)
             create_installation_script(build_dir)

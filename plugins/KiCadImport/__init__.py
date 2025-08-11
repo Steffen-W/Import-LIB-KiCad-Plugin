@@ -13,8 +13,22 @@ from enum import Enum
 from typing import Tuple, Union, List, Dict, Any, Optional
 from pathlib import Path
 
-from kiutils.symbol import SymbolLib, Property, Effects
-from kiutils.items.common import Position, Font
+try:
+    from kiutils.symbol import SymbolLib, Property, Effects
+    from kiutils.items.common import Position, Font
+except ImportError:
+    import sys
+    import os
+    from pathlib import Path
+
+    plugin_dir = Path(__file__).resolve().parent.parent
+    embedded_lib = plugin_dir / "lib" / "site-packages"
+
+    if embedded_lib.exists() and str(embedded_lib) not in sys.path:
+        sys.path.insert(0, str(embedded_lib))
+
+    from kiutils.symbol import SymbolLib, Property, Effects
+    from kiutils.items.common import Position, Font
 
 try:
     from .footprint_model_parser import FootprintModelParser

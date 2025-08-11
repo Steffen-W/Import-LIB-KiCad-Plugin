@@ -654,8 +654,20 @@ class ImpartFrontend(impartGUI):
         try:
             from impart_easyeda import import_easyeda_component, ImportConfig
         except ImportError as e:
-            self.backend.print_to_buffer(f"Failed to import EasyEDA module: {e}")
+            error_msg = f"Failed to import EasyEDA module: {e}\n\nThis usually means easyeda2kicad is not properly installed or has missing dependencies."
+            self.backend.print_to_buffer(error_msg)
             logging.error(f"EasyEDA import module not available: {e}")
+
+            # Show user-visible error message
+            wx.MessageBox(
+                f"EasyEDA Import Error!\n\n{error_msg}\n\n"
+                "Solutions:\n"
+                "1. Run 'install_dependencies.py' to reinstall dependencies\n"
+                "2. Check plugin.log for detailed error information\n"
+                "3. Restart KiCad after fixing dependencies",
+                "Import Error",
+                wx.OK | wx.ICON_ERROR,
+            )
             return
 
         if self.backend.local_lib:
@@ -708,12 +720,20 @@ class ImpartFrontend(impartGUI):
             logging.info(f"Successfully imported EasyEDA component {component_id}")
 
         except ValueError as e:
-            logging.error(f"Invalid component ID {component_id}: {e}")
+            error_msg = f"Invalid component ID {component_id}: {e}"
+            logging.error(error_msg)
+            wx.MessageBox(error_msg, "Invalid Component ID", wx.OK | wx.ICON_WARNING)
+
         except RuntimeError as e:
-            logging.error(f"Runtime error importing {component_id}: {e}")
+            error_msg = f"Runtime error importing {component_id}: {e}"
+            logging.error(error_msg)
+            wx.MessageBox(error_msg, "Import Error", wx.OK | wx.ICON_ERROR)
+
         except Exception as e:
-            self.backend.print_to_buffer(f"Unexpected error during import: {e}")
+            error_msg = f"Unexpected error during import: {e}"
+            self.backend.print_to_buffer(error_msg)
             logging.exception(f"Unexpected error importing {component_id}")
+            wx.MessageBox(error_msg, "Unexpected Error", wx.OK | wx.ICON_ERROR)
 
     def get_old_lib_files(self) -> dict:
         """Get list of old library files for migration."""
