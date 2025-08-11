@@ -82,24 +82,24 @@ class ResultEvent(wx.PyEvent):
 
 class FileDropTarget(wx.FileDropTarget):
     """Drop target for ZIP files on the text control."""
-    
+
     def __init__(self, window, callback):
         wx.FileDropTarget.__init__(self)
         self.window = window
         self.callback = callback
-    
+
     def OnDropFiles(self, x, y, filenames):
         """Called when files are dropped on the text control."""
-        zip_files = [f for f in filenames if f.lower().endswith('.zip')]
-        
+        zip_files = [f for f in filenames if f.lower().endswith(".zip")]
+
         if zip_files:
             self.callback(zip_files)
             return True
         else:
             wx.MessageBox(
-                "Only .zip files are supported!", 
-                "Invalid file type", 
-                wx.OK | wx.ICON_WARNING
+                "Only .zip files are supported!",
+                "Invalid file type",
+                wx.OK | wx.ICON_WARNING,
             )
             return False
 
@@ -357,7 +357,7 @@ class ImpartFrontend(impartGUI):
 
         self._update_button_label()
         self._check_migration_possible()
-        
+
         # Add drag & drop support
         self._setup_drag_drop()
         self._add_drag_drop_hint()
@@ -370,7 +370,7 @@ class ImpartFrontend(impartGUI):
         """Configure drag & drop for the text control."""
         drop_target = FileDropTarget(self.m_text, self._on_files_dropped)
         self.m_text.SetDropTarget(drop_target)
-        
+
         self.m_text.SetToolTip(
             "Drag ZIP files here for direct import\n"
             "Supported: Samacsys, UltraLibrarian, Snapeda"
@@ -382,27 +382,30 @@ class ImpartFrontend(impartGUI):
         if not current_text.strip():
             hint_text = (
                 "Tip: You can drag ZIP files directly into this window!\n"
-                + "=" * 50 + "\n"
+                + "=" * 50
+                + "\n"
             )
             self.backend.print_to_buffer(hint_text)
 
     def _on_files_dropped(self, zip_files: List[str]) -> None:
         """Callback when ZIP files are dropped on the text control."""
-        self.backend.print_to_buffer(f"\n{len(zip_files)} file(s) received via drag & drop:")
-        
+        self.backend.print_to_buffer(
+            f"\n{len(zip_files)} file(s) received via drag & drop:"
+        )
+
         for zip_file in zip_files:
             self.backend.print_to_buffer(f"  • {os.path.basename(zip_file)}")
-        
+
         self.backend.print_to_buffer("")
         self._import_dropped_files(zip_files)
 
     def _import_dropped_files(self, zip_files: List[str]) -> None:
         """Import files received via drag & drop."""
         self._update_backend_settings()
-        
+
         for zip_file in zip_files:
             self.backend._import_single_file(zip_file)
-        
+
         # Check library settings after import
         self._check_and_show_library_warnings()
 
@@ -823,43 +826,6 @@ try:
 except Exception as e:
     logging.exception("Failed to create backend handler")
     raise
-
-# KiCad Plugin Integration (SWIG)
-# try:
-#     import pcbnew
-
-#     logging.info("Successfully imported pcbnew module")
-
-#     class ActionImpartPlugin(pcbnew.ActionPlugin):
-#         """KiCad Action Plugin for library import."""
-
-#         def defaults(self) -> None:
-#             """Set plugin defaults."""
-#             plugin_dir = Path(__file__).resolve().parent
-#             self.plugin_dir = plugin_dir
-
-#             self.name = "impartGUI"
-#             self.category = "Import library files"
-#             self.description = "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA"
-#             self.show_toolbar_button = True
-
-#             icon_path = plugin_dir / "icon.png"
-#             logging.info(icon_path)
-#             self.icon_file_name = str(icon_path)
-#             self.dark_icon_file_name = str(icon_path)
-
-#         def Run(self) -> None:
-#             """Run the plugin."""
-#             try:
-#                 frontend = ImpartFrontend()
-#                 frontend.ShowModal()
-#                 frontend.Destroy()
-#             except Exception as e:
-#                 logging.exception("Failed to run plugin frontend")
-#                 raise
-
-# except ImportError:
-#     logging.info("pcbnew module not available - running in standalone mode")
 
 if __name__ == "__main__":
     logging.info("Starting application in standalone mode")
