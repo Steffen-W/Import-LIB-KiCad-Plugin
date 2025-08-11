@@ -50,13 +50,15 @@ def install_pip_dependencies(target_dir):
     site_packages = target_dir / "site-packages"
     site_packages.mkdir(parents=True, exist_ok=True)
 
-    # Install with dependencies to get all required packages
+    # Install latest version with all dependencies
     pip_dependencies = ["easyeda2kicad>=0.6.5"]
 
     success_count = 0
     for dep in pip_dependencies:
+        print(f"  Installing {dep}...")
+
+        # Strategy 1: Try normal install with all dependencies
         try:
-            # Install without dependencies to avoid conflicts
             subprocess.run(
                 [
                     "pip",
@@ -64,7 +66,6 @@ def install_pip_dependencies(target_dir):
                     "--target",
                     str(site_packages),
                     "--disable-pip-version-check",
-                    "--no-deps",
                     "--upgrade",
                     dep,
                 ],
@@ -72,10 +73,82 @@ def install_pip_dependencies(target_dir):
                 capture_output=True,
                 text=True,
             )
-            print(f"  ✓ {dep}")
+            print(f"  ✓ {dep} (full install)")
             success_count += 1
-        except subprocess.CalledProcessError:
-            print(f"  ✗ {dep}")
+            continue
+        except subprocess.CalledProcessError as e:
+            print(f"    Full install failed: {e}")
+
+        # Strategy 2: Try installing with --only-binary=:all: to force wheels
+        try:
+            subprocess.run(
+                [
+                    "pip",
+                    "install",
+                    "--target",
+                    str(site_packages),
+                    "--disable-pip-version-check",
+                    "--upgrade",
+                    "--only-binary=:all:",
+                    dep,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            print(f"  ✓ {dep} (wheels only)")
+            success_count += 1
+            continue
+        except subprocess.CalledProcessError as e:
+            print(f"    Wheels-only install failed: {e}")
+
+        # Strategy 3: Fallback - install to temp and copy selectively
+        try:
+            import tempfile
+            import shutil
+
+            with tempfile.TemporaryDirectory() as temp_install:
+                # Install to temp directory
+                subprocess.run(
+                    [
+                        "pip",
+                        "install",
+                        "--target",
+                        temp_install,
+                        "--disable-pip-version-check",
+                        dep,
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+
+                # Copy only the main package
+                temp_path = Path(temp_install)
+                src_easyeda = temp_path / "easyeda2kicad"
+
+                if src_easyeda.exists():
+                    dst_easyeda = site_packages / "easyeda2kicad"
+                    if dst_easyeda.exists():
+                        shutil.rmtree(dst_easyeda)
+                    shutil.copytree(src_easyeda, dst_easyeda)
+
+                    # Also copy essential dependencies that might work
+                    essential_deps = ["typing_extensions", "annotated_types"]
+                    for essential in essential_deps:
+                        src_dep = temp_path / essential
+                        if src_dep.exists():
+                            dst_dep = site_packages / essential
+                            if dst_dep.exists():
+                                shutil.rmtree(dst_dep)
+                            shutil.copytree(src_dep, dst_dep)
+
+                    print(f"  ✓ {dep} (selective copy)")
+                    success_count += 1
+                    continue
+
+        except Exception as fallback_error:
+            print(f"  ✗ {dep}: All strategies failed: {fallback_error}")
 
     return success_count
 
@@ -266,7 +339,7 @@ safe_import_easyeda2kicad()
 
     requirements_content = """# KiCad Plugin Requirements (New Plugin Manager API)
 kicad-python>=0.3.0
-easyeda2kicad==0.6.5
+easyeda2kicad>=0.6.5
 git+https://github.com/Steffen-W/kiutils@v1.4.9
 """
 
@@ -325,7 +398,7 @@ def main():
     lib_dir.mkdir(parents=True, exist_ok=True)
     print(f"Installing to: {lib_dir}")
     
-    pip_dependencies = ['easyeda2kicad==0.6.5']
+    pip_dependencies = ['easyeda2kicad>=0.6.5']
     git_dependencies = [{
         'name': 'kiutils',
         'url': 'https://github.com/Steffen-W/kiutils.git',
@@ -490,7 +563,6 @@ def main():
                 cleanup_dependencies(lib_dir / "site-packages")
 
             create_dependency_loader(build_dir)
-            create_requirements_txt(build_dir)
             update_metadata(build_dir)
             create_installation_script(build_dir)
 
