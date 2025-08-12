@@ -10,7 +10,7 @@
   "actions": [
     {
       "identifier": "impart_action-action",
-      "name": "impart action",
+      "name": "impartGUI (IPC API)",
       "description": "impart_action",
       "show-button": true,
       "scopes": [

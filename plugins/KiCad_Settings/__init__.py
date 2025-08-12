@@ -5,20 +5,7 @@ import logging
 from typing import List, Dict, Tuple, Any, Optional
 from pathlib import Path
 
-try:
-    from kiutils.libraries import LibTable, Library
-except ImportError:
-    import sys
-    import os
-    from pathlib import Path
-
-    plugin_dir = Path(__file__).resolve().parent.parent
-    embedded_lib = plugin_dir / "lib" / "site-packages"
-
-    if embedded_lib.exists() and str(embedded_lib) not in sys.path:
-        sys.path.insert(0, str(embedded_lib))
-
-    from kiutils.libraries import LibTable, Library
+from kiutils.libraries import LibTable, Library
 
 
 class KiCad_Settings:

@@ -13,35 +13,43 @@ from enum import Enum
 from typing import Tuple, Union, List, Dict, Any, Optional
 from pathlib import Path
 
-try:
-    from kiutils.symbol import SymbolLib, Property, Effects
-    from kiutils.items.common import Position, Font
-except ImportError:
-    import sys
-    import os
-    from pathlib import Path
+logger = logging.getLogger(__name__)
 
-    plugin_dir = Path(__file__).resolve().parent.parent
-    embedded_lib = plugin_dir / "lib" / "site-packages"
-
-    if embedded_lib.exists() and str(embedded_lib) not in sys.path:
-        sys.path.insert(0, str(embedded_lib))
-
-    from kiutils.symbol import SymbolLib, Property, Effects
-    from kiutils.items.common import Position, Font
+from kiutils.symbol import SymbolLib, Property, Effects
+from kiutils.items.common import Position, Font
 
 try:
     from .footprint_model_parser import FootprintModelParser
 except ImportError:
     from footprint_model_parser import FootprintModelParser
 
+
+logger = logging.getLogger(__name__)
+
 try:
     from ..kicad_cli import kicad_cli
-except ImportError:
-    from kicad_cli import kicad_cli
 
-cli = kicad_cli()
-logger = logging.getLogger(__name__)
+    logger.debug("Imported kicad_cli using relative import")
+except ImportError:
+    try:
+        from kicad_cli import kicad_cli
+
+        logger.debug("Imported kicad_cli using absolute import")
+    except ImportError:
+        logger.warning("kicad_cli module not available")
+        kicad_cli = None
+
+# Initialize CLI if available
+if kicad_cli and callable(kicad_cli):
+    try:
+        cli = kicad_cli()
+        logger.info("✓ kicad_cli initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize kicad_cli: {e}")
+        cli = None
+else:
+    cli = None
+    logger.warning("kicad_cli not available or not callable")
 
 
 class Modification(Enum):

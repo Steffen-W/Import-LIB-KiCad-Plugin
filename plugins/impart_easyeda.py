@@ -1,6 +1,5 @@
 # Simplified EasyEDA to KiCad importer
 # Based on: https://github.com/uPesy/easyeda2kicad.py/blob/master/easyeda2kicad/__main__.py
-
 import logging
 import subprocess
 import sys
@@ -16,27 +15,63 @@ try:
     from easyeda2kicad.easyeda.easyeda_api import EasyedaApi
     from easyeda2kicad.kicad.parameters_kicad_symbol import KicadVersion
     from easyeda2kicad.easyeda.parameters_easyeda import EeSymbol
-
     from easyeda2kicad.helpers import (
         add_component_in_symbol_lib_file,
         id_already_in_symbol_lib,
         update_component_in_symbol_lib_file,
     )
-
     from easyeda2kicad.easyeda.easyeda_importer import (
         Easyeda3dModelImporter,
         EasyedaFootprintImporter,
         EasyedaSymbolImporter,
     )
-
-    from easyeda2kicad.kicad.export_kicad_3d_model import Exporter3dModelKicad
-    from easyeda2kicad.kicad.export_kicad_footprint import ExporterFootprintKicad
-    from easyeda2kicad.kicad.export_kicad_symbol import ExporterSymbolKicad
+    from easyeda2kicad.kicad.export_kicad_3d_model import (
+        Exporter3dModelKicad,
+    )
+    from easyeda2kicad.kicad.export_kicad_footprint import (
+        ExporterFootprintKicad,
+    )
+    from easyeda2kicad.kicad.export_kicad_symbol import (
+        ExporterSymbolKicad,
+    )
 
     DEPENDENCIES_AVAILABLE = True
-except ImportError as e:
-    logger.error(f"Failed to import easyeda2kicad dependencies: {e}")
-    DEPENDENCIES_AVAILABLE = False
+    logger.info("✓ easyeda2kicad imported successfully (direct)")
+
+except ImportError:
+    try:
+        # Fallback
+        from easyeda2kicad.easyeda2kicad.easyeda.easyeda_api import EasyedaApi
+        from easyeda2kicad.easyeda2kicad.kicad.parameters_kicad_symbol import (
+            KicadVersion,
+        )
+        from easyeda2kicad.easyeda2kicad.easyeda.parameters_easyeda import EeSymbol
+        from easyeda2kicad.easyeda2kicad.helpers import (
+            add_component_in_symbol_lib_file,
+            id_already_in_symbol_lib,
+            update_component_in_symbol_lib_file,
+        )
+        from easyeda2kicad.easyeda2kicad.easyeda.easyeda_importer import (
+            Easyeda3dModelImporter,
+            EasyedaFootprintImporter,
+            EasyedaSymbolImporter,
+        )
+        from easyeda2kicad.easyeda2kicad.kicad.export_kicad_3d_model import (
+            Exporter3dModelKicad,
+        )
+        from easyeda2kicad.easyeda2kicad.kicad.export_kicad_footprint import (
+            ExporterFootprintKicad,
+        )
+        from easyeda2kicad.easyeda2kicad.kicad.export_kicad_symbol import (
+            ExporterSymbolKicad,
+        )
+
+        DEPENDENCIES_AVAILABLE = True
+        logger.info("✓ easyeda2kicad imported successfully (nested)")
+
+    except ImportError as e:
+        logger.error(f"Failed to import easyeda2kicad dependencies: {e}")
+        DEPENDENCIES_AVAILABLE = False
 
 
 class ImportPaths(NamedTuple):
