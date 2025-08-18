@@ -1,6 +1,6 @@
-[submodule "external/kiutils"]
+[submodule "plugins/kiutils"]
 	path = plugins/kiutils
 	url = https://github.com/Steffen-W/kiutils.git
-[submodule "external/easyeda2kicad"]
+[submodule "plugins/easyeda2kicad"]
 	path = plugins/easyeda2kicad
 	url = https://github.com/uPesy/easyeda2kicad.py.git
