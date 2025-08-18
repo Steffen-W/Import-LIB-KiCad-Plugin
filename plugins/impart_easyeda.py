@@ -6,9 +6,17 @@ import sys
 from pathlib import Path
 from typing import Optional, Tuple, NamedTuple, Callable
 from dataclasses import dataclass
+import re
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+try:
+    from .kicad_cli import kicad_cli
+except ImportError:
+    from kicad_cli import kicad_cli
+
+cli = kicad_cli()
 
 # Try to import required libraries
 try:
@@ -127,19 +135,6 @@ class EasyEDAImporter:
         self.model_dir.mkdir(exist_ok=True)
         logger.debug(f"Ensured directories exist in {self.config.base_folder}")
 
-    def _ensure_symbol_library(self) -> None:
-        """Create symbol library file if it doesn't exist"""
-        if not self.symbol_lib_path.exists():
-            with open(self.symbol_lib_path, "w", encoding="utf-8") as f:
-                f.write(
-                    """\
-(kicad_symbol_lib
-    (version 20211014)
-    (generator https://github.com/uPesy/easyeda2kicad.py)
-)"""
-                )
-            self._print(f"Created new symbol library: {self.symbol_lib_path}")
-
     def _import_symbol(self, cad_data: dict) -> Tuple[bool, Optional[str]]:
         """Import symbol and return success status and component name"""
         try:
@@ -147,12 +142,15 @@ class EasyEDAImporter:
             easyeda_symbol: EeSymbol = importer.get_symbol()
             component_name = easyeda_symbol.info.name
 
-            # Check if symbol already exists
-            is_existing = id_already_in_symbol_lib(
-                lib_path=str(self.symbol_lib_path),
-                component_name=component_name,
-                kicad_version=KicadVersion.v6,
-            )
+            # Check if symbol library exists first, then check if symbol already exists
+            if self.symbol_lib_path.exists():
+                is_existing = id_already_in_symbol_lib(
+                    lib_path=str(self.symbol_lib_path),
+                    component_name=component_name,
+                    kicad_version=KicadVersion.v6,
+                )
+            else:
+                is_existing = False
 
             if is_existing and not self.config.overwrite:
                 self._print(f"Symbol '{component_name}' already exists.")
@@ -168,6 +166,9 @@ class EasyEDAImporter:
 
             # Add or update symbol in library
             if is_existing:
+                logger.warning(
+                    f"Using unsafe legacy update function for existing symbol: {component_name}"
+                )
                 update_component_in_symbol_lib_file(
                     lib_path=str(self.symbol_lib_path),
                     component_name=component_name,
@@ -176,12 +177,12 @@ class EasyEDAImporter:
                 )
                 self._print(f"Updated symbol: {component_name}")
             else:
-                add_component_in_symbol_lib_file(
-                    lib_path=str(self.symbol_lib_path),
-                    component_content=kicad_symbol_content,
-                    kicad_version=KicadVersion.v6,
-                )
-                self._print(f"Added new symbol: {component_name}")
+                success = self.add_symbol_to_upgraded_lib(kicad_symbol_content)
+                if success:
+                    self._print(f"Added symbol: {component_name}")
+                else:
+                    self._print(f"Failed to add symbol: {component_name}")
+                    return False, component_name
 
             return True, component_name
 
@@ -189,6 +190,81 @@ class EasyEDAImporter:
             self._print(f"Failed to import symbol: {e}")
             logger.error(f"Symbol import failed: {e}")
             return False, None
+
+    def get_kicad_lib_version(self, content: str) -> int:
+        """Extract version number from KiCad symbol library. Returns 0 if not found."""
+        if not content:
+            return 0
+
+        match = re.search(r"\(\s*version\s+(\d+)\s*\)", content[:200])
+        return int(match.group(1)) if match else 0
+
+    def add_symbol_to_upgraded_lib(self, symbol_content: str) -> bool:
+        """Add symbol to library with automatic upgrade handling."""
+        try:
+            complete_symbol_lib = f"""(kicad_symbol_lib
+    (version 20211014)
+    (generator https://github.com/uPesy/easyeda2kicad.py)
+    {symbol_content}
+)"""
+
+            success, upgraded_symbol_lib, error = cli.upgrade_sym_lib_from_string(
+                complete_symbol_lib
+            )
+            if not success:
+                self._print(f"Failed to upgrade new symbol: {error}")
+                return False
+
+            if self.symbol_lib_path.exists():
+                with open(self.symbol_lib_path, "r", encoding="utf-8") as f:
+                    existing_lib = f.read()
+
+                existing_version = self.get_kicad_lib_version(existing_lib)
+                new_version = self.get_kicad_lib_version(upgraded_symbol_lib)
+
+                if existing_version >= new_version:
+                    upgraded_existing_lib = existing_lib
+                else:
+                    success, upgraded_existing_lib, error = (
+                        cli.upgrade_sym_lib_from_string(existing_lib)
+                    )
+                    if not success:
+                        self._print(f"Failed to upgrade existing library: {error}")
+                        return False
+
+                symbol_start = upgraded_symbol_lib.find("(symbol ")
+                if symbol_start == -1:
+                    self._print("Could not find symbol content in upgraded library")
+                    return False
+
+                symbol_content_to_add = upgraded_symbol_lib[
+                    symbol_start : upgraded_symbol_lib.rfind(")")
+                ].strip()
+
+                last_paren_pos = upgraded_existing_lib.rfind(")")
+                if last_paren_pos == -1:
+                    self._print("Invalid existing library format")
+                    return False
+
+                final_lib = (
+                    upgraded_existing_lib[:last_paren_pos].rstrip()
+                    + "\n    "
+                    + symbol_content_to_add
+                    + "\n"
+                    + upgraded_existing_lib[last_paren_pos:]
+                )
+            else:
+                final_lib = upgraded_symbol_lib
+
+            with open(self.symbol_lib_path, "w", encoding="utf-8") as f:
+                f.write(final_lib)
+
+            return True
+
+        except Exception as e:
+            self._print(f"Failed to add symbol to library: {e}")
+            logger.error(f"Symbol library integration failed: {e}")
+            return False
 
     def _import_footprint(self, cad_data: dict) -> Optional[Path]:
         """Import footprint and return the file path"""
@@ -282,7 +358,6 @@ class EasyEDAImporter:
 
         # Ensure directories exist
         self._ensure_directories()
-        self._ensure_symbol_library()
 
         try:
             # Fetch CAD data
