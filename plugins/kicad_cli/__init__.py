@@ -283,16 +283,14 @@ class kicad_cli:
         file_extension = ".lib" if is_legacy_lib else ".kicad_sym"
 
         try:
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=file_extension, encoding="utf-8", delete=False
-            ) as input_temp:
-                input_temp.write(symbol_lib_content)
-                input_temp_path = input_temp.name
+            input_temp_dir = tempfile.mkdtemp(prefix="kicad_input_")
+            output_temp_dir = tempfile.mkdtemp(prefix="kicad_output_")
 
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".kicad_sym", encoding="utf-8", delete=False
-            ) as output_temp:
-                output_temp_path = output_temp.name
+            input_temp_path = os.path.join(input_temp_dir, f"input{file_extension}")
+            output_temp_path = os.path.join(output_temp_dir, "output.kicad_sym")
+
+            with open(input_temp_path, "w", encoding="utf-8") as f:
+                f.write(symbol_lib_content)
 
             try:
                 self.logger.info(
@@ -325,14 +323,16 @@ class kicad_cli:
                     return False, "", error_msg
 
             finally:
-                for temp_path in [input_temp_path, output_temp_path]:
+                for temp_dir in [input_temp_dir, output_temp_dir]:
                     try:
-                        if os.path.exists(temp_path):
-                            os.unlink(temp_path)
-                            self.logger.debug(f"Cleaned up temporary file: {temp_path}")
+                        if os.path.exists(temp_dir):
+                            shutil.rmtree(temp_dir)
+                            self.logger.debug(
+                                f"Cleaned up temporary directory: {temp_dir}"
+                            )
                     except Exception as cleanup_error:
                         self.logger.warning(
-                            f"Failed to cleanup temporary file {temp_path}: {cleanup_error}"
+                            f"Failed to cleanup temporary directory {temp_dir}: {cleanup_error}"
                         )
 
         except Exception as e:
