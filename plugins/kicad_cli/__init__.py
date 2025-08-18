@@ -4,6 +4,7 @@ import shutil
 import os
 from typing import Optional, List, Tuple
 from dataclasses import dataclass
+import tempfile
 
 
 @dataclass
@@ -248,6 +249,96 @@ class kicad_cli:
             error_msg = f"Unexpected error during upgrade: {e}"
             self.logger.error(error_msg)
             return CommandResult(False, "", str(e), -1, error_msg)
+
+    def upgrade_sym_lib_from_string(
+        self, symbol_lib_content: str, force: bool = True
+    ) -> Tuple[bool, str, str]:
+        """
+        Upgrade a KiCad symbol library from string content.
+
+        Args:
+            symbol_lib_content: String content of the symbol library
+            force: Whether to force the upgrade operation
+
+        Returns:
+            Tuple of (success: bool, upgraded_content: str, error_message: str)
+            - success: True if upgrade was successful
+            - upgraded_content: The upgraded symbol library content (empty if failed)
+            - error_message: Error message if upgrade failed (empty if successful)
+        """
+        if not symbol_lib_content.strip():
+            error_msg = "Empty symbol library content provided"
+            self.logger.error(error_msg)
+            return False, "", error_msg
+
+        content_start = symbol_lib_content.strip()
+        is_legacy_lib = content_start.startswith("EESchema-LIBRARY")
+        is_modern_lib = content_start.startswith("(kicad_symbol_lib")
+
+        if not (is_legacy_lib or is_modern_lib):
+            error_msg = "Content does not appear to be a valid KiCad symbol library"
+            self.logger.error(error_msg)
+            return False, "", error_msg
+
+        file_extension = ".lib" if is_legacy_lib else ".kicad_sym"
+
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=file_extension, encoding="utf-8", delete=False
+            ) as input_temp:
+                input_temp.write(symbol_lib_content)
+                input_temp_path = input_temp.name
+
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".kicad_sym", encoding="utf-8", delete=False
+            ) as output_temp:
+                output_temp_path = output_temp.name
+
+            try:
+                self.logger.info(
+                    f"Upgrading symbol library from string (temp files: {input_temp_path} -> {output_temp_path})"
+                )
+
+                result = self.upgrade_sym_lib(
+                    input_temp_path, output_temp_path, force=force
+                )
+
+                if result.success:
+                    try:
+                        with open(output_temp_path, "r", encoding="utf-8") as f:
+                            upgraded_content = f.read()
+
+                        self.logger.info(
+                            "Symbol library successfully upgraded from string"
+                        )
+                        return True, upgraded_content, ""
+
+                    except Exception as e:
+                        error_msg = f"Failed to read upgraded content: {e}"
+                        self.logger.error(error_msg)
+                        return False, "", error_msg
+                else:
+                    error_msg = f"Upgrade failed: {result.message}"
+                    if result.stderr:
+                        error_msg += f" - {result.stderr}"
+                    self.logger.error(error_msg)
+                    return False, "", error_msg
+
+            finally:
+                for temp_path in [input_temp_path, output_temp_path]:
+                    try:
+                        if os.path.exists(temp_path):
+                            os.unlink(temp_path)
+                            self.logger.debug(f"Cleaned up temporary file: {temp_path}")
+                    except Exception as cleanup_error:
+                        self.logger.warning(
+                            f"Failed to cleanup temporary file {temp_path}: {cleanup_error}"
+                        )
+
+        except Exception as e:
+            error_msg = f"Failed to create temporary files: {e}"
+            self.logger.error(error_msg)
+            return False, "", error_msg
 
     def upgrade_footprint_lib(
         self,
