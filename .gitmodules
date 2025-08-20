@@ -3,4 +3,4 @@
 	url = https://github.com/Steffen-W/kiutils.git
 [submodule "plugins/easyeda2kicad"]
 	path = plugins/easyeda2kicad
-	url = https://github.com/uPesy/easyeda2kicad.py.git
+	url = https://github.com/Steffen-W/easyeda2kicad.py.git

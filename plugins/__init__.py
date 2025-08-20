@@ -410,6 +410,30 @@ def get_python_command():
             return sys.executable, f"Python {sys.version.split()[0]}"
 
 
+def check_platform_requirements():
+    """Check platform-specific requirements"""
+    system = platform.system().lower()
+    issues = []
+
+    if system == "darwin":  # macOS
+        if not sys.executable.endswith("framework/Versions"):
+            issues.append("macOS: Framework Python recommended for wxPython GUI access")
+
+    elif system == "linux":
+        try:
+            import subprocess
+
+            result = subprocess.run(["which", "gcc"], capture_output=True)
+            if result.returncode != 0:
+                issues.append(
+                    "Linux: GCC compiler not found, may be needed for package compilation"
+                )
+        except Exception:
+            pass
+
+    return issues
+
+
 def ensure_venv(progress_dialog=None):
     """Ensure virtual environment is set up with required dependencies"""
     pyvenv_cfg = venv_dir / "pyvenv.cfg"
@@ -640,6 +664,20 @@ def setup_python_paths(site_packages):
             sys.path.insert(0, kiutils_str)
             logger.info(f"✓ Added kiutils to sys.path: {kiutils_str}")
 
+    # Add easyeda2kicad to path
+    easyeda_paths = [
+        plugin_dir / "easyeda2kicad" / "easyeda2kicad",  # nested structure
+        plugin_dir / "easyeda2kicad",  # flat structure
+    ]
+
+    for easyeda_path in easyeda_paths:
+        if easyeda_path.exists():
+            easyeda_str = str(easyeda_path)
+            if easyeda_str not in sys.path:
+                sys.path.insert(0, easyeda_str)
+                logger.info(f"✓ Added easyeda2kicad to sys.path: {easyeda_str}")
+            break
+
     plugin_dir_str = str(plugin_dir)
     if plugin_dir_str not in sys.path:
         sys.path.insert(0, plugin_dir_str)
@@ -678,13 +716,20 @@ def check_write_permissions():
 
 def collect_diagnostic_info():
     """Collect system info for troubleshooting"""
-    return {
+    system_info = {
         "os": platform.platform(),
         "python": sys.version,
         "kicad_version": get_kicad_version(),
         "available_space": get_disk_space(),
         "permissions": check_write_permissions(),
     }
+
+    # Add platform-specific info
+    platform_issues = check_platform_requirements()
+    if platform_issues:
+        system_info["platform_warnings"] = "; ".join(platform_issues)
+
+    return system_info
 
 
 def log_diagnostic_info():
