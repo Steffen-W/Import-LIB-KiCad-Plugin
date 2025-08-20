@@ -30,22 +30,25 @@ The import window is accessible in the **PCB Editor** -> **Tools** -> **External
 
 ![Screenshot_GUI](doc/2025-08_Example_Import.png)
 
-The libraries to import must be located in the folder specified as **Folder of the library** to import. After pressing Start, the libraries will be imported into the specified folder (**Library save location**). 
+The libraries to import must be located in the folder specified as **Folder of the library** to import. After pressing Start, the libraries will be imported into the specified folder (**Library save location**).
 
 **New:** You can also drag and drop ZIP files directly into the text area for instant import without setting up folder monitoring.
 
 Provided that the paths have been [added correctly in KiCad](#including-the-imported-libraries-in-kicad), the parts can be used immediately in KiCad. If the libraries have not been imported correctly, a warning will indicate this.
 
 ## Including the imported libraries in KiCad
+
 To use the imported libraries from the plugin, you will need to add a couple entries to KiCad's path first to see them. You can either let the plugin make the changes automatically (auto KiCad setting) or set the following changes manually in KiCad.
 
 **Preferences** -> **Configure paths** -> **Environment Variables** -> Add the following entry
+
 |Name            |Path    |
 |----------------|--------|
 |KICAD_3RD_PARTY |**YourLibraryFolder**/KiCad |
 
 **Preferences** -> **Manage Symbol Libraries** -> **Global Libraries** -> Add the following entries
 **(Note: Errors will show up if components weren't imported yet. The errors will disappear after importing as libraries will be created)**
+
 |Active            |Visible           |Nickname       |Library Path                                 | Library Format |
 |------------------|------------------|---------------|---------------------------------------------|----------------|
 |:heavy_check_mark:|:heavy_check_mark:|Samacsys       |${KICAD_3RD_PARTY}/Samacsys.kicad_sym        | KiCad          |
@@ -55,6 +58,7 @@ To use the imported libraries from the plugin, you will need to add a couple ent
 
 **Preferences** -> **Manage Footprint Libraries** -> **Global Libraries** -> Add the following entries
 **(Note: It is best to add the library only after the import has been done with the plugin. Afterwards only the created libraries have to be imported. Lower entries are only for example.)**
+
 |Active             |Nickname       |Library Path                             | Library Format|
 |-------------------|---------------|-----------------------------------------|---------------|
 |:heavy_check_mark: |Samacsys       | ${KICAD_3RD_PARTY}/Samacsys.pretty      | KiCad         |
@@ -68,7 +72,7 @@ It is strongly recommended to migrate the libraries. If you see the "migrate the
 
 ![GUI_migrate](doc/2024-08-17_GUI_migrate.png)
 
-By pressing "migrate the libraries" the following window appears. Depending on how many libraries you use, fewer libraries may be displayed. Now you can start the conversion process. Important: The conversion only works completely from KiCad 8.0.4. If possible, use the latest stable [![GitHub Release](https://img.shields.io/badge/KiCad-V8-blue.svg)](https://www.kicad.org/download/) version. 
+By pressing "migrate the libraries" the following window appears. Depending on how many libraries you use, fewer libraries may be displayed. Now you can start the conversion process. Important: The conversion only works completely from KiCad 8.0.4. If possible, use the latest stable [![GitHub Release](https://img.shields.io/badge/KiCad-V8-blue.svg)](https://www.kicad.org/download/) version.
 
 ![Migration](doc/2024-08-17_Migration.png)
 
@@ -100,6 +104,48 @@ options:
                         Example: if only project-specific '${KIPRJMOD}' standard is '${KICAD_3RD_PARTY}'
 ```
 
+## KiCad IPC API (Recommended)
+
+The **KiCad IPC API** is the modern and recommended way to run this plugin. It provides automatic dependency management and better performance compared to the fallback solution.
+
+**To activate the KiCad IPC API:**
+
+1. **KiCad** -> **Settings** -> **Plugins** -> **Enable Plugin System**
+2. Check **Enable KiCad API** option
+3. Restart KiCad
+
+![KiCad API Settings](doc/kicad_api_settings.png)
+
+**Benefits of using the KiCad IPC API:**
+
+- Automatic dependency installation in isolated environment
+- Faster startup and execution
+- Better integration with KiCad
+- No manual setup required
+
+**Plugin access with IPC API:**
+
+- **PCB Editor** -> **Tools** -> **External Plugins** -> **impartGUI (IPC API)**
+- **Schematic Editor** -> **Tools** -> **External Plugins** -> **impartGUI (IPC API)**
+
+## Fallback Solution (pcbnew)
+
+If the **KiCad IPC API** is not available or activated, the plugin will automatically use a fallback solution. The KiCad API handles dependency installation in its own virtual environment automatically, while the fallback solution requires manual setup.
+
+**To activate the KiCad IPC API (recommended):**
+**KiCad** -> **Settings** -> **Plugins** -> **Activate KiCad API**
+
+**If using the fallback solution:**
+
+- A setup dialog will appear on first run
+- Click **Start Integration** to manually install required dependencies
+- Dependencies (pydantic, requests) will be installed in a separate virtual environment
+- Setup only needs to be done once
+
+![Fallback Setup](doc/fallback_setup.png)
+
+The fallback solution provides the same functionality but requires manual dependency setup and may have slower startup times. Using the KiCad IPC API is recommended for optimal performance and automatic dependency management.
+
 ## Warranty
 
 **None. Zero. Zilch. Use at your own risk**, and please be sure to use git or some other means of backing up/reverting changes caused by this script. This script will modify existing lib, dcm, footprint or 3D model files. It is your responsibility to back them up or have a way to revert changes should you inadvertently mess something up using this tool.
@@ -122,7 +168,6 @@ Yes, this is of course always possible. But you should keep in mind that the exi
 **If I import from one source, do I have to stay with that source, or can I import from all sources?**
 For each source, a separate library is created for KiCad. Maximum actually three (Samacsys, Ultralibrarian and Snapeda), Octopart components as well as from other suppliers can be found in the Snapeda library. So if you import from a new source, a new library can be created. But maximum three.
 
-
 ### General KiCad Questions
 
 **I have entered a library in the settings in KiCad that does not exist at this time, what happens?**
@@ -134,7 +179,7 @@ Yes, you can always do that. The libraries are neither deleted nor edited in any
 ## Todo List
 
 - [x] Drag and drop support for ZIP files
-- [x] add as local project Lib 
+- [x] add as local project Lib
 - [x] plugin in schematic windows
 - [x] Add digikey support
 - [x] Reloading the dependency pydantic for [uPesy/easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py)
