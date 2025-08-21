@@ -15,6 +15,13 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Setup kiutils path using sys.path manipulation like KiCad_Settings
+current_dir = Path(__file__).resolve().parent
+kiutils_src = current_dir.parent / "kiutils" / "src"
+if str(kiutils_src) not in sys.path:
+    sys.path.insert(0, str(kiutils_src))
+
+# Import kiutils modules directly
 from kiutils.symbol import SymbolLib, Property, Effects
 from kiutils.items.common import Position, Font
 
@@ -23,33 +30,17 @@ try:
 except ImportError:
     from footprint_model_parser import FootprintModelParser
 
-
-logger = logging.getLogger(__name__)
-
 try:
     from ..kicad_cli import kicad_cli
-
-    logger.debug("Imported kicad_cli using relative import")
 except ImportError:
-    try:
-        from kicad_cli import kicad_cli
+    from kicad_cli import kicad_cli
 
-        logger.debug("Imported kicad_cli using absolute import")
-    except ImportError:
-        logger.warning("kicad_cli module not available")
-        kicad_cli = None
-
-# Initialize CLI if available
-if kicad_cli and callable(kicad_cli):
-    try:
-        cli = kicad_cli()
-        logger.info("✓ kicad_cli initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize kicad_cli: {e}")
-        cli = None
-else:
+try:
+    cli = kicad_cli()
+    logger.info("✓ kicad_cli initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize kicad_cli: {e}")
     cli = None
-    logger.warning("kicad_cli not available or not callable")
 
 
 class Modification(Enum):

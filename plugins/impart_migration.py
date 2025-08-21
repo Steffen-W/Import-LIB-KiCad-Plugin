@@ -9,7 +9,12 @@ try:
 except ImportError:
     from kicad_cli import kicad_cli
 
-cli = kicad_cli()
+try:
+    cli = kicad_cli()
+    logger.info("✓ kicad_cli initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize kicad_cli: {e}")
+    cli = None
 
 
 def find_old_lib_files(
@@ -103,12 +108,16 @@ def convert_lib(SRC: Path, DES: Path, drymode=True):
 
         result = cli.upgrade_sym_lib(str(SRC), str(DES))
         if not result.success:
-            logger.error(f"Converting {SRC.name} to {DES.name} failed: {result.message}")
+            logger.error(
+                f"Converting {SRC.name} to {DES.name} failed: {result.message}"
+            )
             if result.stderr:
                 logger.error(f"Conversion error details: {result.stderr}")
             return []
         else:
-            logger.info(f"Successfully converted {SRC.name} to {DES.name}: {result.message}")
+            logger.info(
+                f"Successfully converted {SRC.name} to {DES.name}: {result.message}"
+            )
         msg.append([SRC.stem, DES.stem])
 
         if SRC_dcm.exists() and SRC_dcm.is_file():

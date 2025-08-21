@@ -16,59 +16,47 @@ try:
 except ImportError:
     from kicad_cli import kicad_cli
 
-cli = kicad_cli()
-
-# Try to import required libraries
 try:
-    from easyeda2kicad.easyeda2kicad.easyeda import (
-        EasyedaApi,
-        EasyedaSymbolImporter,
-        EasyedaFootprintImporter,
-        Easyeda3dModelImporter,
-        EeSymbol,
-    )
-    from easyeda2kicad.easyeda2kicad.kicad import (
-        KicadVersion,
-        ExporterSymbolKicad,
-        ExporterFootprintKicad,
-        Exporter3dModelKicad,
-    )
-    from easyeda2kicad.easyeda2kicad.helpers import (
-        add_component_in_symbol_lib_file,
-        id_already_in_symbol_lib,
-        update_component_in_symbol_lib_file,
-    )
+    cli = kicad_cli()
+    logger.info("✓ kicad_cli initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize kicad_cli: {e}")
+    cli = None
 
-    DEPENDENCIES_AVAILABLE = True
-except ImportError as e:
-    import traceback
+current_dir = Path(__file__).resolve().parent
+easyeda_submodule = current_dir / "easyeda2kicad"
 
-    logger.error(f"Failed to import: {e}")
-    logger.error(traceback.format_exc())
-    try:
-        from easyeda2kicad.easyeda import (
-            EasyedaApi,
-            EasyedaSymbolImporter,
-            EasyedaFootprintImporter,
-            Easyeda3dModelImporter,
-            EeSymbol,
-        )
-        from easyeda2kicad.kicad import (
-            KicadVersion,
-            ExporterSymbolKicad,
-            ExporterFootprintKicad,
-            Exporter3dModelKicad,
-        )
-        from easyeda2kicad.helpers import (
-            add_component_in_symbol_lib_file,
-            id_already_in_symbol_lib,
-            update_component_in_symbol_lib_file,
-        )
+if easyeda_submodule.exists():
+    # Remove any conflicting easyeda2kicad modules from cache first
+    modules_to_remove = [k for k in sys.modules.keys() if k.startswith("easyeda2kicad")]
+    for mod in modules_to_remove:
+        del sys.modules[mod]
 
-        DEPENDENCIES_AVAILABLE = True
-    except ImportError as e2:
-        logger.error(f"Fallback imports also failed: {e2}")
-        DEPENDENCIES_AVAILABLE = False
+    # Add git submodule path at the very beginning
+    easyeda_str = str(easyeda_submodule)
+    if easyeda_str not in sys.path:
+        sys.path.insert(0, easyeda_str)
+
+    logger.info(f"Using easyeda2kicad from: {easyeda_submodule}")
+
+from easyeda2kicad.easyeda.easyeda_api import EasyedaApi
+from easyeda2kicad.easyeda.easyeda_importer import (
+    EasyedaSymbolImporter,
+    EasyedaFootprintImporter,
+    Easyeda3dModelImporter,
+    EeSymbol,
+)
+from easyeda2kicad.kicad.export_kicad_symbol import ExporterSymbolKicad
+from easyeda2kicad.kicad.export_kicad_footprint import ExporterFootprintKicad
+from easyeda2kicad.kicad.export_kicad_3d_model import Exporter3dModelKicad
+from easyeda2kicad.helpers import (
+    KicadVersion,
+    add_component_in_symbol_lib_file,
+    id_already_in_symbol_lib,
+    update_component_in_symbol_lib_file,
+)
+
+logger.info("Successfully imported easyeda2kicad modules")
 
 
 class ImportPaths(NamedTuple):
@@ -98,10 +86,6 @@ class EasyEDAImporter:
     ):
         """Initialize importer with configuration"""
         self.print_func = print_func or (lambda x: None)
-
-        if not DEPENDENCIES_AVAILABLE:
-            raise RuntimeError("Required easyeda2kicad library not available")
-
         self.config = config
         self.config.base_folder = Path(self.config.base_folder).expanduser()
         self.api = EasyedaApi()

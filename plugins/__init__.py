@@ -657,27 +657,6 @@ def setup_python_paths(site_packages):
         sys.path.insert(0, site_packages_str)
         logger.info(f"✓ Added venv site-packages to sys.path: {site_packages_str}")
 
-    kiutils_src = plugin_dir / "kiutils" / "src"
-    if kiutils_src.exists():
-        kiutils_str = str(kiutils_src)
-        if kiutils_str not in sys.path:
-            sys.path.insert(0, kiutils_str)
-            logger.info(f"✓ Added kiutils to sys.path: {kiutils_str}")
-
-    # Add easyeda2kicad to path
-    easyeda_paths = [
-        plugin_dir / "easyeda2kicad" / "easyeda2kicad",  # nested structure
-        plugin_dir / "easyeda2kicad",  # flat structure
-    ]
-
-    for easyeda_path in easyeda_paths:
-        if easyeda_path.exists():
-            easyeda_str = str(easyeda_path)
-            if easyeda_str not in sys.path:
-                sys.path.insert(0, easyeda_str)
-                logger.info(f"✓ Added easyeda2kicad to sys.path: {easyeda_str}")
-            break
-
     plugin_dir_str = str(plugin_dir)
     if plugin_dir_str not in sys.path:
         sys.path.insert(0, plugin_dir_str)
@@ -763,22 +742,6 @@ def verify_imports(progress_dialog=None):
         logger.warning(f"⚠ requests import failed: {e}")
         if progress_dialog:
             progress_dialog.add_log(f"⚠ requests import failed: {e}")
-
-    try:
-        import easyeda2kicad
-
-        logger.info("✓ easyeda2kicad available")
-    except ImportError:
-        pass
-
-    try:
-        from kiutils.libraries import LibTable, Library
-
-        logger.info("✓ kiutils.libraries available")
-    except ImportError as e:
-        logger.warning(f"⚠ kiutils.libraries import failed: {e}")
-        if progress_dialog:
-            progress_dialog.add_log(f"⚠ kiutils.libraries import failed: {e}")
 
 
 class ActionImpartPlugin(pcbnew.ActionPlugin):

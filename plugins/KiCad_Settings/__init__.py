@@ -1,9 +1,13 @@
 import os
 import json
-import re
 import logging
 from typing import List, Dict, Tuple, Any, Optional
 from pathlib import Path
+
+current_dir = Path(__file__).resolve().parent
+kiutils_src = current_dir.parent / "kiutils" / "src"
+if str(kiutils_src) not in __import__("sys").path:
+    __import__("sys").path.insert(0, str(kiutils_src))
 
 from kiutils.libraries import LibTable, Library
 

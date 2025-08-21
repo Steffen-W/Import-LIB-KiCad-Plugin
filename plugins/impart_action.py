@@ -34,23 +34,14 @@ except Exception as e:
     raise
 
 try:
-    import impart_gui
-    import FileHandler
-    import KiCad_Settings
-    import ConfigHandler
-    import KiCadImport
-    import KiCadSettingsPaths
-    import impart_migration
-    from single_instance_manager import SingleInstanceManager
-
-    impartGUI = impart_gui.impartGUI
-    FileHandler = FileHandler.FileHandler
-    KiCad_Settings = KiCad_Settings.KiCad_Settings
-    ConfigHandler = ConfigHandler.ConfigHandler
-    LibImporter = KiCadImport.LibImporter
-    KiCadApp = KiCadSettingsPaths.KiCadApp
-    find_old_lib_files = impart_migration.find_old_lib_files
-    convert_lib_list = impart_migration.convert_lib_list
+    from .impart_gui import impartGUI
+    from .FileHandler import FileHandler
+    from .KiCad_Settings import KiCad_Settings
+    from .ConfigHandler import ConfigHandler
+    from .KiCadImport import LibImporter
+    from .KiCadSettingsPaths import KiCadApp
+    from .impart_migration import find_old_lib_files, convert_lib_list
+    from .single_instance_manager import SingleInstanceManager
 
     logging.info("Successfully imported all local modules")
 
@@ -652,7 +643,7 @@ class ImpartFrontend(impartGUI):
     def _perform_easyeda_import(self) -> None:
         """Perform EasyEDA component import."""
         try:
-            from impart_easyeda import import_easyeda_component, ImportConfig
+            from .impart_easyeda import import_easyeda_component, ImportConfig
         except ImportError as e:
             error_msg = f"Failed to import EasyEDA module: {e}\n\nThis usually means easyeda2kicad is not properly installed or has missing dependencies."
             self.backend.print_to_buffer(error_msg)
