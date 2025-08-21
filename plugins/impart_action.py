@@ -304,8 +304,15 @@ instance_manager = SingleInstanceManager()  # Create global instance manager
 class ImpartFrontend(impartGUI):
     """Frontend GUI with IPC-based singleton."""
 
-    def __init__(self) -> None:
+    def __init__(self, fallback_mode: bool = False) -> None:
         super().__init__(None)
+        self.fallback_mode = fallback_mode
+        
+        # Log the mode
+        if self.fallback_mode:
+            logging.info("Running in FALLBACK MODE (called from pcbnew)")
+        else:
+            logging.info("Running in NORMAL MODE (direct execution)")
 
         # Register with instance manager
         if not instance_manager.register_frontend(self):

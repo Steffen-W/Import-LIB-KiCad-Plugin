@@ -842,7 +842,7 @@ class ActionImpartPlugin(pcbnew.ActionPlugin):
 
             from .impart_action import ImpartFrontend
 
-            frontend = ImpartFrontend()
+            frontend = ImpartFrontend(fallback_mode=True)
             frontend.ShowModal()
             frontend.Destroy()
 
