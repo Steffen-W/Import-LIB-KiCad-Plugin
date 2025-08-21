@@ -6,6 +6,7 @@ Supports Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA.
 import atexit
 import os
 import sys
+import socket
 import logging
 from pathlib import Path
 from time import sleep
@@ -17,20 +18,10 @@ script_dir = Path(__file__).resolve().parent
 if str(script_dir) not in sys.path:
     sys.path.insert(0, str(script_dir))
 
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s [%(name)s:%(filename)s:%(lineno)d]: %(message)s",
-    filename=script_dir / "plugin.log",
-    filemode="a",
-)
-
 
 def quick_instance_check(port: int = 59999) -> bool:
     """Quick check if another instance is running without logging."""
     try:
-        import socket
-
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.settimeout(1.0)
         client_socket.connect(("127.0.0.1", port))
@@ -40,13 +31,29 @@ def quick_instance_check(port: int = 59999) -> bool:
         return False
 
 
-if __name__ == "__main__" and quick_instance_check():
-    logging.basicConfig(
-        level=logging.WARNING,
-        format="%(message)s",
-        filename=script_dir / "plugin.log",
-        filemode="w",
-    )
+if __name__ == "__main__":
+    is_new_instance = not quick_instance_check()
+
+    if is_new_instance:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="%(asctime)s %(levelname)s [%(name)s:%(filename)s:%(lineno)d]: %(message)s",
+            filename=script_dir / "plugin.log",
+            filemode="w",  # Overwrite for new instance
+        )
+        logging.info("New instance started - log file reset")
+    else:
+        logging.basicConfig(
+            level=logging.WARNING,
+            format="%(message)s",
+            filename=script_dir / "plugin.log",
+            filemode="a",  # Append for existing instance
+        )
+        logging.warning(
+            "Another instance detected - exiting or continuing with limited logging"
+        )
+
+    logging.debug("Application starting...")
 
 # Import dependencies
 try:
