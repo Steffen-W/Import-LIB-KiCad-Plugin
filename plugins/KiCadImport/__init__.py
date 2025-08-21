@@ -8,6 +8,7 @@
 import zipfile
 import tempfile
 import shutil
+import sys
 import logging
 from enum import Enum
 from typing import Tuple, Union, List, Dict, Any, Optional

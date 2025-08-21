@@ -314,12 +314,15 @@ class ImpartFrontend(impartGUI):
         else:
             logging.info("Running in NORMAL MODE (direct execution)")
 
-        # Register with instance manager
-        if not instance_manager.register_frontend(self):
-            # Another instance already exists - this shouldn't happen
-            logging.warning("Frontend instance already exists - destroying this one")
-            self.Destroy()
-            return
+        # Register with instance manager only if not in fallback mode
+        if not self.fallback_mode:
+            if not instance_manager.register_frontend(self):
+                # Another instance already exists - this shouldn't happen
+                logging.warning("Frontend instance already exists - destroying this one")
+                self.Destroy()
+                return
+        else:
+            logging.info("Fallback mode: Skipping IPC server registration")
 
         # Set window icon
         try:
@@ -471,7 +474,37 @@ class ImpartFrontend(impartGUI):
 
     def on_close(self, event: wx.CloseEvent) -> None:
         """Handle window close event."""
-        if self.backend.run_thread:
+        if not self.backend.run_thread:
+            # No automatic import active: Always close everything completely
+            self._save_settings()
+            if self.thread:
+                self.thread.stop_thread = True
+            if not self.fallback_mode:
+                instance_manager.stop_server()
+            logging.info("No auto import: Closing everything completely")
+            event.Skip()
+            
+        elif self.fallback_mode:
+            # Fallback mode + auto import: Close GUI but keep background thread
+            choice = self._confirm_background_process()
+            if choice == "cancel":
+                event.Veto()
+                return
+            elif choice == "background":
+                self._save_settings()
+                logging.info("Fallback mode: GUI closed, background thread continues")
+                event.Skip()  # Close GUI completely
+                return
+            else:  # choice == "close"
+                self.backend.run_thread = False
+                self._save_settings()
+                if self.thread:
+                    self.thread.stop_thread = True
+                logging.info("Fallback mode: Everything stopped")
+                event.Skip()
+                
+        else:
+            # IPC mode + auto import: Minimize window, keep everything running
             choice = self._confirm_background_process()
             if choice == "cancel":
                 event.Veto()
@@ -481,8 +514,8 @@ class ImpartFrontend(impartGUI):
                 if not self.IsIconized():
                     self.Iconize(True)
                 # self.Hide()
-                logging.info("Frontend hidden - running in background with IPC active")
-                event.Veto()
+                logging.info("IPC mode: Frontend minimized, running in background with IPC active")
+                event.Veto()  # Prevent actual closing
                 return
             else:  # choice == "close"
                 self.backend.run_thread = False
@@ -490,15 +523,8 @@ class ImpartFrontend(impartGUI):
                 if self.thread:
                     self.thread.stop_thread = True
                 instance_manager.stop_server()
-                logging.info("Frontend and background process stopped")
+                logging.info("IPC mode: Everything stopped")
                 event.Skip()
-        else:
-            self._save_settings()
-            if self.thread:
-                self.thread.stop_thread = True
-            instance_manager.stop_server()
-            logging.info("Frontend instance closed and IPC server stopped")
-            event.Skip()
 
     def _confirm_background_process(self) -> str:
         """Confirm what to do when background process is running."""
