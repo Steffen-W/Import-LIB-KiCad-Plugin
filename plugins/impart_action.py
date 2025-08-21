@@ -3,6 +3,7 @@ KiCad Import Plugin for library files from various sources.
 Supports Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA.
 """
 
+import atexit
 import os
 import sys
 import logging
@@ -34,6 +35,7 @@ except Exception as e:
     raise
 
 try:
+    # Try relative imports first (when run as module)
     from .impart_gui import impartGUI
     from .FileHandler import FileHandler
     from .KiCad_Settings import KiCad_Settings
@@ -43,15 +45,32 @@ try:
     from .impart_migration import find_old_lib_files, convert_lib_list
     from .single_instance_manager import SingleInstanceManager
 
-    logging.info("Successfully imported all local modules")
+    logging.info("Successfully imported all local modules using relative imports")
 
-except ImportError as e:
-    logging.exception("Failed to import local modules")
-    print(f"Import error: {e}")
-    print(f"Python path: {sys.path}")
-    print(f"Current working directory: {os.getcwd()}")
-    print(f"Script directory: {script_dir}")
-    raise
+except ImportError as e1:
+    try:
+        # Fallback to absolute imports (when run as script)
+        from impart_gui import impartGUI
+        from FileHandler import FileHandler
+        from KiCad_Settings import KiCad_Settings
+        from ConfigHandler import ConfigHandler
+        from KiCadImport import LibImporter
+        from KiCadSettingsPaths import KiCadApp
+        from impart_migration import find_old_lib_files, convert_lib_list
+        from single_instance_manager import SingleInstanceManager
+
+        logging.info("Successfully imported all local modules using absolute imports")
+
+    except ImportError as e2:
+        logging.exception(
+            "Failed to import local modules with both relative and absolute imports"
+        )
+        print(f"Relative import error: {e1}")
+        print(f"Absolute import error: {e2}")
+        print(f"Python path: {sys.path}")
+        print(f"Current working directory: {os.getcwd()}")
+        print(f"Script directory: {script_dir}")
+        raise e2
 
 # Event handling
 EVT_UPDATE_ID = wx.NewIdRef()
@@ -98,9 +117,10 @@ class FileDropTarget(wx.FileDropTarget):
 class PluginThread(Thread):
     """Background thread for monitoring import status."""
 
-    def __init__(self, wx_object: wx.Window) -> None:
+    def __init__(self, wx_object: wx.Window, backend) -> None:
         Thread.__init__(self)
         self.wx_object = wx_object
+        self.backend = backend
         self.stop_thread = False
         self.start()
 
@@ -108,9 +128,9 @@ class PluginThread(Thread):
         """Main thread loop."""
         len_str = 0
         while not self.stop_thread:
-            current_len = len(backend_handler.print_buffer)
+            current_len = len(self.backend.print_buffer)
             if len_str != current_len:
-                self.report(backend_handler.print_buffer)
+                self.report(self.backend.print_buffer)
                 len_str = current_len
             sleep(0.5)
 
@@ -300,14 +320,23 @@ def _check_single_library(
 
 instance_manager = SingleInstanceManager()  # Create global instance manager
 
+# Register cleanup handler to ensure IPC server stops on exit
+atexit.register(instance_manager.stop_server)
+
 
 class ImpartFrontend(impartGUI):
-    """Frontend GUI with IPC-based singleton."""
+    """
+    Frontend GUI supporting both IPC singleton and fallback modes.
+
+    - IPC mode: Singleton behavior with window focus on subsequent launches
+    - Fallback mode: Direct execution from PCBNew, always creates new instance
+    Each instance gets a fresh backend with clean state.
+    """
 
     def __init__(self, fallback_mode: bool = False) -> None:
         super().__init__(None)
         self.fallback_mode = fallback_mode
-        
+
         # Log the mode
         if self.fallback_mode:
             logging.info("Running in FALLBACK MODE (called from pcbnew)")
@@ -318,7 +347,9 @@ class ImpartFrontend(impartGUI):
         if not self.fallback_mode:
             if not instance_manager.register_frontend(self):
                 # Another instance already exists - this shouldn't happen
-                logging.warning("Frontend instance already exists - destroying this one")
+                logging.warning(
+                    "Frontend instance already exists - destroying this one"
+                )
                 self.Destroy()
                 return
         else:
@@ -333,7 +364,7 @@ class ImpartFrontend(impartGUI):
         except Exception as e:
             logging.warning(f"Could not set window icon: {e}")
 
-        self.backend = backend_handler
+        self.backend = create_backend_handler()
         self.thread: Optional[PluginThread] = None
 
         self._setup_gui()
@@ -379,14 +410,9 @@ class ImpartFrontend(impartGUI):
 
     def _add_drag_drop_hint(self) -> None:
         """Add visual hint for drag & drop functionality."""
-        current_text = self.m_text.GetValue()
-        if not current_text.strip():
-            hint_text = (
-                "Tip: You can drag ZIP files directly into this window!\n"
-                + "=" * 50
-                + "\n"
-            )
-            self.backend.print_to_buffer(hint_text)
+        hint_text = "Tip: You can drag ZIP files directly into this window!"
+        self.backend.print_to_buffer(hint_text)
+        self.backend.print_to_buffer("=" * 50)
 
     def _on_files_dropped(self, zip_files: List[str]) -> None:
         """Callback when ZIP files are dropped on the text control."""
@@ -412,7 +438,7 @@ class ImpartFrontend(impartGUI):
 
     def _start_monitoring_thread(self) -> None:
         """Start the monitoring thread."""
-        self.thread = PluginThread(self)
+        self.thread = PluginThread(self, self.backend)
 
     def _print_initial_paths(self) -> None:
         """Print initial source and destination paths."""
@@ -473,58 +499,86 @@ class ImpartFrontend(impartGUI):
         event.Skip()
 
     def on_close(self, event: wx.CloseEvent) -> None:
-        """Handle window close event."""
-        if not self.backend.run_thread:
-            # No automatic import active: Always close everything completely
+        """Handle window close event with robust cleanup."""
+        try:
+            if not self.backend.run_thread:
+                # No automatic import active: Always close everything completely
+                self._safe_cleanup(close_ipc=not self.fallback_mode)
+                logging.info("No auto import: Closing everything completely")
+                event.Skip()
+
+            elif self.fallback_mode:
+                # Fallback mode + auto import: Close GUI but keep background thread
+                choice = self._confirm_background_process()
+                if choice == "cancel":
+                    event.Veto()
+                    return
+                elif choice == "background":
+                    self._safe_cleanup(close_ipc=False, stop_backend=False)
+                    logging.info(
+                        "Fallback mode: GUI closed, background thread continues"
+                    )
+                    event.Skip()  # Close GUI completely
+                    return
+                else:  # choice == "close"
+                    self._safe_cleanup(close_ipc=False, stop_backend=True)
+                    logging.info("Fallback mode: Everything stopped")
+                    event.Skip()
+
+            else:
+                # IPC mode + auto import: Minimize window, keep everything running
+                choice = self._confirm_background_process()
+                if choice == "cancel":
+                    event.Veto()
+                    return
+                elif choice == "background":
+                    self._safe_cleanup(close_ipc=False, stop_backend=False)
+                    if not self.IsIconized():
+                        self.Iconize(True)
+                    # self.Hide()
+                    logging.info(
+                        "IPC mode: Frontend minimized, running in background with IPC active"
+                    )
+                    event.Veto()  # Prevent actual closing
+                    return
+                else:  # choice == "close"
+                    self._safe_cleanup(close_ipc=True, stop_backend=True)
+                    logging.info("IPC mode: Everything stopped")
+                    event.Skip()
+
+        except Exception as e:
+            logging.exception(f"Error during close event: {e}")
+            # Force cleanup on any exception
+            try:
+                self._safe_cleanup(close_ipc=not self.fallback_mode, stop_backend=True)
+            except Exception:
+                pass
+            event.Skip()
+
+    def _safe_cleanup(self, close_ipc: bool = True, stop_backend: bool = True) -> None:
+        """Perform safe cleanup with error handling."""
+        try:
             self._save_settings()
+        except Exception as e:
+            logging.warning(f"Failed to save settings during cleanup: {e}")
+
+        if stop_backend:
+            try:
+                self.backend.run_thread = False
+            except Exception as e:
+                logging.warning(f"Failed to stop backend thread: {e}")
+
+        try:
             if self.thread:
                 self.thread.stop_thread = True
-            if not self.fallback_mode:
+        except Exception as e:
+            logging.warning(f"Failed to stop monitoring thread: {e}")
+
+        if close_ipc:
+            try:
                 instance_manager.stop_server()
-            logging.info("No auto import: Closing everything completely")
-            event.Skip()
-            
-        elif self.fallback_mode:
-            # Fallback mode + auto import: Close GUI but keep background thread
-            choice = self._confirm_background_process()
-            if choice == "cancel":
-                event.Veto()
-                return
-            elif choice == "background":
-                self._save_settings()
-                logging.info("Fallback mode: GUI closed, background thread continues")
-                event.Skip()  # Close GUI completely
-                return
-            else:  # choice == "close"
-                self.backend.run_thread = False
-                self._save_settings()
-                if self.thread:
-                    self.thread.stop_thread = True
-                logging.info("Fallback mode: Everything stopped")
-                event.Skip()
-                
-        else:
-            # IPC mode + auto import: Minimize window, keep everything running
-            choice = self._confirm_background_process()
-            if choice == "cancel":
-                event.Veto()
-                return
-            elif choice == "background":
-                self._save_settings()
-                if not self.IsIconized():
-                    self.Iconize(True)
-                # self.Hide()
-                logging.info("IPC mode: Frontend minimized, running in background with IPC active")
-                event.Veto()  # Prevent actual closing
-                return
-            else:  # choice == "close"
-                self.backend.run_thread = False
-                self._save_settings()
-                if self.thread:
-                    self.thread.stop_thread = True
-                instance_manager.stop_server()
-                logging.info("IPC mode: Everything stopped")
-                event.Skip()
+            except Exception as e:
+                logging.warning(f"Failed to stop IPC server: {e}")
 
     def _confirm_background_process(self) -> str:
         """Confirm what to do when background process is running."""
@@ -677,22 +731,24 @@ class ImpartFrontend(impartGUI):
         """Perform EasyEDA component import."""
         try:
             from .impart_easyeda import import_easyeda_component, ImportConfig
-        except ImportError as e:
-            error_msg = f"Failed to import EasyEDA module: {e}\n\nThis usually means easyeda2kicad is not properly installed or has missing dependencies."
-            self.backend.print_to_buffer(error_msg)
-            logging.error(f"EasyEDA import module not available: {e}")
+        except ImportError:
+            try:
+                from impart_easyeda import import_easyeda_component, ImportConfig
+            except ImportError as e:
+                error_msg = f"Failed to import EasyEDA module: {e}\n\nThis usually means easyeda2kicad is not properly installed or has missing dependencies."
+                self.backend.print_to_buffer(error_msg)
+                logging.error(f"EasyEDA import module not available: {e}")
 
-            # Show user-visible error message
-            wx.MessageBox(
-                f"EasyEDA Import Error!\n\n{error_msg}\n\n"
-                "Solutions:\n"
-                "1. Run 'install_dependencies.py' to reinstall dependencies\n"
-                "2. Check plugin.log for detailed error information\n"
-                "3. Restart KiCad after fixing dependencies",
-                "Import Error",
-                wx.OK | wx.ICON_ERROR,
-            )
-            return
+                wx.MessageBox(
+                    f"EasyEDA Import Error!\n\n{error_msg}\n\n"
+                    "Solutions:\n"
+                    "1. Run 'install_dependencies.py' to reinstall dependencies\n"
+                    "2. Check plugin.log for detailed error information\n"
+                    "3. Restart KiCad after fixing dependencies",
+                    "Import Error",
+                    wx.OK | wx.ICON_ERROR,
+                )
+                return
 
         if self.backend.local_lib:
             if not self.kicad_project:
@@ -863,13 +919,16 @@ class ImpartFrontend(impartGUI):
         self.backend.print_to_buffer(msg_summary)
 
 
-# Global backend instance
-try:
-    backend_handler = ImpartBackend()
-    logging.info("Successfully created backend handler")
-except Exception as e:
-    logging.exception("Failed to create backend handler")
-    raise
+def create_backend_handler():
+    """Create a new backend handler instance."""
+    try:
+        backend = ImpartBackend()
+        logging.info("Created new backend handler")
+        return backend
+    except Exception as e:
+        logging.exception("Failed to create backend handler")
+        raise
+
 
 if __name__ == "__main__":
     logging.info("Starting application in standalone mode")
@@ -884,7 +943,7 @@ if __name__ == "__main__":
 
     try:
         app = wx.App()
-        frontend = ImpartFrontend()
+        frontend = ImpartFrontend(fallback_mode=False)
 
         if not instance_manager.start_server(frontend):
             logging.warning("Failed to start IPC server - continuing anyway")
