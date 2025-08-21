@@ -127,6 +127,9 @@ class PipManager:
             path = Path(executable_path)
             if not path.exists() or not path.is_file():
                 return False
+            creation_flags = (
+                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            )
 
             result = subprocess.run(
                 [str(path), "--version"],
@@ -134,6 +137,7 @@ class PipManager:
                 text=True,
                 timeout=10,
                 check=False,
+                creationflags=creation_flags,
             )
             return result.returncode == 0 and "python" in result.stdout.lower()
 
@@ -184,6 +188,9 @@ class PipManager:
         self.logger.debug(f"Executing command: {' '.join(cmd)}")
 
         try:
+            if sys.platform == "win32":
+                kwargs.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)
+
             return subprocess.run(cmd, **kwargs)
         except subprocess.TimeoutExpired as e:
             self.logger.error(f"Pip command timed out after {timeout} seconds")

@@ -325,9 +325,8 @@ def run_subprocess_safe(cmd, timeout=300, **kwargs):
         kwargs.setdefault("stdout", subprocess.PIPE)
         kwargs.setdefault("stderr", subprocess.PIPE)
         kwargs.setdefault("universal_newlines", True)
-        kwargs.setdefault(
-            "creationflags", 0x08000000 if IS_WINDOWS else 0
-        )  # CREATE_NO_WINDOW on Windows
+        if sys.platform == "win32":
+            kwargs.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)
 
         process = subprocess.Popen(cmd, **kwargs)
         stdout, stderr = process.communicate(timeout=timeout)
@@ -423,7 +422,12 @@ def check_platform_requirements():
         try:
             import subprocess
 
-            result = subprocess.run(["which", "gcc"], capture_output=True)
+            creation_flags = (
+                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            )
+            result = subprocess.run(
+                ["which", "gcc"], capture_output=True, creationflags=creation_flags
+            )
             if result.returncode != 0:
                 issues.append(
                     "Linux: GCC compiler not found, may be needed for package compilation"

@@ -215,7 +215,10 @@ class SingleInstanceManager:
 
     def stop_server(self) -> None:
         """Stop the IPC server with robust cleanup."""
-        # Prevent multiple simultaneous stops
+        # Prevent multiple stops
+        if hasattr(self, '_stopped') and self._stopped:
+            return
+            
         if hasattr(self, '_stopping') and self._stopping:
             return
             
@@ -246,4 +249,5 @@ class SingleInstanceManager:
 
         self.unregister_frontend()
         self._stopping = False
+        self._stopped = True
         logging.info("IPC server stopped")

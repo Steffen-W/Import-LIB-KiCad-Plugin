@@ -22,8 +22,31 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s [%(name)s:%(filename)s:%(lineno)d]: %(message)s",
     filename=script_dir / "plugin.log",
-    filemode="w",
+    filemode="a",
 )
+
+
+def quick_instance_check(port: int = 59999) -> bool:
+    """Quick check if another instance is running without logging."""
+    try:
+        import socket
+
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.settimeout(1.0)
+        client_socket.connect(("127.0.0.1", port))
+        client_socket.close()
+        return True
+    except:
+        return False
+
+
+if __name__ == "__main__" and quick_instance_check():
+    logging.basicConfig(
+        level=logging.WARNING,
+        format="%(message)s",
+        filename=script_dir / "plugin.log",
+        filemode="w",
+    )
 
 # Import dependencies
 try:

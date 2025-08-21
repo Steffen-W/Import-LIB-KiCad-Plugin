@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import logging
 import shutil
 import os
@@ -38,12 +39,17 @@ class kicad_cli:
         self.logger.info(f"Executing: {' '.join(full_command)}")
 
         try:
+            creation_flags = (
+                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            )
+
             result = subprocess.run(
                 full_command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=30,
+                creationflags=creation_flags,
             )
 
             success = result.returncode == 0
@@ -89,6 +95,10 @@ class kicad_cli:
     def exists(self) -> bool:
         """Check if KiCad CLI exists and meets minimum version requirements."""
         try:
+            creation_flags = (
+                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            )
+
             result = subprocess.run(
                 [self.kicad_cmd, "--version"],
                 check=True,
@@ -96,13 +106,14 @@ class kicad_cli:
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=10,
+                creationflags=creation_flags,
             )
             version: str = result.stdout.strip()
             min_version: str = "8.0.4"
             kicad_vers: Tuple[int, int, int] = self.version_to_tuple(version)
 
+            self.logger.info(f"KiCad Version: {version}")
             if not kicad_vers or kicad_vers < self.version_to_tuple(min_version):
-                self.logger.warning(f"KiCad Version: {version}")
                 self.logger.warning(f"Minimum required KiCad version is: {min_version}")
                 return False
             else:
