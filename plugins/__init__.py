@@ -413,7 +413,7 @@ def get_macos_python_command():
     for path in homebrew_paths:
         if Path(path).exists():
             try:
-                result = run_subprocess_safe([path, "--version"], timeout=5)
+                result = run_subprocess_safe([path, "--version"], timeout=10)
                 if result.returncode == 0:
                     python_candidates.append(
                         (path, result.stdout.strip(), "homebrew", 10)
@@ -425,20 +425,22 @@ def get_macos_python_command():
     frameworks_dir = Path("/Library/Frameworks/Python.framework/Versions")
     if frameworks_dir.exists():
         for version_dir in frameworks_dir.iterdir():
-            if version_dir.is_dir() and version_dir.name.replace(".", "").isdigit():
+            if version_dir.is_dir() and version_dir.name.startswith("3."):
                 python_path = version_dir / "bin" / "python3"
                 if python_path.exists():
                     try:
                         result = run_subprocess_safe(
-                            [str(python_path), "--version"], timeout=5
+                            [str(python_path), "--version"], timeout=10
                         )
                         if result.returncode == 0:
-                            version_num = float(
-                                version_dir.name[:3]
-                            )  # e.g. "3.11" -> 3.11
-                            priority = 8 + min(
-                                version_num - 3.8, 2
-                            )  # 3.8+ gets higher priority
+                            try:
+                                version_parts = version_dir.name.split(".")
+                                version_num = float(
+                                    f"{version_parts[0]}.{version_parts[1]}"
+                                )
+                                priority = 8 + min(version_num - 3.8, 2)
+                            except (ValueError, IndexError):
+                                priority = 5  # fallback priority
                             python_candidates.append(
                                 (
                                     str(python_path),
@@ -454,11 +456,11 @@ def get_macos_python_command():
     xcode_python = "/usr/bin/python3"
     if Path(xcode_python).exists():
         try:
-            result = run_subprocess_safe([xcode_python, "--version"], timeout=5)
+            result = run_subprocess_safe([xcode_python, "--version"], timeout=10)
             if result.returncode == 0:
                 # Check if venv module is available
                 venv_test = run_subprocess_safe(
-                    [xcode_python, "-c", "import venv"], timeout=5
+                    [xcode_python, "-c", "import venv"], timeout=10
                 )
                 if venv_test.returncode == 0:
                     python_candidates.append(
@@ -472,7 +474,7 @@ def get_macos_python_command():
     pyenv_python = Path(pyenv_root) / "shims" / "python3"
     if pyenv_python.exists():
         try:
-            result = run_subprocess_safe([str(pyenv_python), "--version"], timeout=5)
+            result = run_subprocess_safe([str(pyenv_python), "--version"], timeout=10)
             if result.returncode == 0:
                 python_candidates.append(
                     (str(pyenv_python), result.stdout.strip(), "pyenv", 7)
@@ -483,11 +485,11 @@ def get_macos_python_command():
     # Priority 5: sys.executable (KiCad's Python) if venv available
     try:
         venv_test = run_subprocess_safe(
-            [sys.executable, "-c", "import venv"], timeout=5
+            [sys.executable, "-c", "import venv"], timeout=10
         )
         if venv_test.returncode == 0:
             version_result = run_subprocess_safe(
-                [sys.executable, "--version"], timeout=5
+                [sys.executable, "--version"], timeout=10
             )
             version_info = (
                 version_result.stdout.strip()
@@ -501,9 +503,9 @@ def get_macos_python_command():
     # Fallback: Standard commands
     for cmd in ["python3", "python"]:
         try:
-            result = run_subprocess_safe([cmd, "--version"], timeout=5)
+            result = run_subprocess_safe([cmd, "--version"], timeout=10)
             if result.returncode == 0:
-                venv_test = run_subprocess_safe([cmd, "-c", "import venv"], timeout=5)
+                venv_test = run_subprocess_safe([cmd, "-c", "import venv"], timeout=10)
                 if venv_test.returncode == 0:
                     python_candidates.append((cmd, result.stdout.strip(), "system", 1))
         except:
@@ -539,19 +541,24 @@ def get_python_command():
     if IS_WINDOWS:
         for cmd in ["python", "python3"]:
             try:
-                result = run_subprocess_safe([cmd, "--version"], timeout=10)
+                result = run_subprocess_safe([cmd, "--version"], timeout=15)
                 if result.returncode == 0:
-                    return cmd, result.stdout.strip()
+                    # Check if venv module is available
+                    venv_test = run_subprocess_safe(
+                        [cmd, "-c", "import venv"], timeout=10
+                    )
+                    if venv_test.returncode == 0:
+                        return cmd, result.stdout.strip()
             except (subprocess.CalledProcessError, FileNotFoundError, OSError):
                 continue
-        raise RuntimeError("Neither 'python' nor 'python3' command available")
+        raise RuntimeError("No suitable Python installation with venv module found")
 
     elif platform.system().lower() == "darwin":  # macOS
         return get_macos_python_command()
 
     else:  # Linux and others
         try:
-            result = run_subprocess_safe([sys.executable, "--version"], timeout=10)
+            result = run_subprocess_safe([sys.executable, "--version"], timeout=15)
             return sys.executable, result.stdout.strip()
         except Exception:
             return sys.executable, f"Python {sys.version.split()[0]}"
