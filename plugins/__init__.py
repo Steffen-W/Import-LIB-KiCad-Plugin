@@ -176,6 +176,10 @@ class ProgressDialog:
             self.start_button.Bind(wx.EVT_BUTTON, self.on_start_clicked)
             button_sizer.Add(self.start_button, 0, wx.ALL, 5)
 
+            self.skip_button = wx.Button(self.dialog, label="Skip Integration")
+            self.skip_button.Bind(wx.EVT_BUTTON, self.on_skip_clicked)
+            button_sizer.Add(self.skip_button, 0, wx.ALL, 5)
+
             self.close_button = wx.Button(self.dialog, wx.ID_CLOSE, "Close")
             self.close_button.Bind(wx.EVT_BUTTON, self.on_close_clicked)
             button_sizer.Add(self.close_button, 0, wx.ALL, 5)
@@ -258,6 +262,11 @@ class ProgressDialog:
             self.close_button.Enable(True)
             self.start_button.SetLabel("Retry Setup")
             self.start_button.Enable(True)
+
+    def on_skip_clicked(self, event):
+        self.setup_success = True
+        self.should_close = True
+        self.dialog.Close()
 
     def on_close_clicked(self, event):
         if self.setup_running:
