@@ -535,7 +535,7 @@ def get_macos_python_command():
 def get_python_command():
     """Get the appropriate Python command for the current platform with macOS optimizations"""
 
-    if not hasattr(globals(), "logger"):
+    if logger is None:
         raise RuntimeError("Missing dependency: logger not found")
 
     if IS_WINDOWS:
