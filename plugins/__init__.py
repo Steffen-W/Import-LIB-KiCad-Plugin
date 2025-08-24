@@ -6,6 +6,7 @@ import threading
 import time
 from pathlib import Path
 import pcbnew
+import os
 
 try:
     import wx
@@ -390,8 +391,142 @@ def check_venv_ready():
     return True
 
 
+def get_macos_python_command():
+    """Find the best Python installation on macOS"""
+    python_candidates = []
+
+    # Priority 1: Homebrew Python
+    homebrew_paths = [
+        "/opt/homebrew/bin/python3",  # Apple Silicon Macs
+        "/usr/local/bin/python3",  # Intel Macs
+    ]
+
+    for path in homebrew_paths:
+        if Path(path).exists():
+            try:
+                result = run_subprocess_safe([path, "--version"], timeout=5)
+                if result.returncode == 0:
+                    python_candidates.append(
+                        (path, result.stdout.strip(), "homebrew", 10)
+                    )
+            except:
+                continue
+
+    # Priority 2: Official Python.org installation
+    frameworks_dir = Path("/Library/Frameworks/Python.framework/Versions")
+    if frameworks_dir.exists():
+        for version_dir in frameworks_dir.iterdir():
+            if version_dir.is_dir() and version_dir.name.replace(".", "").isdigit():
+                python_path = version_dir / "bin" / "python3"
+                if python_path.exists():
+                    try:
+                        result = run_subprocess_safe(
+                            [str(python_path), "--version"], timeout=5
+                        )
+                        if result.returncode == 0:
+                            version_num = float(
+                                version_dir.name[:3]
+                            )  # e.g. "3.11" -> 3.11
+                            priority = 8 + min(
+                                version_num - 3.8, 2
+                            )  # 3.8+ gets higher priority
+                            python_candidates.append(
+                                (
+                                    str(python_path),
+                                    result.stdout.strip(),
+                                    "python.org",
+                                    priority,
+                                )
+                            )
+                    except:
+                        continue
+
+    # Priority 3: Xcode Command Line Tools Python
+    xcode_python = "/usr/bin/python3"
+    if Path(xcode_python).exists():
+        try:
+            result = run_subprocess_safe([xcode_python, "--version"], timeout=5)
+            if result.returncode == 0:
+                # Check if venv module is available
+                venv_test = run_subprocess_safe(
+                    [xcode_python, "-c", "import venv"], timeout=5
+                )
+                if venv_test.returncode == 0:
+                    python_candidates.append(
+                        (xcode_python, result.stdout.strip(), "xcode", 6)
+                    )
+        except:
+            pass
+
+    # Priority 4: pyenv Python
+    pyenv_root = os.environ.get("PYENV_ROOT", Path.home() / ".pyenv")
+    pyenv_python = Path(pyenv_root) / "shims" / "python3"
+    if pyenv_python.exists():
+        try:
+            result = run_subprocess_safe([str(pyenv_python), "--version"], timeout=5)
+            if result.returncode == 0:
+                python_candidates.append(
+                    (str(pyenv_python), result.stdout.strip(), "pyenv", 7)
+                )
+        except:
+            pass
+
+    # Priority 5: sys.executable (KiCad's Python) if venv available
+    try:
+        venv_test = run_subprocess_safe(
+            [sys.executable, "-c", "import venv"], timeout=5
+        )
+        if venv_test.returncode == 0:
+            version_result = run_subprocess_safe(
+                [sys.executable, "--version"], timeout=5
+            )
+            version_info = (
+                version_result.stdout.strip()
+                if version_result.returncode == 0
+                else f"Python {sys.version.split()[0]}"
+            )
+            python_candidates.append((sys.executable, version_info, "kicad", 2))
+    except:
+        pass
+
+    # Fallback: Standard commands
+    for cmd in ["python3", "python"]:
+        try:
+            result = run_subprocess_safe([cmd, "--version"], timeout=5)
+            if result.returncode == 0:
+                venv_test = run_subprocess_safe([cmd, "-c", "import venv"], timeout=5)
+                if venv_test.returncode == 0:
+                    python_candidates.append((cmd, result.stdout.strip(), "system", 1))
+        except:
+            continue
+
+    if not python_candidates:
+        raise RuntimeError(
+            "No suitable Python installation found on macOS.\n"
+            "Please install Python via Homebrew: brew install python"
+        )
+
+    # Sort by priority (highest first)
+    python_candidates.sort(key=lambda x: x[3], reverse=True)
+
+    # Log candidates
+    logger.info("Found Python candidates:")
+    for path, version, source, priority in python_candidates:
+        logger.info(f"  {source}: {path} ({version}) [priority: {priority}]")
+
+    # Select the best candidate
+    best_python, best_version, best_source, _ = python_candidates[0]
+    logger.info(f"Selected: {best_source} Python at {best_python} ({best_version})")
+
+    return best_python, best_version
+
+
 def get_python_command():
-    """Get the appropriate Python command for the current platform"""
+    """Get the appropriate Python command for the current platform with macOS optimizations"""
+
+    if not hasattr(globals(), "logger"):
+        raise RuntimeError("Missing dependency: logger not found")
+
     if IS_WINDOWS:
         for cmd in ["python", "python3"]:
             try:
@@ -401,7 +536,11 @@ def get_python_command():
             except (subprocess.CalledProcessError, FileNotFoundError, OSError):
                 continue
         raise RuntimeError("Neither 'python' nor 'python3' command available")
-    else:
+
+    elif platform.system().lower() == "darwin":  # macOS
+        return get_macos_python_command()
+
+    else:  # Linux and others
         try:
             result = run_subprocess_safe([sys.executable, "--version"], timeout=10)
             return sys.executable, result.stdout.strip()
