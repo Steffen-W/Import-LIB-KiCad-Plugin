@@ -7,9 +7,7 @@
 # kiutils>=1.4.8
 # git+https://github.com/Steffen-W/kiutils@v1.4.9
 
-# Critical dependencies for easyeda2kicad functionality
-pydantic>=2.0.0
-requests>2.0.0
+# No external dependencies needed - all functionality now uses Python standard library
 
 # Optional but recommended
 typing-extensions

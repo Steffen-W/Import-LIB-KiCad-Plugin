@@ -3,11 +3,11 @@ Single Instance Manager with IPC communication for KiCad Plugin.
 Handles ensuring only one instance runs and brings existing window to foreground.
 """
 
-import socket
-import threading
 import json
 import logging
-from typing import Optional, Any
+import socket
+import threading
+from typing import Any, Optional
 
 try:
     import wx
@@ -70,15 +70,17 @@ class SingleInstanceManager:
                     pass
                 self.socket.bind(("127.0.0.1", port_attempt))
                 self.socket.listen(1)
-                
+
                 # Update port if we had to use a different one
                 if port_attempt != self.port:
-                    logging.info(f"Port {self.port} was busy, using {port_attempt} instead")
+                    logging.info(
+                        f"Port {self.port} was busy, using {port_attempt} instead"
+                    )
                     self.port = port_attempt
-                    
+
                 self.running = True
                 break
-                
+
             except socket.error as e:
                 if self.socket:
                     self.socket.close()
@@ -158,7 +160,10 @@ class SingleInstanceManager:
                 return
 
             # Additional safety check for destroyed window
-            if hasattr(self.frontend_instance, "IsBeingDeleted") and self.frontend_instance.IsBeingDeleted():
+            if (
+                hasattr(self.frontend_instance, "IsBeingDeleted")
+                and self.frontend_instance.IsBeingDeleted()
+            ):
                 logging.warning("Frontend instance is being deleted - skipping focus")
                 return
 
@@ -216,12 +221,12 @@ class SingleInstanceManager:
     def stop_server(self) -> None:
         """Stop the IPC server with robust cleanup."""
         # Prevent multiple stops
-        if hasattr(self, '_stopped') and self._stopped:
+        if hasattr(self, "_stopped") and self._stopped:
             return
-            
-        if hasattr(self, '_stopping') and self._stopping:
+
+        if hasattr(self, "_stopping") and self._stopping:
             return
-            
+
         self._stopping = True
         logging.info("Stopping IPC server")
         self.running = False
