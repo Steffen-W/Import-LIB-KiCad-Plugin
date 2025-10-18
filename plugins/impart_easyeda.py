@@ -137,6 +137,11 @@ class EasyEDAImporter:
                 footprint_lib_name=self.config.lib_name
             )
 
+            # Check if export was successful
+            if not kicad_symbol_content:
+                self._print(f"Failed to export symbol content for: {component_name}")
+                return False, component_name
+
             # Add or update symbol in library
             if is_existing:
                 logger.warning(
@@ -175,6 +180,10 @@ class EasyEDAImporter:
     def add_symbol_to_upgraded_lib(self, symbol_content: str) -> bool:
         """Add symbol to library with automatic upgrade handling."""
         try:
+            if not symbol_content:
+                self._print("Error: Empty symbol content provided")
+                return False
+
             complete_symbol_lib = f"""(kicad_symbol_lib
     (version 20211014)
     (generator https://github.com/uPesy/easyeda2kicad.py)

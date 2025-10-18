@@ -60,6 +60,11 @@ class kicad_cli:
                 subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             )
 
+            # Set LANG to English to ensure consistent output
+            env = os.environ.copy()
+            env["LANG"] = "en_US.UTF-8"
+            env["LC_ALL"] = "en_US.UTF-8"
+
             result = subprocess.run(
                 full_command,
                 stdout=subprocess.PIPE,
@@ -67,6 +72,7 @@ class kicad_cli:
                 text=True,
                 timeout=30,
                 creationflags=creation_flags,
+                env=env,
             )
 
             success = result.returncode == 0
@@ -116,6 +122,11 @@ class kicad_cli:
                 subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             )
 
+            # Set LANG to English to ensure consistent output
+            env = os.environ.copy()
+            env["LANG"] = "en_US.UTF-8"
+            env["LC_ALL"] = "en_US.UTF-8"
+
             result = subprocess.run(
                 [self.kicad_cmd, "--version"],
                 check=True,
@@ -124,6 +135,7 @@ class kicad_cli:
                 text=True,
                 timeout=10,
                 creationflags=creation_flags,
+                env=env,
             )
             version: str = result.stdout.strip()
             min_version: str = "8.0.4"
