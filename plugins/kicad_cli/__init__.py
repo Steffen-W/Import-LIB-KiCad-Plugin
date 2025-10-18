@@ -27,10 +27,27 @@ class kicad_cli:
 
     def _find_kicad_cli(self) -> str:
         """Find KiCad CLI command across different platforms."""
+        # macOS-specific paths - check absolute paths first
+        if sys.platform == "darwin":  # macOS
+            mac_paths = [
+                "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli",
+                "/Applications/KiCad-10.0/KiCad.app/Contents/MacOS/kicad-cli",
+                "/Applications/KiCad-9.0/KiCad.app/Contents/MacOS/kicad-cli",
+                "/Applications/KiCad-8.0/KiCad.app/Contents/MacOS/kicad-cli",
+            ]
+            for path in mac_paths:
+                if os.path.isfile(path) and os.access(path, os.X_OK):
+                    self.logger.info(f"Found KiCad CLI at: {path}")
+                    return path
+
+        # Check system PATH for standard commands
         possible_commands: List[str] = ["kicad-cli", "kicad-cli.exe"]
         for cmd in possible_commands:
             if shutil.which(cmd):
+                self.logger.info(f"Found KiCad CLI in PATH: {cmd}")
                 return cmd
+
+        self.logger.warning("KiCad CLI not found, using default 'kicad-cli'")
         return "kicad-cli"
 
     def run_kicad_cli(self, command: List[str]) -> CommandResult:
