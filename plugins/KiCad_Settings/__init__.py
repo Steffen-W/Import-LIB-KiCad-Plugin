@@ -317,30 +317,40 @@ class KiCad_Settings:
             temp_path = self.path_prefix + "/" + SearchLib + ".pretty"
             if SearchLib in FootprintLibs:
                 if not FootprintLibs[SearchLib]["uri"] == temp_path:
-                    msg += "\n" + SearchLib
-                    msg += " in the Footprint Libraries is not imported correctly."
-                    msg += "\nYou have to import the library " + SearchLib
-                    msg += "' with the path '" + temp_path + "' in Footprint Libraries."
+                    msg += (
+                        "\nThe footprint library '"
+                        + SearchLib
+                        + "' points to '"
+                        + FootprintLibs[SearchLib]["uri"]
+                        + "' instead of '"
+                        + temp_path
+                        + "'."
+                    )
+                    msg += (
+                        "\nUpdate the entry manually or remove it so the plugin can recreate it."
+                    )
                     if add_if_possible:
-                        msg += (
-                            "\nThe entry must either be corrected manually or deleted."
-                        )
-                        # self.set_lib_table_entry(SearchLib) # TODO
+                        msg += "\n(Automatic repair is not available for path mismatches.)"
             else:
-                msg += "\n" + SearchLib + " is not in the Footprint Libraries."
+                msg += "\nDetected missing footprint library '" + SearchLib + "'."
                 if add_if_possible:
                     try:
                         self.set_lib_table_entry(SearchLib)
-                        msg += "\nThe library " + SearchLib
-                        msg += " has been successfully added."
-                        msg += "\n##### A restart of KiCad is necessary. #####"
+                        msg += (
+                            "\nAutomatically added footprint library '"
+                            + SearchLib
+                            + "' using auto KiCad setting."
+                        )
+                        msg += "\nRestart KiCad to load the updated library list."
                     except Exception:
-                        msg += "\nFailed to add library automatically."
+                        msg += "\nFailed to add the footprint library automatically."
                 else:
-                    msg += "\nYou have to import the library " + SearchLib
-                    msg += "' with the path '" + temp_path
                     msg += (
-                        "' in the Footprint Libraries or select the automatic option."
+                        "\nAdd the footprint library '"
+                        + SearchLib
+                        + "' with the path '"
+                        + temp_path
+                        + "' or enable the automatic option."
                     )
         except Exception:
             msg += f"\nError checking footprint library {SearchLib}."
@@ -360,29 +370,39 @@ class KiCad_Settings:
             temp_path = self.path_prefix + "/" + SearchLib
 
             if temp_path not in SymbolLibsUri:
-                msg += (
-                    "\n'" + temp_path + "' is not imported into the Symbol Libraries."
-                )
+                msg += "\nDetected missing symbol library '" + temp_path + "'."
                 if add_if_possible:
                     try:
                         if SearchLib_name_short not in SymbolLibs:
                             self.set_sym_table(SearchLib_name_short, temp_path)
-                            msg += "\nThe library " + SearchLib
-                            msg += " has been successfully added."
-                            msg += "\n##### A restart of KiCad is necessary. #####"
+                            msg += (
+                                "\nAutomatically added symbol library '"
+                                + SearchLib
+                                + "' using auto KiCad setting."
+                            )
+                            msg += "\nRestart KiCad to load the updated library list."
                         elif SearchLib_name not in SymbolLibs:
                             self.set_sym_table(SearchLib_name, temp_path)
-                            msg += "\nThe library " + SearchLib
-                            msg += " has been successfully added."
-                            msg += "\n##### A restart of KiCad is necessary. #####"
+                            msg += (
+                                "\nAutomatically added symbol library '"
+                                + SearchLib
+                                + "' using auto KiCad setting."
+                            )
+                            msg += "\nRestart KiCad to load the updated library list."
                         else:
-                            msg += "\nThe entry must either be corrected manually or deleted."
-                            # self.set_sym_table(SearchLib_name, temp_path) # TODO
+                            msg += (
+                                "\nA symbol library with the same content already exists."
+                                " Please correct or remove duplicate entries."
+                            )
                     except Exception:
-                        msg += "\nFailed to add symbol library automatically."
+                        msg += "\nFailed to add the symbol library automatically."
                 else:
                     msg += (
-                        "\nYou must add them manually or select the automatic option."
+                        "\nAdd the symbol library '"
+                        + SearchLib
+                        + "' with the path '"
+                        + temp_path
+                        + "' or enable the automatic option."
                     )
         except Exception:
             msg += f"\nError checking symbol library {SearchLib}."

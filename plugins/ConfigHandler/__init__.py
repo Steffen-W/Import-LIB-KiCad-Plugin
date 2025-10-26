@@ -12,6 +12,10 @@ class ConfigHandler:
         self.defaults = {
             "SRC_PATH": str(Path.home() / "Downloads"),
             "DEST_PATH": str(Path.home() / "KiCad"),
+            "LOCAL_LIB_ENABLED": "True",
+            "LOCAL_LIB_SUBFOLDER": "Lib",
+            "CUSTOM_LIB_ENABLED": "True",
+            "CUSTOM_LIB_NAME": "Custom",
         }
 
         try:
@@ -24,7 +28,7 @@ class ConfigHandler:
                         key not in self.config["config"]
                         or not self.config["config"][key]
                     ):
-                        self.config["config"][key] = default_value
+                        self.config["config"][key] = str(default_value)
 
                 self.config_is_set = True
             else:
@@ -41,7 +45,7 @@ class ConfigHandler:
         self.config.add_section("config")
 
         for key, value in self.defaults.items():
-            self.config["config"][key] = value
+            self.config["config"][key] = str(value)
 
         self.config_is_set = False
 
@@ -49,14 +53,14 @@ class ConfigHandler:
         return self.config["config"]["SRC_PATH"]
 
     def set_SRC_PATH(self, var):
-        self.config["config"]["SRC_PATH"] = var
+        self.config["config"]["SRC_PATH"] = str(var)
         self.save_config()
 
     def get_DEST_PATH(self):
         return self.config["config"]["DEST_PATH"]
 
     def set_DEST_PATH(self, var):
-        self.config["config"]["DEST_PATH"] = var
+        self.config["config"]["DEST_PATH"] = str(var)
         self.save_config()
 
     def get_value(self, key, section="config"):
@@ -69,8 +73,17 @@ class ConfigHandler:
         if section not in self.config:
             self.config.add_section(section)
 
-        self.config[section][key] = value
+        self.config[section][key] = str(value)
         self.save_config()
+
+    def get_bool(self, key, section="config", fallback=False):
+        try:
+            return self.config.getboolean(section, key)
+        except (ValueError, KeyError):
+            return fallback
+
+    def set_bool(self, key, value, section="config"):
+        self.set_value(key, "True" if value else "False", section)
 
     def save_config(self):
         try:

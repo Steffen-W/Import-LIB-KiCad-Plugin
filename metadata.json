@@ -1,9 +1,9 @@
 {
     "$schema": "https://go.kicad.org/pcm/schemas/v1",
-    "name": "impart GUI for KiCad",
-    "description": "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA",
+    "name": "Footprint Importer",
+    "description": "Import library files from EasyEDA (LSCS), Octopart, Ultralibrarian, Samacsys (componentsearchengin), and Snapeda",
     "description_full": "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA.\n For usage and correct setup please read the Readme: \n https://github.com/Steffen-W/Import-LIB-KiCad-Plugin#use-of-the-application",
-    "identifier": "com.github.Steffen-W.impartGUI",
+    "identifier": "com.github.RileyCornelius.FootprintImporter",
     "type": "plugin",
     "author": {
         "name": "Steffen Wittemeier",
@@ -12,22 +12,24 @@
         }
     },
     "maintainer": {
-        "name": "Steffen Wittemeier",
+        "name": "Riley Cornelius",
         "contact": {
-            "github": "https://github.com/Steffen-W"
+            "github": "https://github.com/RileyCornelius"
         }
     },
     "license": "GPL-3.0",
     "resources": {
-        "homepage": "https://github.com/Steffen-W/Import-LIB-KiCad-Plugin"
+        "homepage": "https://github.com/RileyCornelius/KiCad-Footprint-Importer-Plugin"
     },
     "tags": [
         "import",
         "library",
         "octopart",
         "samacsys",
+        "componentsearchengin",
         "ultralibrarian",
         "snapeda",
+        "lscs",
         "easyeda"
     ],
     "keep_on_update": [
@@ -35,7 +37,7 @@
     ],
     "versions": [
         {
-            "version": "2025.00.00",
+            "version": "2025.10.06",
             "status": "stable",
             "kicad_version": "8.0.4"
         }
