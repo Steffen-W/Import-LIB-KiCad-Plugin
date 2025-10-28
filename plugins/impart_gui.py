@@ -9,170 +9,303 @@
 
 import wx
 import wx.xrc
-import wx.adv
 
 ###########################################################################
 ## Class impartGUI
 ###########################################################################
 
-class impartGUI ( wx.Dialog ):
 
-    def __init__( self, parent ):
-        wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = u"impartGUI", pos = wx.DefaultPosition, size = wx.Size( 650,650 ), style = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER|wx.BORDER_DEFAULT )
+class impartGUI(wx.Dialog):
 
-        self.SetSizeHints( wx.DefaultSize, wx.DefaultSize )
-        self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
+    def __init__(self, parent):
+        wx.Dialog.__init__(
+            self,
+            parent,
+            id=wx.ID_ANY,
+            title="Footprint Importer",
+            pos=wx.DefaultPosition,
+            size=wx.Size(650, 650),
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER | wx.BORDER_DEFAULT,
+        )
 
-        bSizer = wx.BoxSizer( wx.VERTICAL )
+        self.SetSizeHints(wx.DefaultSize, wx.DefaultSize)
+        self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
 
-        self.m_button_migrate = wx.Button( self, wx.ID_ANY, u"migrate the libraries (highly recommended)", wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_button_migrate.SetFont( wx.Font( 15, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, False, wx.EmptyString ) )
-        self.m_button_migrate.Hide()
-        self.m_button_migrate.SetMaxSize( wx.Size( -1,150 ) )
+        bSizer = wx.BoxSizer(wx.VERTICAL)
 
-        bSizer.Add( self.m_button_migrate, 1, wx.ALL|wx.EXPAND, 5 )
-
-        self.m_button = wx.Button( self, wx.ID_ANY, u"Start", wx.DefaultPosition, wx.DefaultSize, 0 )
-        bSizer.Add( self.m_button, 0, wx.ALL|wx.EXPAND, 5 )
-
-        self.m_text = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_BESTWRAP|wx.TE_MULTILINE )
-        bSizer.Add( self.m_text, 1, wx.ALL|wx.EXPAND, 5 )
-
-        self.m_staticline11 = wx.StaticLine( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL )
-        self.m_staticline11.SetForegroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
-        self.m_staticline11.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_GRAYTEXT ) )
-        self.m_staticline11.Hide()
-
-        bSizer.Add( self.m_staticline11, 0, wx.EXPAND |wx.ALL, 5 )
-
-        fgSizer2 = wx.FlexGridSizer( 0, 3, 0, 0 )
-        fgSizer2.SetFlexibleDirection( wx.HORIZONTAL )
-        fgSizer2.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_ALL )
-
-        self.m_buttonImportManual = wx.Button( self, wx.ID_ANY, u"Manual Import", wx.DefaultPosition, wx.DefaultSize, 0 )
-        fgSizer2.Add( self.m_buttonImportManual, 0, wx.ALL, 5 )
-
-        m_choice1Choices = [ u"EeasyEDA /  LCSC Part#" ]
-        self.m_choice1 = wx.Choice( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_choice1Choices, 0 )
-        self.m_choice1.SetSelection( 0 )
-        fgSizer2.Add( self.m_choice1, 0, wx.ALL|wx.EXPAND, 5 )
-
-        self.m_textCtrl2 = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_PROCESS_ENTER )
-        self.m_textCtrl2.SetMinSize( wx.Size( 220,-1 ) )
-
-        fgSizer2.Add( self.m_textCtrl2, 0, wx.EXPAND|wx.ALL, 5 )
-
-        bSizer.Add( fgSizer2, 0, wx.ALIGN_CENTER_HORIZONTAL, 5 )
-
-        self.m_staticline12 = wx.StaticLine( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL )
-        self.m_staticline12.SetForegroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
-        self.m_staticline12.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_GRAYTEXT ) )
-
-        bSizer.Add( self.m_staticline12, 0, wx.EXPAND |wx.ALL, 5 )
-
-        fgSizer1 = wx.FlexGridSizer( 0, 4, 0, 0 )
-        fgSizer1.SetFlexibleDirection( wx.BOTH )
-        fgSizer1.SetNonFlexibleGrowMode( wx.FLEX_GROWMODE_SPECIFIED )
-
-        fgSizer1.SetMinSize( wx.Size( -1,0 ) )
-        self.m_autoImport = wx.CheckBox( self, wx.ID_ANY, u"auto background import", wx.DefaultPosition, wx.DefaultSize, 0 )
-        fgSizer1.Add( self.m_autoImport, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5 )
-
-        self.m_overwrite = wx.CheckBox( self, wx.ID_ANY, u"overwrite existing lib", wx.DefaultPosition, wx.DefaultSize, 0 )
-        fgSizer1.Add( self.m_overwrite, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5 )
-
-        self.m_check_import_all = wx.CheckBox( self, wx.ID_ANY, u"import old format", wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_check_import_all.Enable( False )
-        self.m_check_import_all.Hide()
-
-        fgSizer1.Add( self.m_check_import_all, 0, wx.ALL, 5 )
-
-        self.m_check_autoLib = wx.CheckBox( self, wx.ID_ANY, u"auto KiCad setting", wx.DefaultPosition, wx.DefaultSize, 0 )
-        fgSizer1.Add( self.m_check_autoLib, 0, wx.ALL, 5 )
-
-        bSizer.Add( fgSizer1, 0, wx.ALIGN_CENTER, 5 )
-
-        self.m_staticText_sourcepath = wx.StaticText( self, wx.ID_ANY, u"Folder of the library to import:", wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_staticText_sourcepath.Wrap( -1 )
-
-        bSizer.Add( self.m_staticText_sourcepath, 0, wx.ALL, 5 )
-
-        self.m_dirPicker_sourcepath = wx.DirPickerCtrl( self, wx.ID_ANY, u".", u"Select a folder", wx.DefaultPosition, wx.DefaultSize, wx.DIRP_DEFAULT_STYLE )
-        bSizer.Add( self.m_dirPicker_sourcepath, 0, wx.ALL|wx.EXPAND, 5 )
-
-        bSizer2 = wx.BoxSizer(wx.HORIZONTAL)
-
-        self.m_staticText_librarypath = wx.StaticText( self, wx.ID_ANY, u"Library save location:", wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_staticText_librarypath.Wrap( -1 )
-
-        bSizer2.Add(self.m_staticText_librarypath, 0, wx.ALL, 5)
-
-        self.m_checkBoxLocalLib = wx.CheckBox(
+        self.m_button_migrate = wx.Button(
             self,
             wx.ID_ANY,
-            "Save local, in the project folder",
+            "Migrate existing libraries (recommended)",
             wx.DefaultPosition,
             wx.DefaultSize,
             0,
         )
-        bSizer2.Add(self.m_checkBoxLocalLib, 0, wx.ALL, 5)
+        self.m_button_migrate.SetFont(
+            wx.Font(
+                15,
+                wx.FONTFAMILY_DEFAULT,
+                wx.FONTSTYLE_NORMAL,
+                wx.FONTWEIGHT_NORMAL,
+                False,
+                wx.EmptyString,
+            )
+        )
+        self.m_button_migrate.Hide()
+        self.m_button_migrate.SetMaxSize(wx.Size(-1, 150))
 
-        bSizer.Add(bSizer2, 0, 0, 5)
+        bSizer.Add(self.m_button_migrate, 0, wx.ALL | wx.EXPAND, 5)
 
-        self.m_dirPicker_librarypath = wx.DirPickerCtrl( self, wx.ID_ANY, u".", u"Select a folder", wx.DefaultPosition, wx.DefaultSize, wx.DIRP_DEFAULT_STYLE )
-        bSizer.Add( self.m_dirPicker_librarypath, 0, wx.ALL|wx.EXPAND, 5 )
+        conversionBox = wx.StaticBoxSizer(
+            wx.StaticBox(self, wx.ID_ANY, "Import Actions"), wx.VERTICAL
+        )
 
-        self.m_staticline1 = wx.StaticLine( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL )
-        self.m_staticline1.SetForegroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
-        self.m_staticline1.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_GRAYTEXT ) )
-        self.m_staticline1.Hide()
+        manualRow = wx.BoxSizer(wx.HORIZONTAL)
 
-        bSizer.Add( self.m_staticline1, 0, wx.EXPAND |wx.ALL, 5 )
+        self.m_buttonImportManual = wx.Button(
+            self,
+            wx.ID_ANY,
+            "Import from LCSC",
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            0,
+        )
+        manualRow.Add(
+            self.m_buttonImportManual, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5
+        )
 
-        self.m_staticText5 = wx.StaticText( self, wx.ID_ANY, u"There is no guarantee for faultless function. Use only at your own risk. Should there be any errors please write an issue.\nNecessary settings for the integration of the libraries can be found in the README:", wx.DefaultPosition, wx.DefaultSize, 0 )
-        self.m_staticText5.Wrap( -1 )
+        self.m_textCtrl2 = wx.TextCtrl(
+            self,
+            wx.ID_ANY,
+            wx.EmptyString,
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            wx.TE_PROCESS_ENTER,
+        )
+        self.m_textCtrl2.SetMinSize(wx.Size(220, -1))
+        self.m_textCtrl2.SetHint("Enter LCSC part number")
+        self.m_textCtrl2.SetToolTip("Type an LCSC part number (eg C2040)")
 
-        self.m_staticText5.Hide()
-        self.m_staticText5.SetMinSize( wx.Size( -1,50 ) )
+        manualRow.Add(self.m_textCtrl2, 1, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
-        bSizer.Add( self.m_staticText5, 0, wx.EXPAND|wx.TOP|wx.RIGHT|wx.LEFT, 5 )
+        conversionBox.Add(manualRow, 0, wx.EXPAND, 0)
 
-        self.m_hyperlink = wx.adv.HyperlinkCtrl( self, wx.ID_ANY, u"github.com/Steffen-W/Import-LIB-KiCad-Plugin", u"https://github.com/Steffen-W/Import-LIB-KiCad-Plugin", wx.DefaultPosition, wx.DefaultSize, wx.adv.HL_DEFAULT_STYLE )
-        bSizer.Add( self.m_hyperlink, 0, wx.BOTTOM|wx.RIGHT|wx.LEFT, 5 )
+        convertRow = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.SetSizer( bSizer )
+        self.m_button = wx.Button(
+            self,
+            wx.ID_ANY,
+            "Import from Folder",
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            0,
+        )
+        convertRow.Add(self.m_button, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        self.m_overwrite = wx.CheckBox(
+            self,
+            wx.ID_ANY,
+            "Overwrite existing libraries",
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            0,
+        )
+        convertRow.Add(self.m_overwrite, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        self.m_autoImport = wx.CheckBox(
+            self,
+            wx.ID_ANY,
+            "Auto background import",
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            0,
+        )
+        convertRow.Add(self.m_autoImport, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        self.m_check_import_all = wx.CheckBox(
+            self, wx.ID_ANY, "import old format", wx.DefaultPosition, wx.DefaultSize, 0
+        )
+        self.m_check_import_all.Enable(False)
+        self.m_check_import_all.Hide()
+        convertRow.Add(self.m_check_import_all, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        convertRow.AddStretchSpacer()
+
+        conversionBox.Add(convertRow, 0, wx.EXPAND, 0)
+
+        bSizer.Add(conversionBox, 0, wx.ALL | wx.EXPAND, 5)
+
+        logBox = wx.StaticBoxSizer(
+            wx.StaticBox(self, wx.ID_ANY, "Activity Log"), wx.VERTICAL
+        )
+
+        self.m_text = wx.TextCtrl(
+            self,
+            wx.ID_ANY,
+            wx.EmptyString,
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            wx.TE_BESTWRAP | wx.TE_MULTILINE | wx.TE_READONLY,
+        )
+        logBox.Add(self.m_text, 1, wx.ALL | wx.EXPAND, 5)
+
+        bSizer.Add(logBox, 1, wx.ALL | wx.EXPAND, 5)
+
+        pathsBox = wx.StaticBoxSizer(
+            wx.StaticBox(self, wx.ID_ANY, "Library Locations"), wx.VERTICAL
+        )
+
+        sourceLabel = wx.StaticText(
+            pathsBox.GetStaticBox(),
+            wx.ID_ANY,
+            "Import library location:",
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            0,
+        )
+        sourceLabel.Wrap(-1)
+        pathsBox.Add(sourceLabel, 0, wx.TOP | wx.LEFT | wx.RIGHT, 5)
+
+        self.m_dirPicker_sourcepath = wx.DirPickerCtrl(
+            pathsBox.GetStaticBox(),
+            wx.ID_ANY,
+            ".",
+            "Choose the folder containing ZIP files",
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            wx.DIRP_DEFAULT_STYLE,
+        )
+        pathsBox.Add(self.m_dirPicker_sourcepath, 0, wx.ALL | wx.EXPAND, 5)
+
+        customLibRow = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.m_checkBoxCustomLib = wx.CheckBox(
+            pathsBox.GetStaticBox(),
+            wx.ID_ANY,
+            "Use one library name for everything",
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            0,
+        )
+        customLibRow.Add(self.m_checkBoxCustomLib, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        self.m_textCtrlCustomLib = wx.TextCtrl(
+            pathsBox.GetStaticBox(),
+            wx.ID_ANY,
+            wx.EmptyString,
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            0,
+        )
+        self.m_textCtrlCustomLib.Enable(False)
+        customLibRow.Add(self.m_textCtrlCustomLib, 1, wx.TOP | wx.BOTTOM | wx.RIGHT, 5)
+
+        pathsBox.Add(customLibRow, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
+
+        localRow = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.m_checkBoxLocalLib = wx.CheckBox(
+            pathsBox.GetStaticBox(),
+            wx.ID_ANY,
+            "Save inside this KiCad project",
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            0,
+        )
+        localRow.Add(self.m_checkBoxLocalLib, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        self.m_textCtrlLocalSubfolder = wx.TextCtrl(
+            pathsBox.GetStaticBox(),
+            wx.ID_ANY,
+            wx.EmptyString,
+            wx.DefaultPosition,
+            wx.Size(200, -1),
+            0,
+        )
+        self.m_textCtrlLocalSubfolder.Enable(False)
+        localRow.Add(
+            self.m_textCtrlLocalSubfolder,
+            1,
+            wx.TOP | wx.BOTTOM | wx.RIGHT,
+            5,
+        )
+
+        pathsBox.Add(localRow, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
+
+        self.m_staticText_librarypath = wx.StaticText(
+            pathsBox.GetStaticBox(),
+            wx.ID_ANY,
+            "Global library folder:",
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            0,
+        )
+        self.m_staticText_librarypath.Wrap(-1)
+
+        pathsBox.Add(self.m_staticText_librarypath, 0, wx.TOP | wx.LEFT | wx.RIGHT, 5)
+
+        self.m_dirPicker_librarypath = wx.DirPickerCtrl(
+            pathsBox.GetStaticBox(),
+            wx.ID_ANY,
+            ".",
+            "Choose a global library folder",
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            wx.DIRP_DEFAULT_STYLE,
+        )
+        pathsBox.Add(self.m_dirPicker_librarypath, 0, wx.ALL | wx.EXPAND, 5)
+
+        bSizer.Add(pathsBox, 0, wx.ALL | wx.EXPAND, 5)
+
+        self.SetSizer(bSizer)
         self.Layout()
 
-        self.Centre( wx.BOTH )
+        self.Centre(wx.BOTH)
 
         # Connect Events
-        self.Bind( wx.EVT_CLOSE, self.on_close )
-        self.m_button_migrate.Bind( wx.EVT_BUTTON, self.migrate_libs )
-        self.m_button.Bind( wx.EVT_BUTTON, self.BottonClick )
-        self.m_buttonImportManual.Bind( wx.EVT_BUTTON, self.ButtomManualImport )
-        self.m_textCtrl2.Bind( wx.EVT_TEXT_ENTER, self.ButtomManualImport )
-        self.m_dirPicker_sourcepath.Bind( wx.EVT_DIRPICKER_CHANGED, self.DirChange )
+        self.Bind(wx.EVT_CLOSE, self.on_close)
+        self.m_button_migrate.Bind(wx.EVT_BUTTON, self.migrate_libs)
+        self.m_button.Bind(wx.EVT_BUTTON, self.BottonClick)
+        self.m_buttonImportManual.Bind(wx.EVT_BUTTON, self.ButtomManualImport)
+        self.m_textCtrl2.Bind(wx.EVT_TEXT_ENTER, self.ButtomManualImport)
+        self.m_dirPicker_sourcepath.Bind(wx.EVT_DIRPICKER_CHANGED, self.DirChange)
         self.m_checkBoxLocalLib.Bind(wx.EVT_CHECKBOX, self.m_checkBoxLocalLibOnCheckBox)
-        self.m_dirPicker_librarypath.Bind( wx.EVT_DIRPICKER_CHANGED, self.DirChange )
+        self.m_dirPicker_librarypath.Bind(wx.EVT_DIRPICKER_CHANGED, self.DirChange)
+        self.m_checkBoxCustomLib.Bind(
+            wx.EVT_CHECKBOX, self.m_checkBoxCustomLibOnCheckBox
+        )
+        self.m_textCtrlCustomLib.Bind(wx.EVT_TEXT, self.m_textCtrlCustomLibOnText)
+        self.m_textCtrlLocalSubfolder.Bind(
+            wx.EVT_TEXT, self.m_textCtrlLocalSubfolderOnText
+        )
 
-    def __del__( self ):
+    def __del__(self):
         pass
 
     # Virtual event handlers, override them in your derived class
-    def on_close( self, event ):
+    def on_close(self, event):
         event.Skip()
 
-    def migrate_libs( self, event ):
+    def migrate_libs(self, event):
         event.Skip()
 
-    def BottonClick( self, event ):
+    def BottonClick(self, event):
         event.Skip()
 
-    def ButtomManualImport( self, event ):
+    def ButtomManualImport(self, event):
         event.Skip()
 
-    def DirChange( self, event ):
+    def DirChange(self, event):
         event.Skip()
 
     def m_checkBoxLocalLibOnCheckBox(self, event):
+        event.Skip()
+
+    def m_checkBoxCustomLibOnCheckBox(self, event):
+        event.Skip()
+
+    def m_textCtrlCustomLibOnText(self, event):
+        event.Skip()
+
+    def m_textCtrlLocalSubfolderOnText(self, event):
         event.Skip()

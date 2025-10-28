@@ -100,6 +100,8 @@ class REMOTE_TYPES(Enum):
 
 
 class LibImporter:
+    DEFAULT_CUSTOM_LIBRARY_NAME = "Custom"
+
     def print(self, txt):
         print("->" + txt)
 
@@ -112,6 +114,9 @@ class LibImporter:
         self.model_skipped = False
         self.footprint_name = None
         self.footprint_parser = FootprintModelParser()
+        self.use_single_library = False
+        self.custom_library_name = self.DEFAULT_CUSTOM_LIBRARY_NAME
+        self._custom_library_slug = self.cleanName(self.DEFAULT_CUSTOM_LIBRARY_NAME)
 
     def set_DEST_PATH(self, DEST_PATH_=Path.home() / "KiCad"):
         self.DEST_PATH = Path(DEST_PATH_)
@@ -125,6 +130,30 @@ class LibImporter:
         if original_name != name:
             logger.debug(f"Cleaned name: {original_name} -> {name}")
         return name
+
+    def set_custom_library(self, enabled: bool, library_name: Optional[str]) -> None:
+        """Configure whether imports should consolidate into a single custom library."""
+        self.use_single_library = bool(enabled)
+        name = (library_name or "").strip()
+        if not name:
+            name = self.DEFAULT_CUSTOM_LIBRARY_NAME
+
+        slug = self.cleanName(name)
+        if not slug:
+            slug = self.DEFAULT_CUSTOM_LIBRARY_NAME
+
+        self.custom_library_name = name
+        self._custom_library_slug = slug
+
+    def get_custom_library_slug(self) -> str:
+        """Return the sanitized custom library name used for files."""
+        return self._custom_library_slug
+
+    def _resolve_library_name(self, remote_type: REMOTE_TYPES) -> str:
+        """Return the active library basename for the given vendor."""
+        if self.use_single_library and self._custom_library_slug:
+            return self._custom_library_slug
+        return remote_type.name
 
     def identify_remote_type(
         self, zf: zipfile.ZipFile
@@ -432,8 +461,9 @@ class LibImporter:
         if not footprint_file.exists():
             return False
 
+        library_name = self._resolve_library_name(remote_type)
         model_path = (
-            f"{self.KICAD_3RD_PARTY_LINK}/{remote_type.name}.3dshapes/{model_name}"
+            f"{self.KICAD_3RD_PARTY_LINK}/{library_name}.3dshapes/{model_name}"
         )
 
         try:
@@ -459,6 +489,8 @@ class LibImporter:
         if not symbol_lib or not symbol_lib.symbols:
             return symbol_lib
 
+        library_name = self._resolve_library_name(remote_type)
+
         for symbol in symbol_lib.symbols:
             footprint_prop = None
             # Find the footprint property
@@ -471,7 +503,7 @@ class LibImporter:
                 # Update the footprint reference with library prefix
                 old_value = footprint_prop.value
                 footprint_prop.value = (
-                    f"{remote_type.name}:{self.cleanName(footprint_name)}"
+                    f"{library_name}:{self.cleanName(footprint_name)}"
                 )
                 logger.debug(
                     f"Updated footprint property: {old_value} -> {footprint_prop.value}"
@@ -480,7 +512,7 @@ class LibImporter:
                 # Add footprint property if it doesn't exist
                 new_prop = Property(
                     key="Footprint",
-                    value=f"{remote_type.name}:{self.cleanName(footprint_name)}",
+                    value=f"{library_name}:{self.cleanName(footprint_name)}",
                     id=0,  # Will be assigned by kiutils
                     position=Position(0, 0),
                     effects=Effects(
@@ -514,11 +546,12 @@ class LibImporter:
         """
         success_items = []
         backup_files = {}  # Track backup files for rollback
+        library_name = self._resolve_library_name(remote_type)
 
         try:
             # 1. Save symbol library with atomic write
             if symbol_lib:
-                lib_file_path = self.DEST_PATH / f"{remote_type.name}.kicad_sym"
+                lib_file_path = self.DEST_PATH / f"{library_name}.kicad_sym"
 
                 # Create backup if file exists
                 backup_path = None
@@ -614,7 +647,7 @@ class LibImporter:
 
             # 3. Save 3D model
             if model_path:
-                model_dir = self.DEST_PATH / f"{remote_type.name}.3dshapes"
+                model_dir = self.DEST_PATH / f"{library_name}.3dshapes"
                 if not model_dir.exists():
                     model_dir.mkdir(parents=True, exist_ok=True)
                     modified_objects.append(model_dir, Modification.MKDIR)
@@ -678,7 +711,7 @@ class LibImporter:
                         )
 
             # Clean up any remaining temporary files
-            for pattern in [f"{remote_type.name}.kicad_sym.tmp", "*.tmp"]:
+            for pattern in [f"{library_name}.kicad_sym.tmp", "*.tmp"]:
                 for temp_file in self.DEST_PATH.glob(pattern):
                     if temp_file.exists():
                         temp_file.unlink(missing_ok=True)
@@ -706,6 +739,7 @@ class LibImporter:
                 remote_type, files = self.identify_remote_type(zf)
                 logger.info(f"Type: {remote_type.name}")
                 self.print(f"Identified as {remote_type.name}")
+                library_name = self._resolve_library_name(remote_type)
 
                 # Handle partial archives
                 if remote_type == REMOTE_TYPES.Partial:
@@ -729,7 +763,7 @@ class LibImporter:
                 # Handle footprint - extract directly to destination
                 footprint_file_path = None
                 if files["footprint"]:
-                    footprint_dir = self.DEST_PATH / f"{remote_type.name}.pretty"
+                    footprint_dir = self.DEST_PATH / f"{library_name}.pretty"
                     if not footprint_dir.exists():
                         footprint_dir.mkdir(parents=True, exist_ok=True)
                         modified_objects.append(footprint_dir, Modification.MKDIR)

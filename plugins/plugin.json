@@ -1,7 +1,7 @@
 {
   "$schema": "https://go.kicad.org/api/schemas/v1",
   "identifier": "com.github.Steffen-W.impartGUI",
-  "name": "impart GUI for KiCad",
+  "name": "Footprint Importer",
   "description": "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA",
   "runtime": {
     "type": "python",
@@ -10,7 +10,7 @@
   "actions": [
     {
       "identifier": "impart_action-action",
-      "name": "impartGUI (IPC API)",
+      "name": "Footprint Importer",
       "description": "impart_action",
       "show-button": true,
       "scopes": [

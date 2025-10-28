@@ -214,9 +214,16 @@ class ImpartBackend:
         self.auto_import = False
         self.overwrite_import = False
         self.import_old_format = False
-        self.local_lib = False
-        self.auto_lib = False
+        self.auto_lib = True  # auto KiCad setting enabled by default
         self.print_buffer = ""
+
+        # Library placement preferences (populated from config)
+        self.local_lib = False
+        self.local_lib_subfolder = ""
+        self.custom_lib_enabled = False
+        self.custom_lib_name = ""
+
+        self._load_library_preferences()
 
         """Check initial configuration and version."""
         try:
@@ -243,6 +250,69 @@ class ImpartBackend:
         self.print_to_buffer(warning_msg)
         self.print_to_buffer(info_msg)
         self.print_to_buffer("\n" + "=" * 50 + "\n")
+
+    def _load_library_preferences(self) -> None:
+        """Load library preferences from the configuration file."""
+        try:
+            self.local_lib = self.config.get_bool("LOCAL_LIB_ENABLED", fallback=False)
+            subfolder = self.config.get_value("LOCAL_LIB_SUBFOLDER") or ""
+            self.local_lib_subfolder = subfolder.strip()
+
+            self.custom_lib_enabled = self.config.get_bool(
+                "CUSTOM_LIB_ENABLED", fallback=False
+            )
+            custom_name = self.config.get_value("CUSTOM_LIB_NAME") or "Custom"
+            self.custom_lib_name = custom_name.strip() or "Custom"
+        except Exception as exc:
+            logging.warning(f"Failed to load library preferences: {exc}")
+            self.local_lib = False
+            self.local_lib_subfolder = ""
+            self.custom_lib_enabled = False
+            self.custom_lib_name = "Custom"
+
+        self._sync_importer_library_preferences()
+
+    def _sync_importer_library_preferences(self) -> None:
+        """Ensure importer mirrors the current custom library settings."""
+        try:
+            self.importer.set_custom_library(
+                self.custom_lib_enabled, self.custom_lib_name
+            )
+        except Exception as exc:
+            logging.warning(f"Failed to sync importer preferences: {exc}")
+
+    def get_library_names(self) -> List[str]:
+        """Return the effective library names that will be produced."""
+        if self.custom_lib_enabled:
+            slug = self.importer.get_custom_library_slug()
+            return [slug] if slug else [self.importer.DEFAULT_CUSTOM_LIBRARY_NAME]
+        return self.SUPPORTED_LIBRARIES.copy()
+
+    def get_destination_path(self) -> Optional[str]:
+        """Return the absolute destination path for generated libraries."""
+        if self.local_lib:
+            project_dir = self.kicad_app.get_project_dir()
+            if not project_dir:
+                return None
+
+            dest_path = Path(project_dir)
+            subfolder = (self.local_lib_subfolder or "").strip()
+            if subfolder:
+                dest_path /= subfolder
+
+            return str(dest_path)
+
+        return self.config.get_DEST_PATH()
+
+    def get_library_path_prefix(self) -> str:
+        """Return the KiCad path prefix used for footprint/model references."""
+        if self.local_lib:
+            subfolder = (self.local_lib_subfolder or "").strip().replace("\\", "/")
+            if subfolder:
+                return f"${{KIPRJMOD}}/{subfolder}"
+            return "${KIPRJMOD}"
+
+        return "${KICAD_3RD_PARTY}"
 
     def print_to_buffer(self, *args: Any) -> None:
         """Add text to print buffer."""
@@ -295,14 +365,19 @@ def check_library_import(backend: ImpartBackend, add_if_possible: bool = True) -
     """Check and potentially add libraries to KiCad settings."""
     msg = ""
 
+    active_lib_names = backend.get_library_names()
+
     if backend.local_lib:
-        project_dir = backend.kicad_app.get_project_dir()
-        if not project_dir:
+        dest_path = backend.get_destination_path()
+
+        if not dest_path:
             return "\nLocal library mode enabled but no KiCad project available."
 
         try:
-            kicad_settings = KiCad_Settings(str(project_dir), path_prefix="${KIPRJMOD}")
-            dest_path = project_dir
+            kicad_settings = KiCad_Settings(
+                str(backend.kicad_app.get_project_dir()),
+                path_prefix=backend.get_library_path_prefix(),
+            )
             logging.info("Project-specific library check completed")
         except Exception as e:
             logging.error(f"Failed to read project settings: {e}")
@@ -312,7 +387,7 @@ def check_library_import(backend: ImpartBackend, add_if_possible: bool = True) -
         dest_path = backend.config.get_DEST_PATH()
         msg = kicad_settings.check_GlobalVar(dest_path, add_if_possible)
 
-    for lib_name in ImpartBackend.SUPPORTED_LIBRARIES:
+    for lib_name in active_lib_names:
         msg += _check_single_library(
             kicad_settings, lib_name, dest_path, add_if_possible
         )
@@ -399,12 +474,19 @@ class ImpartFrontend(impartGUI):
 
         self._setup_gui()
         self._setup_events()
+        self._update_backend_settings()
         self._start_monitoring_thread()
         self._print_initial_paths()
 
     def _setup_gui(self) -> None:
         """Initialize GUI components."""
         self.kicad_project = self.backend.kicad_app.get_project_dir()
+        if self.backend.local_lib and not self.kicad_project:
+            logging.info(
+                "Disabling local library mode because no KiCad project is active."
+            )
+            self.backend.local_lib = False
+            self.backend.config.set_bool("LOCAL_LIB_ENABLED", False)
 
         # Set initial values
         self.m_dirPicker_sourcepath.SetPath(self.backend.config.get_SRC_PATH())
@@ -413,9 +495,24 @@ class ImpartFrontend(impartGUI):
         # Set checkboxes
         self.m_autoImport.SetValue(self.backend.auto_import)
         self.m_overwrite.SetValue(self.backend.overwrite_import)
-        self.m_check_autoLib.SetValue(self.backend.auto_lib)
         self.m_check_import_all.SetValue(self.backend.import_old_format)
         self.m_checkBoxLocalLib.SetValue(self.backend.local_lib)
+        self.m_checkBoxCustomLib.SetValue(self.backend.custom_lib_enabled)
+
+        # Custom library controls
+        self.m_textCtrlCustomLib.SetValue(self.backend.custom_lib_name)
+        self.m_textCtrlCustomLib.Enable(self.backend.custom_lib_enabled)
+
+        # Local library controls
+        self.m_dirPicker_librarypath.Enable(not self.backend.local_lib)
+        self.m_textCtrlLocalSubfolder.SetValue(self.backend.local_lib_subfolder)
+        self.m_textCtrlLocalSubfolder.Enable(self.backend.local_lib)
+
+        self.m_textCtrlLocalSubfolder.SetHint("Project subfolder (optional)")
+        self.m_textCtrlCustomLib.SetHint("Library name (e.g. CustomParts)")
+
+        self._last_logged_custom_lib = ",".join(self.backend.get_library_names())
+        self._last_logged_subfolder = self.backend.local_lib_subfolder
 
         self._update_button_label()
         self._check_migration_possible()
@@ -473,43 +570,63 @@ class ImpartFrontend(impartGUI):
     def _print_initial_paths(self) -> None:
         """Print initial source and destination paths."""
         src_path = self.backend.config.get_SRC_PATH()
-
-        if self.backend.local_lib and self.kicad_project:
-            dest_path = self.kicad_project
-            lib_mode = "Local Project Library"
-        else:
-            dest_path = self.backend.config.get_DEST_PATH()
-            lib_mode = "Global Library"
+        dest_path = self.backend.get_destination_path()
+        dest_display = dest_path if dest_path else "<not available>"
+        lib_mode = "Local Project Library" if self.backend.local_lib else "Global Library"
+        library_names = ", ".join(self.backend.get_library_names())
 
         self.backend.print_to_buffer(f"Library Mode: {lib_mode}")
+        self.backend.print_to_buffer(f"Library Names: {library_names}")
+        if self.backend.local_lib:
+            subfolder = self.backend.local_lib_subfolder or "(project root)"
+            self.backend.print_to_buffer(f"Local Subfolder: {subfolder}")
         self.backend.print_to_buffer(f"Source Directory: {src_path}")
-        self.backend.print_to_buffer(f"Destination Directory: {dest_path}")
+        self.backend.print_to_buffer(f"Destination Directory: {dest_display}")
         self.backend.print_to_buffer("=" * 50)
+        self._last_logged_custom_lib = library_names
+        self._last_logged_subfolder = self.backend.local_lib_subfolder
 
     def _print_path_change(self, change_type: str, new_value: str = "") -> None:
         """Print path change information."""
         if change_type == "library_mode":
-            if self.backend.local_lib and self.kicad_project:
-                dest_path = self.kicad_project
-                lib_mode = "Local Project Library"
-            else:
-                dest_path = self.backend.config.get_DEST_PATH()
-                lib_mode = "Global Library"
-
+            lib_mode = (
+                "Local Project Library" if self.backend.local_lib else "Global Library"
+            )
             self.backend.print_to_buffer(f"New Library Mode: {lib_mode}")
-            self.backend.print_to_buffer(f"New Destination Directory: {dest_path}")
+            self.backend.print_to_buffer(
+                f"Library Names: {', '.join(self.backend.get_library_names())}"
+            )
+            dest_path = self.backend.get_destination_path()
+            dest_display = dest_path if dest_path else "<not available>"
+            self.backend.print_to_buffer(f"New Destination Directory: {dest_display}")
+            if self.backend.local_lib:
+                subfolder = self.backend.local_lib_subfolder or "(project root)"
+                self.backend.print_to_buffer(f"Local Subfolder: {subfolder}")
         elif change_type == "source":
             self.backend.print_to_buffer(f"New Source Directory: {new_value}")
         elif change_type == "destination":
             if not self.backend.local_lib:
                 self.backend.print_to_buffer(f"New Destination Directory: {new_value}")
+        elif change_type == "custom_library":
+            libraries = ", ".join(self.backend.get_library_names())
+            if libraries != self._last_logged_custom_lib:
+                self.backend.print_to_buffer(f"Library Names: {libraries}")
+                self._last_logged_custom_lib = libraries
+        elif change_type == "local_subfolder":
+            subfolder = new_value or "(project root)"
+            if subfolder != (self._last_logged_subfolder or "(project root)"):
+                self.backend.print_to_buffer(f"Local Subfolder: {subfolder}")
+                dest_path = self.backend.get_destination_path()
+                dest_display = dest_path if dest_path else "<not available>"
+                self.backend.print_to_buffer(f"Destination Directory: {dest_display}")
+                self._last_logged_subfolder = new_value
 
     def _update_button_label(self) -> None:
         """Update the main button label based on current state."""
         if self.backend.run_thread:
             self.m_button.Label = "automatic import / press to stop"
         else:
-            self.m_button.Label = "Start"
+            self.m_button.Label = "Import from Folder"
 
     def update_display(self, status: ResultEvent) -> None:
         """Update the text display with new status."""
@@ -518,14 +635,45 @@ class ImpartFrontend(impartGUI):
 
     def m_checkBoxLocalLibOnCheckBox(self, event: wx.CommandEvent) -> None:
         """Handle local library checkbox change."""
-        old_local_lib = self.backend.local_lib
-        self.backend.local_lib = self.m_checkBoxLocalLib.IsChecked()
-        self.m_dirPicker_librarypath.Enable(not self.backend.local_lib)
+        use_local = self.m_checkBoxLocalLib.IsChecked()
 
-        # Print change information
-        if old_local_lib != self.backend.local_lib:
-            self._print_path_change("library_mode")
+        if use_local:
+            self.kicad_project = self.backend.kicad_app.get_project_dir()
+            if not self.kicad_project:
+                self.backend.print_to_buffer(
+                    "Local library mode requires an open KiCad project."
+                )
+                self.backend.print_to_buffer("Reverting to global library mode.")
+                logging.warning("Local library requested but no KiCad project available")
+                self.m_checkBoxLocalLib.SetValue(False)
+                use_local = False
 
+        self.m_dirPicker_librarypath.Enable(not use_local)
+        self.m_textCtrlLocalSubfolder.Enable(use_local)
+
+        if use_local:
+            self.m_textCtrlLocalSubfolder.SetFocus()
+
+        self._update_backend_settings()
+
+        event.Skip()
+
+    def m_checkBoxCustomLibOnCheckBox(self, event: wx.CommandEvent) -> None:
+        """Handle single library checkbox change."""
+        use_custom = self.m_checkBoxCustomLib.IsChecked()
+        self.m_textCtrlCustomLib.Enable(use_custom)
+        if use_custom and not self.m_textCtrlCustomLib.GetValue():
+            self.m_textCtrlCustomLib.SetFocus()
+
+        self._update_backend_settings()
+        event.Skip()
+
+    def m_textCtrlCustomLibOnText(self, event: wx.CommandEvent) -> None:
+        """Track custom library name edits."""
+        event.Skip()
+
+    def m_textCtrlLocalSubfolderOnText(self, event: wx.CommandEvent) -> None:
+        """Track local subfolder edits."""
         event.Skip()
 
     def on_close(self, event: wx.CloseEvent) -> None:
@@ -640,11 +788,47 @@ class ImpartFrontend(impartGUI):
 
     def _save_settings(self) -> None:
         """Save current settings to backend."""
-        self.backend.auto_import = self.m_autoImport.IsChecked()
+        old_local_lib = self.backend.local_lib
+        old_subfolder = self.backend.local_lib_subfolder
+        old_custom_enabled = self.backend.custom_lib_enabled
+        old_custom_name = self.backend.custom_lib_name
+
         self.backend.overwrite_import = self.m_overwrite.IsChecked()
-        self.backend.auto_lib = self.m_check_autoLib.IsChecked()
         self.backend.import_old_format = self.m_check_import_all.IsChecked()
         self.backend.local_lib = self.m_checkBoxLocalLib.IsChecked()
+
+        subfolder_value = self.m_textCtrlLocalSubfolder.GetValue().strip()
+        self.backend.local_lib_subfolder = subfolder_value
+
+        self.backend.custom_lib_enabled = self.m_checkBoxCustomLib.IsChecked()
+        custom_name_value = self.m_textCtrlCustomLib.GetValue().strip()
+        if self.backend.custom_lib_enabled and not custom_name_value:
+            custom_name_value = self.backend.importer.DEFAULT_CUSTOM_LIBRARY_NAME
+            self.m_textCtrlCustomLib.ChangeValue(custom_name_value)
+
+        if not custom_name_value:
+            custom_name_value = self.backend.importer.DEFAULT_CUSTOM_LIBRARY_NAME
+
+        self.backend.custom_lib_name = custom_name_value
+
+        self.backend.auto_import = self.m_autoImport.IsChecked()
+        self.backend.config.set_bool("LOCAL_LIB_ENABLED", self.backend.local_lib)
+        self.backend.config.set_value("LOCAL_LIB_SUBFOLDER", subfolder_value)
+        self.backend.config.set_bool(
+            "CUSTOM_LIB_ENABLED", self.backend.custom_lib_enabled
+        )
+        self.backend.config.set_value("CUSTOM_LIB_NAME", self.backend.custom_lib_name)
+
+        self.backend._sync_importer_library_preferences()
+
+        if old_local_lib != self.backend.local_lib:
+            self._print_path_change("library_mode")
+        if old_custom_enabled != self.backend.custom_lib_enabled or (
+            old_custom_name != self.backend.custom_lib_name
+        ):
+            self._print_path_change("custom_library")
+        if old_subfolder != self.backend.local_lib_subfolder:
+            self._print_path_change("local_subfolder", self.backend.local_lib_subfolder)
 
     def BottonClick(self, event: wx.CommandEvent) -> None:
         """Handle main button click."""
@@ -659,52 +843,56 @@ class ImpartFrontend(impartGUI):
 
     def _update_backend_settings(self) -> None:
         """Update backend with current GUI settings."""
-        if self.backend.local_lib:
-            if not self.kicad_project:
-                return
-            self.backend.importer.set_DEST_PATH(Path(self.kicad_project))
-            kicad_link = "${KIPRJMOD}"
-        else:
-            dest_path = self.backend.config.get_DEST_PATH()
-            if dest_path:
-                self.backend.importer.set_DEST_PATH(Path(dest_path))
-            kicad_link = "${KICAD_3RD_PARTY}"
-
-        self.backend.importer.KICAD_3RD_PARTY_LINK = kicad_link
-
-        # Handle overwrite setting change
-        overwrite_changed = (
-            self.m_overwrite.IsChecked() and not self.backend.overwrite_import
-        )
-        if overwrite_changed:
-            self.backend.folder_handler.known_files = set()
-
+        previous_overwrite = self.backend.overwrite_import
         self._save_settings()
+
+        self.kicad_project = self.backend.kicad_app.get_project_dir()
+        dest_path_str = self.backend.get_destination_path()
+
+        if self.backend.local_lib:
+            if not dest_path_str:
+                self.backend.print_to_buffer(
+                    "Error: Local library mode selected, but no KiCad project is open."
+                )
+                return
+            dest_path = Path(dest_path_str)
+        else:
+            dest_path = Path(dest_path_str) if dest_path_str else None
+
+        if dest_path:
+            self.backend.importer.set_DEST_PATH(dest_path)
+
+        self.backend.importer.KICAD_3RD_PARTY_LINK = (
+            self.backend.get_library_path_prefix()
+        )
+
+        if self.backend.overwrite_import and not previous_overwrite:
+            self.backend.folder_handler.known_files = set()
 
     def _stop_import(self) -> None:
         """Stop the import process."""
         self.backend.run_thread = False
-        self.m_button.Label = "Start"
+        self.m_button.Label = "Import from Folder"
 
     def _start_import(self) -> None:
         """Start the import process."""
         self.backend.run_thread = False
         self.backend.find_and_import_new_files()
-        self.m_button.Label = "Start"
+        self.m_button.Label = "Import from Folder"
 
         if self.backend.auto_import:
             self.backend.run_thread = True
             self.m_button.Label = "automatic import / press to stop"
 
             import_thread = Thread(target=self.backend.find_and_import_new_files)
+            import_thread.daemon = True
             import_thread.start()
 
         self._check_and_show_library_warnings()
 
     def _check_and_show_library_warnings(self) -> None:
         """Check library settings and show warnings if needed."""
-        add_if_possible = self.m_check_autoLib.IsChecked()
-        msg = check_library_import(self.backend, add_if_possible)
+        msg = check_library_import(self.backend, add_if_possible=True)
 
         if msg:
             self._show_library_warning(msg)
@@ -780,6 +968,10 @@ class ImpartFrontend(impartGUI):
                 )
                 return
 
+        # Ensure backend state reflects current UI values before importing
+        self._update_backend_settings()
+
+        dest_path_str = self.backend.get_destination_path()
         if self.backend.local_lib:
             if not self.kicad_project:
                 self.backend.print_to_buffer(
@@ -788,32 +980,46 @@ class ImpartFrontend(impartGUI):
                 self.backend.print_to_buffer("Please either:")
                 self.backend.print_to_buffer("  1. Open a KiCad project first, or")
                 self.backend.print_to_buffer(
-                    "  2. Uncheck 'Local Library' to use global library path"
+                    "  2. Uncheck 'Local Library' to use the global library path."
                 )
-                logging.error(
-                    "Local library mode selected but no KiCad project available"
-                )
-                return
+                logging.error("Local library mode selected but no KiCad project available")
+            else:
+                project_path = Path(self.kicad_project)
+                if not project_path.exists() or not project_path.is_dir():
+                    self.backend.print_to_buffer(
+                        f"Error: KiCad project directory does not exist: {self.kicad_project}"
+                    )
+                    self.backend.print_to_buffer("Please check your KiCad project setup.")
+                    logging.error(f"KiCad project directory invalid: {self.kicad_project}")
+                    dest_path_str = None
 
-            # Verify the project path exists and is valid
-            project_path = Path(self.kicad_project)
-            if not project_path.exists() or not project_path.is_dir():
+        if not dest_path_str:
+            self.backend.print_to_buffer(
+                "Error: No valid destination folder configured for the library."
+            )
+            return
+
+        base_folder = Path(dest_path_str)
+        if not base_folder.exists():
+            try:
+                base_folder.mkdir(parents=True, exist_ok=True)
+            except Exception as exc:
                 self.backend.print_to_buffer(
-                    f"Error: KiCad project directory does not exist: {self.kicad_project}"
+                    f"Error: Unable to create destination folder {base_folder}: {exc}"
                 )
-                self.backend.print_to_buffer("Please check your KiCad project setup.")
-                logging.error(f"KiCad project directory invalid: {self.kicad_project}")
+                logging.exception("Failed to create destination folder for EasyEDA import")
                 return
 
-            path_variable = "${KIPRJMOD}"
-            base_folder = project_path
-        else:
-            path_variable = "${KICAD_3RD_PARTY}"
-            base_folder = self.backend.config.get_DEST_PATH()
+        path_variable = self.backend.get_library_path_prefix()
+        library_name = (
+            self.backend.importer.get_custom_library_slug()
+            if self.backend.custom_lib_enabled
+            else "EasyEDA"
+        )
 
         config = ImportConfig(
-            base_folder=Path(base_folder),
-            lib_name="EasyEDA",
+            base_folder=base_folder,
+            lib_name=library_name,
             overwrite=self.m_overwrite.IsChecked(),
             lib_var=path_variable,
         )
