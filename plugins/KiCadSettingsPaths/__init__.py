@@ -5,11 +5,11 @@ Provides utilities for detecting KiCad settings paths across different operating
 and a simplified interface for interacting with KiCad applications.
 """
 
-import sys
-import platform
 import logging
-from typing import Optional, List, Callable, Dict, Any, Tuple
+import platform
+import sys
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 class KiCadSettingsPaths:
@@ -235,7 +235,8 @@ class KiCadApp:
             self.kicad_ipc = KiCad()
 
             # Test connection
-            self.kicad_ipc.get_version()
+            if self.kicad_ipc is not None:
+                self.kicad_ipc.get_version()
             return True
 
         except ImportError:

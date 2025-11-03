@@ -1,12 +1,12 @@
 # Simplified EasyEDA to KiCad importer
 # Based on: https://github.com/uPesy/easyeda2kicad.py/blob/master/easyeda2kicad/__main__.py
 import logging
+import re
 import subprocess
 import sys
-from pathlib import Path
-from typing import Optional, Tuple, NamedTuple, Callable
 from dataclasses import dataclass
-import re
+from pathlib import Path
+from typing import Callable, NamedTuple, Optional, Tuple
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ except ImportError:
     from kicad_cli import kicad_cli
 
 try:
-    cli = kicad_cli()
+    cli: kicad_cli | None = kicad_cli()
     logger.info("✓ kicad_cli initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize kicad_cli: {e}")
@@ -41,20 +41,20 @@ if easyeda_submodule.exists():
 
 from easyeda2kicad.easyeda.easyeda_api import EasyedaApi
 from easyeda2kicad.easyeda.easyeda_importer import (
-    EasyedaSymbolImporter,
-    EasyedaFootprintImporter,
     Easyeda3dModelImporter,
+    EasyedaFootprintImporter,
+    EasyedaSymbolImporter,
     EeSymbol,
 )
-from easyeda2kicad.kicad.export_kicad_symbol import ExporterSymbolKicad
-from easyeda2kicad.kicad.export_kicad_footprint import ExporterFootprintKicad
-from easyeda2kicad.kicad.export_kicad_3d_model import Exporter3dModelKicad
 from easyeda2kicad.helpers import (
     KicadVersion,
     add_component_in_symbol_lib_file,
     id_already_in_symbol_lib,
     update_component_in_symbol_lib_file,
 )
+from easyeda2kicad.kicad.export_kicad_3d_model import Exporter3dModelKicad
+from easyeda2kicad.kicad.export_kicad_footprint import ExporterFootprintKicad
+from easyeda2kicad.kicad.export_kicad_symbol import ExporterSymbolKicad
 
 logger.info("Successfully imported easyeda2kicad modules")
 
@@ -189,6 +189,10 @@ class EasyEDAImporter:
     (generator https://github.com/uPesy/easyeda2kicad.py)
     {symbol_content}
 )"""
+
+            if cli is None:
+                self._print("KiCad CLI not available")
+                return False
 
             success, upgraded_symbol_lib, error = cli.upgrade_sym_lib_from_string(
                 complete_symbol_lib

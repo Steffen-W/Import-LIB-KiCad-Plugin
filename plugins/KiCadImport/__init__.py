@@ -5,14 +5,14 @@
 # Samacsys, Ultralibrarian and Snapeda zipfiles using kiutils.
 # Supports KiCad 7.0 and newer.
 
-import zipfile
-import tempfile
+import logging
 import shutil
 import sys
-import logging
+import tempfile
+import zipfile
 from enum import Enum
-from typing import Tuple, Union, List, Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +22,10 @@ kiutils_src = current_dir.parent / "kiutils" / "src"
 if str(kiutils_src) not in sys.path:
     sys.path.insert(0, str(kiutils_src))
 
+from kiutils.items.common import Font, Position
+
 # Import kiutils modules directly
-from kiutils.symbol import SymbolLib, Property, Effects
-from kiutils.items.common import Position, Font
+from kiutils.symbol import Effects, Property, SymbolLib
 
 try:
     from .footprint_model_parser import FootprintModelParser
@@ -37,7 +38,7 @@ except ImportError:
     from kicad_cli import kicad_cli
 
 try:
-    cli = kicad_cli()
+    cli: kicad_cli | None = kicad_cli()
     logger.info("✓ kicad_cli initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize kicad_cli: {e}")
@@ -291,7 +292,7 @@ class LibImporter:
         try:
             # Always try to convert to new format
             if extracted_path.suffix == ".lib":
-                if cli.exists():
+                if cli is not None and cli.exists():
                     new_path = extracted_path.with_suffix(".kicad_sym")
                     cli.upgrade_sym_lib(str(extracted_path), str(new_path))
                     if new_path.exists():
@@ -305,7 +306,7 @@ class LibImporter:
                     logger.error("KiCad CLI not available for .lib conversion")
                     raise ValueError("KiCad CLI not available for .lib conversion")
             else:  # .kicad_sym - still try to convert just to be sure
-                if cli.exists():
+                if cli is not None and cli.exists():
                     new_path = extracted_path
                     cli.upgrade_sym_lib(str(extracted_path), str(new_path))
                     symbol_lib = SymbolLib().from_file(str(new_path))
@@ -352,7 +353,7 @@ class LibImporter:
                 shutil.copyfileobj(src, dst)
 
             # Upgrade footprint using CLI if available
-            if cli.exists():
+            if cli is not None and cli.exists():
                 try:
                     # Create temporary .pretty directory for upgrade
                     temp_pretty = temp_dir / "temp.pretty"
@@ -576,12 +577,15 @@ class LibImporter:
                         lib_file_path.unlink()
                     temp_lib_path.rename(lib_file_path)
 
-                    result = cli.upgrade_sym_lib(str(lib_file_path), str(lib_file_path))
-                    if not result.success:
-                        raise ValueError(
-                            f"Updating {lib_file_path} failed: {result.message} "
-                            + f"details: {result.stderr}"
+                    if cli is not None:
+                        result = cli.upgrade_sym_lib(
+                            str(lib_file_path), str(lib_file_path)
                         )
+                        if not result.success:
+                            raise ValueError(
+                                f"Updating {lib_file_path} failed: {result.message} "
+                                + f"details: {result.stderr}"
+                            )
 
                     modified_objects.append(lib_file_path, Modification.MODIFIED_FILE)
 

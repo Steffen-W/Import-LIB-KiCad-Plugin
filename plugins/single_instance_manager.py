@@ -101,6 +101,8 @@ class SingleInstanceManager:
         while self.running:
             client_socket = None
             try:
+                if self.socket is None:
+                    break
                 self.socket.settimeout(1.0)  # Add timeout to server socket
                 client_socket, addr = self.socket.accept()
                 client_socket.settimeout(5.0)

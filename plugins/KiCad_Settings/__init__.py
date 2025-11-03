@@ -1,15 +1,15 @@
-import os
 import json
 import logging
-from typing import List, Dict, Tuple, Any, Optional
+import os
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 current_dir = Path(__file__).resolve().parent
 kiutils_src = current_dir.parent / "kiutils" / "src"
 if str(kiutils_src) not in __import__("sys").path:
     __import__("sys").path.insert(0, str(kiutils_src))
 
-from kiutils.libraries import LibTable, Library
+from kiutils.libraries import Library, LibTable
 
 
 class KiCad_Settings:

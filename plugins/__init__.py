@@ -14,8 +14,9 @@ except ImportError:
 plugin_dir = Path(__file__).resolve().parent
 log_file = plugin_dir / "plugin_fallback.log"
 
-logger = None
-log_handler = None
+# Initialize logger immediately - it will be configured later in setup_logging()
+logger = logging.getLogger("impart_plugin")
+log_handler: logging.FileHandler | None = None
 
 
 def setup_logging():

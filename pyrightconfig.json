@@ -1,0 +1,14 @@
+{
+  "include": [
+    "plugins"
+  ],
+  "exclude": [
+    "plugins/kiutils",
+    "plugins/easyeda2kicad",
+    "**/node_modules",
+    "**/__pycache__"
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false
+}

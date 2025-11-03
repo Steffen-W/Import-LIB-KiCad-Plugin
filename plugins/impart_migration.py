@@ -1,5 +1,5 @@
-from pathlib import Path
 import logging
+from pathlib import Path
 from typing import Union
 
 logger = logging.getLogger(__name__)
@@ -10,7 +10,7 @@ except ImportError:
     from kicad_cli import kicad_cli
 
 try:
-    cli = kicad_cli()
+    cli: kicad_cli | None = kicad_cli()
     logger.info("✓ kicad_cli initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize kicad_cli: {e}")
@@ -106,6 +106,10 @@ def convert_lib(SRC: Path, DES: Path, drymode=True):
         if DES_dcm.exists() and DES_dcm.is_file():
             return []
 
+        if cli is None or not cli.exists():
+            logger.error("kicad_cli not available for conversion")
+            return []
+
         result = cli.upgrade_sym_lib(str(SRC), str(DES))
         if not result.success:
             logger.error(
@@ -131,7 +135,7 @@ def convert_lib(SRC: Path, DES: Path, drymode=True):
 
 def convert_lib_list(libs_dict, drymode=True):
 
-    if not cli.exists():
+    if cli is None or not cli.exists():
         logger.error("kicad_cli not found! Conversion is not possible.")
         drymode = True
 

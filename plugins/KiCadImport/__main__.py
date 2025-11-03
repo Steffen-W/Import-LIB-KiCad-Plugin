@@ -5,9 +5,10 @@
 # Samacsys, Ultralibrarian and Snapeda zipfiles using kiutils.
 # Supports KiCad 7.0 and newer.
 
-from pathlib import Path
-from .__init__ import *
 import logging
+from pathlib import Path
+
+from .__init__ import *
 
 logger = logging.getLogger(__name__)
 

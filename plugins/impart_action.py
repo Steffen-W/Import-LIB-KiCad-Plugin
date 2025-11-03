@@ -4,14 +4,14 @@ Supports Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA.
 """
 
 import atexit
-import os
-import sys
-import socket
 import logging
+import os
+import socket
+import sys
 from pathlib import Path
-from time import sleep
 from threading import Thread
-from typing import Optional, List, Tuple, Any
+from time import sleep
+from typing import Any, List, Optional, Tuple
 
 # Setup paths for local imports
 script_dir = Path(__file__).resolve().parent
@@ -66,13 +66,13 @@ except Exception as e:
 
 try:
     # Try relative imports first (when run as module)
-    from .impart_gui import impartGUI
-    from .FileHandler import FileHandler
-    from .KiCad_Settings import KiCad_Settings
     from .ConfigHandler import ConfigHandler
+    from .FileHandler import FileHandler
+    from .impart_gui import impartGUI
+    from .impart_migration import convert_lib_list, find_old_lib_files
+    from .KiCad_Settings import KiCad_Settings
     from .KiCadImport import LibImporter
     from .KiCadSettingsPaths import KiCadApp
-    from .impart_migration import find_old_lib_files, convert_lib_list
     from .single_instance_manager import SingleInstanceManager
 
     logging.info("Successfully imported all local modules using relative imports")
@@ -80,13 +80,13 @@ try:
 except ImportError as e1:
     try:
         # Fallback to absolute imports (when run as script)
-        from impart_gui import impartGUI
-        from FileHandler import FileHandler
-        from KiCad_Settings import KiCad_Settings
         from ConfigHandler import ConfigHandler
+        from FileHandler import FileHandler
+        from impart_gui import impartGUI
+        from impart_migration import convert_lib_list, find_old_lib_files
+        from KiCad_Settings import KiCad_Settings
         from KiCadImport import LibImporter
         from KiCadSettingsPaths import KiCadApp
-        from impart_migration import find_old_lib_files, convert_lib_list
         from single_instance_manager import SingleInstanceManager
 
         logging.info("Successfully imported all local modules using absolute imports")
@@ -192,7 +192,7 @@ class ImpartBackend:
         try:
             self.kicad_app = KiCadApp(prefer_ipc=True, min_version="8.0.4")
             self.config = ConfigHandler(self.config_path)
-            self.kicad_settings = KiCad_Settings(self.kicad_app.settings_path)
+            self.kicad_settings = KiCad_Settings(str(self.kicad_app.settings_path))
 
             self.folder_handler = FileHandler(
                 ".", min_size=1_000, max_size=50_000_000, file_extension=".zip"
@@ -760,10 +760,10 @@ class ImpartFrontend(impartGUI):
     def _perform_easyeda_import(self) -> None:
         """Perform EasyEDA component import."""
         try:
-            from .impart_easyeda import import_easyeda_component, ImportConfig
+            from .impart_easyeda import ImportConfig, import_easyeda_component
         except ImportError:
             try:
-                from impart_easyeda import import_easyeda_component, ImportConfig
+                from impart_easyeda import ImportConfig, import_easyeda_component
             except ImportError as e:
                 error_msg = f"Failed to import EasyEDA module: {e}\n\nThis usually means easyeda2kicad is not properly installed or has missing dependencies."
                 self.backend.print_to_buffer(error_msg)
