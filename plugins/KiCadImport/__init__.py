@@ -12,7 +12,7 @@ import tempfile
 import zipfile
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
@@ -28,17 +28,17 @@ from kiutils.items.common import Font, Position
 from kiutils.symbol import Effects, Property, SymbolLib
 
 try:
-    from .footprint_model_parser import FootprintModelParser
+    from .footprint_model_parser import FootprintModelParser  # type: ignore[attr-defined]
 except ImportError:
-    from footprint_model_parser import FootprintModelParser
+    from footprint_model_parser import FootprintModelParser  # type: ignore[import-not-found,no-redef]
 
 try:
-    from ..kicad_cli import kicad_cli
+    from ..kicad_cli import kicad_cli as KicadCli  # type: ignore[attr-defined]
 except ImportError:
-    from kicad_cli import kicad_cli
+    from kicad_cli import kicad_cli as KicadCli  # type: ignore[import-not-found,no-redef]
 
 try:
-    cli: kicad_cli | None = kicad_cli()
+    cli: KicadCli | None = KicadCli()
     logger.info("✓ kicad_cli initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize kicad_cli: {e}")
@@ -230,7 +230,7 @@ class LibImporter:
 
         # Handle partial archives (e.g., only 3D models)
         if model_path:
-            logger.warning(f"Archive contains only partial data: 3D model found")
+            logger.warning("Archive contains only partial data: 3D model found")
             files["model"] = model_path
             return REMOTE_TYPES.Partial, files
 
@@ -553,7 +553,7 @@ class LibImporter:
                         ]
                         action = "updated"
                     else:
-                        action = "added" if symbol_exists == False else "created"
+                        action = "added" if not symbol_exists else "created"
 
                     # Add new symbols
                     existing_lib.symbols.extend(symbol_lib.symbols)

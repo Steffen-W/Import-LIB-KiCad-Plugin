@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 current_dir = Path(__file__).resolve().parent
 kiutils_src = current_dir.parent / "kiutils" / "src"
@@ -147,7 +147,7 @@ class KiCad_Settings:
                 raise ValueError(f"URI '{old_uri}' not found in the file.")
 
             sym_table.to_file(path)
-            self.logger.info(f"Successfully updated symbol library table")
+            self.logger.info("Successfully updated symbol library table")
 
         except Exception as e:
             self.logger.error(f"Failed to change symbol library URI: {e}")
@@ -236,7 +236,7 @@ class KiCad_Settings:
         try:
             with open(path) as json_data:
                 data = json.load(json_data)
-            self.logger.info(f"Successfully loaded KiCad JSON config")
+            self.logger.info("Successfully loaded KiCad JSON config")
             return data
 
         except FileNotFoundError:
@@ -256,7 +256,7 @@ class KiCad_Settings:
         try:
             with open(path, "w") as file:
                 json.dump(kicad_json, file, indent=2)
-            self.logger.info(f"Successfully wrote KiCad JSON config")
+            self.logger.info("Successfully wrote KiCad JSON config")
 
         except Exception as e:
             self.logger.error(f"Failed to write KiCad JSON config to {path}: {e}")
@@ -269,7 +269,7 @@ class KiCad_Settings:
         try:
             with open(path) as json_data:
                 data = json.load(json_data)
-            self.logger.info(f"Successfully loaded KiCad common config")
+            self.logger.info("Successfully loaded KiCad common config")
             return data
 
         except FileNotFoundError:
@@ -289,7 +289,7 @@ class KiCad_Settings:
         try:
             with open(path, "w") as file:
                 json.dump(kicad_common, file, indent=2)
-            self.logger.info(f"Successfully wrote KiCad common config")
+            self.logger.info("Successfully wrote KiCad common config")
 
         except Exception as e:
             self.logger.error(f"Failed to write KiCad common config to {path}: {e}")

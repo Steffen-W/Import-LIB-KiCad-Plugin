@@ -2,7 +2,6 @@
 # Based on: https://github.com/uPesy/easyeda2kicad.py/blob/master/easyeda2kicad/__main__.py
 import logging
 import re
-import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,12 +11,12 @@ from typing import Callable, NamedTuple, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 try:
-    from .kicad_cli import kicad_cli
+    from .kicad_cli import kicad_cli as KicadCli  # type: ignore[attr-defined]
 except ImportError:
-    from kicad_cli import kicad_cli
+    from kicad_cli import kicad_cli as KicadCli  # type: ignore[import-not-found,no-redef]
 
 try:
-    cli: kicad_cli | None = kicad_cli()
+    cli: KicadCli | None = KicadCli()
     logger.info("✓ kicad_cli initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize kicad_cli: {e}")
@@ -48,7 +47,6 @@ from easyeda2kicad.easyeda.easyeda_importer import (
 )
 from easyeda2kicad.helpers import (
     KicadVersion,
-    add_component_in_symbol_lib_file,
     id_already_in_symbol_lib,
     update_component_in_symbol_lib_file,
 )
@@ -224,7 +222,7 @@ class EasyEDAImporter:
                     return False
 
                 symbol_content_to_add = upgraded_symbol_lib[
-                    symbol_start : upgraded_symbol_lib.rfind(")")
+                    symbol_start:upgraded_symbol_lib.rfind(")")
                 ].strip()
 
                 last_paren_pos = upgraded_existing_lib.rfind(")")

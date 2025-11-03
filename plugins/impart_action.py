@@ -27,7 +27,7 @@ def quick_instance_check(port: int = 59999) -> bool:
         client_socket.connect(("127.0.0.1", port))
         client_socket.close()
         return True
-    except:
+    except (socket.error, socket.timeout, ConnectionRefusedError, OSError):
         return False
 
 
@@ -60,34 +60,34 @@ try:
     import wx
 
     logging.info("Successfully imported wx module")
-except Exception as e:
+except Exception:
     logging.exception("Failed to import wx module")
     raise
 
 try:
     # Try relative imports first (when run as module)
-    from .ConfigHandler import ConfigHandler
-    from .FileHandler import FileHandler
-    from .impart_gui import impartGUI
-    from .impart_migration import convert_lib_list, find_old_lib_files
-    from .KiCad_Settings import KiCad_Settings
-    from .KiCadImport import LibImporter
-    from .KiCadSettingsPaths import KiCadApp
-    from .single_instance_manager import SingleInstanceManager
+    from .ConfigHandler import ConfigHandler  # type: ignore[attr-defined]
+    from .FileHandler import FileHandler  # type: ignore[attr-defined]
+    from .impart_gui import impartGUI  # type: ignore[attr-defined]
+    from .impart_migration import convert_lib_list, find_old_lib_files  # type: ignore[attr-defined]
+    from .KiCad_Settings import KiCad_Settings  # type: ignore[attr-defined]
+    from .KiCadImport import LibImporter  # type: ignore[attr-defined]
+    from .KiCadSettingsPaths import KiCadApp  # type: ignore[attr-defined]
+    from .single_instance_manager import SingleInstanceManager  # type: ignore[attr-defined]
 
     logging.info("Successfully imported all local modules using relative imports")
 
 except ImportError as e1:
     try:
         # Fallback to absolute imports (when run as script)
-        from ConfigHandler import ConfigHandler
-        from FileHandler import FileHandler
-        from impart_gui import impartGUI
-        from impart_migration import convert_lib_list, find_old_lib_files
-        from KiCad_Settings import KiCad_Settings
-        from KiCadImport import LibImporter
-        from KiCadSettingsPaths import KiCadApp
-        from single_instance_manager import SingleInstanceManager
+        from ConfigHandler import ConfigHandler  # type: ignore[import-not-found,no-redef]
+        from FileHandler import FileHandler  # type: ignore[import-not-found,no-redef]
+        from impart_gui import impartGUI  # type: ignore[import-not-found,no-redef]
+        from impart_migration import convert_lib_list, find_old_lib_files  # type: ignore[import-not-found,no-redef]
+        from KiCad_Settings import KiCad_Settings  # type: ignore[import-not-found,no-redef]
+        from KiCadImport import LibImporter  # type: ignore[import-not-found,no-redef]
+        from KiCadSettingsPaths import KiCadApp  # type: ignore[import-not-found,no-redef]
+        from single_instance_manager import SingleInstanceManager  # type: ignore[import-not-found,no-redef]
 
         logging.info("Successfully imported all local modules using absolute imports")
 
@@ -200,12 +200,12 @@ class ImpartBackend:
 
             self.importer = LibImporter()
             # Create a wrapper function that matches the expected signature
-            self.importer.print = lambda txt: self.print_to_buffer(txt)
+            self.importer.print = lambda txt: self.print_to_buffer(txt)  # type: ignore[method-assign]
 
             logging.info("Successfully initialized all backend components")
             logging.info(f"KiCad settings path: {self.kicad_settings.SettingPath}")
 
-        except Exception as e:
+        except Exception:
             logging.exception("Failed to initialize backend components")
             raise
 
@@ -760,10 +760,10 @@ class ImpartFrontend(impartGUI):
     def _perform_easyeda_import(self) -> None:
         """Perform EasyEDA component import."""
         try:
-            from .impart_easyeda import ImportConfig, import_easyeda_component
+            from .impart_easyeda import ImportConfig, import_easyeda_component  # type: ignore[attr-defined]
         except ImportError:
             try:
-                from impart_easyeda import ImportConfig, import_easyeda_component
+                from impart_easyeda import ImportConfig, import_easyeda_component  # type: ignore[import-not-found,no-redef]
             except ImportError as e:
                 error_msg = f"Failed to import EasyEDA module: {e}\n\nThis usually means easyeda2kicad is not properly installed or has missing dependencies."
                 self.backend.print_to_buffer(error_msg)
@@ -821,7 +821,7 @@ class ImpartFrontend(impartGUI):
         component_id = self.m_textCtrl2.GetValue().strip()
 
         try:
-            paths = import_easyeda_component(
+            _ = import_easyeda_component(
                 component_id=component_id,
                 config=config,
                 print_func=self.backend.print_to_buffer,
@@ -955,7 +955,7 @@ def create_backend_handler():
         backend = ImpartBackend()
         logging.info("Created new backend handler")
         return backend
-    except Exception as e:
+    except Exception:
         logging.exception("Failed to create backend handler")
         raise
 
@@ -982,7 +982,7 @@ if __name__ == "__main__":
         frontend.Destroy()
         logging.info("Application finished successfully")
 
-    except Exception as e:
+    except Exception:
         logging.exception("Failed to run standalone application")
         raise
     finally:

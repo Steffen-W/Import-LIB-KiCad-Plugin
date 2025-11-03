@@ -56,9 +56,14 @@ class kicad_cli:
         self.logger.info(f"Executing: {' '.join(full_command)}")
 
         try:
-            creation_flags = (
-                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            )
+            # Windows-specific flag to hide console window
+            creation_flags = 0
+            if sys.platform == "win32":
+                try:
+                    creation_flags = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
+                except AttributeError:
+                    # Fallback for older Python versions on Windows
+                    creation_flags = 0x08000000  # CREATE_NO_WINDOW constant
 
             # Set LANG to English to ensure consistent output
             env = os.environ.copy()
@@ -118,9 +123,14 @@ class kicad_cli:
     def exists(self) -> bool:
         """Check if KiCad CLI exists and meets minimum version requirements."""
         try:
-            creation_flags = (
-                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            )
+            # Windows-specific flag to hide console window
+            creation_flags = 0
+            if sys.platform == "win32":
+                try:
+                    creation_flags = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
+                except AttributeError:
+                    # Fallback for older Python versions on Windows
+                    creation_flags = 0x08000000  # CREATE_NO_WINDOW constant
 
             # Set LANG to English to ensure consistent output
             env = os.environ.copy()

@@ -1,5 +1,4 @@
 import logging
-import os
 from pathlib import Path
 from typing import List, Optional
 
@@ -27,7 +26,7 @@ class FileHandler:
         self.max_size = max_size
         self.file_extension = file_extension
         self.path = ""
-        self.known_files = set()  # Set is more efficient for membership checks
+        self.known_files: set[str] = set()  # Set is more efficient for membership checks
         self.logger = logging.getLogger(__name__)
 
         self.change_path(path)

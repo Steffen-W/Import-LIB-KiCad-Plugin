@@ -24,6 +24,8 @@ class SingleInstanceManager:
         self.server_thread: Optional[threading.Thread] = None
         self.running = False
         self.frontend_instance: Optional[Any] = None
+        self._stopped: bool = False
+        self._stopping: bool = False
 
     def is_already_running(self) -> bool:
         """Check if another instance is running and send focus command."""
@@ -40,7 +42,7 @@ class SingleInstanceManager:
             try:
                 client_socket.settimeout(1.0)
                 response = client_socket.recv(64)
-                logging.debug(f"Received response: {response}")
+                logging.debug(f"Received response: {response.decode('utf-8', errors='replace')}")
             except socket.timeout:
                 pass  # No response is OK
 
@@ -129,7 +131,7 @@ class SingleInstanceManager:
                 if client_socket:
                     try:
                         client_socket.close()
-                    except:
+                    except (socket.error, OSError):
                         pass
 
     def _handle_command(self, message: dict) -> None:

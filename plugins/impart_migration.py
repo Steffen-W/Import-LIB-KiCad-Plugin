@@ -5,12 +5,12 @@ from typing import Union
 logger = logging.getLogger(__name__)
 
 try:
-    from .kicad_cli import kicad_cli
+    from .kicad_cli import kicad_cli as KicadCli  # type: ignore[attr-defined]
 except ImportError:
-    from kicad_cli import kicad_cli
+    from kicad_cli import kicad_cli as KicadCli  # type: ignore[import-not-found,no-redef]
 
 try:
-    cli: kicad_cli | None = kicad_cli()
+    cli: KicadCli | None = KicadCli()
     logger.info("✓ kicad_cli initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize kicad_cli: {e}")
@@ -20,10 +20,10 @@ except Exception as e:
 def find_old_lib_files(
     folder_path: Union[str, Path],
     libs: list[str] = ["Octopart", "Samacsys", "UltraLibrarian", "Snapeda", "EasyEDA"],
-) -> dict:
+) -> dict[str, dict[str, Path]]:
 
     folder_path = Path(folder_path).expanduser()
-    found_files = {}
+    found_files: dict[str, dict[str, Path]] = {}
 
     if not folder_path.exists():
         return found_files
@@ -38,6 +38,7 @@ def find_old_lib_files(
         for lib in libs:
             if file.name.startswith(lib):
 
+                entry: dict[str, Path]
                 if lib in found_files:
                     entry = found_files[lib]
                 else:

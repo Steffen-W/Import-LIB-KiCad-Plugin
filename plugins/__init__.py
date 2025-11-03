@@ -57,8 +57,6 @@ def setup_logging():
 
 def cleanup_logging():
     """Clean up logging resources"""
-    global logger, log_handler
-
     try:
         if log_handler:
             log_handler.close()
