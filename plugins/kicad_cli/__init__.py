@@ -60,7 +60,7 @@ class kicad_cli:
             creation_flags = 0
             if sys.platform == "win32":
                 try:
-                    creation_flags = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
+                    creation_flags = subprocess.CREATE_NO_WINDOW
                 except AttributeError:
                     # Fallback for older Python versions on Windows
                     creation_flags = 0x08000000  # CREATE_NO_WINDOW constant
@@ -127,7 +127,7 @@ class kicad_cli:
             creation_flags = 0
             if sys.platform == "win32":
                 try:
-                    creation_flags = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
+                    creation_flags = subprocess.CREATE_NO_WINDOW
                 except AttributeError:
                     # Fallback for older Python versions on Windows
                     creation_flags = 0x08000000  # CREATE_NO_WINDOW constant

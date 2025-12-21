@@ -28,17 +28,17 @@ from kiutils.items.common import Font, Position
 from kiutils.symbol import Effects, Property, SymbolLib
 
 try:
-    from .footprint_model_parser import FootprintModelParser  # type: ignore[attr-defined]
+    from .footprint_model_parser import FootprintModelParser
 except ImportError:
     from footprint_model_parser import FootprintModelParser  # type: ignore[import-not-found,no-redef]
 
 try:
-    from ..kicad_cli import kicad_cli as KicadCli  # type: ignore[attr-defined]
+    from ..kicad_cli import kicad_cli as KicadCli
 except ImportError:
     from kicad_cli import kicad_cli as KicadCli  # type: ignore[import-not-found,no-redef]
 
 try:
-    cli: KicadCli | None = KicadCli()
+    cli: Optional[KicadCli] = KicadCli()
     logger.info("✓ kicad_cli initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize kicad_cli: {e}")

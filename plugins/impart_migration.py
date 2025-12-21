@@ -1,16 +1,16 @@
 import logging
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
 try:
-    from .kicad_cli import kicad_cli as KicadCli  # type: ignore[attr-defined]
+    from .kicad_cli import kicad_cli as KicadCli
 except ImportError:
     from kicad_cli import kicad_cli as KicadCli  # type: ignore[import-not-found,no-redef]
 
 try:
-    cli: KicadCli | None = KicadCli()
+    cli: Optional[KicadCli] = KicadCli()
     logger.info("✓ kicad_cli initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize kicad_cli: {e}")

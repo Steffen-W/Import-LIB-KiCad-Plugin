@@ -2,6 +2,7 @@ import logging
 import platform
 import sys
 from pathlib import Path
+from typing import Optional
 
 import pcbnew
 
@@ -16,7 +17,7 @@ log_file = plugin_dir / "plugin_fallback.log"
 
 # Initialize logger immediately - it will be configured later in setup_logging()
 logger = logging.getLogger("impart_plugin")
-log_handler: logging.FileHandler | None = None
+log_handler: Optional[logging.FileHandler] = None
 
 
 def setup_logging():

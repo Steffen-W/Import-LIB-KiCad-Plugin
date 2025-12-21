@@ -66,14 +66,14 @@ except Exception:
 
 try:
     # Try relative imports first (when run as module)
-    from .ConfigHandler import ConfigHandler  # type: ignore[attr-defined]
-    from .FileHandler import FileHandler  # type: ignore[attr-defined]
-    from .impart_gui import impartGUI  # type: ignore[attr-defined]
-    from .impart_migration import convert_lib_list, find_old_lib_files  # type: ignore[attr-defined]
-    from .KiCad_Settings import KiCad_Settings  # type: ignore[attr-defined]
-    from .KiCadImport import LibImporter  # type: ignore[attr-defined]
-    from .KiCadSettingsPaths import KiCadApp  # type: ignore[attr-defined]
-    from .single_instance_manager import SingleInstanceManager  # type: ignore[attr-defined]
+    from .ConfigHandler import ConfigHandler
+    from .FileHandler import FileHandler
+    from .impart_gui import impartGUI
+    from .impart_migration import convert_lib_list, find_old_lib_files
+    from .KiCad_Settings import KiCad_Settings
+    from .KiCadImport import LibImporter
+    from .KiCadSettingsPaths import KiCadApp
+    from .single_instance_manager import SingleInstanceManager
 
     logging.info("Successfully imported all local modules using relative imports")
 
@@ -760,10 +760,13 @@ class ImpartFrontend(impartGUI):
     def _perform_easyeda_import(self) -> None:
         """Perform EasyEDA component import."""
         try:
-            from .impart_easyeda import ImportConfig, import_easyeda_component  # type: ignore[attr-defined]
+            from .impart_easyeda import ImportConfig, import_easyeda_component
         except ImportError:
             try:
-                from impart_easyeda import ImportConfig, import_easyeda_component  # type: ignore[import-not-found,no-redef]
+                from impart_easyeda import (  # type: ignore[import-not-found,no-redef]
+                    ImportConfig,
+                    import_easyeda_component,
+                )
             except ImportError as e:
                 error_msg = f"Failed to import EasyEDA module: {e}\n\nThis usually means easyeda2kicad is not properly installed or has missing dependencies."
                 self.backend.print_to_buffer(error_msg)

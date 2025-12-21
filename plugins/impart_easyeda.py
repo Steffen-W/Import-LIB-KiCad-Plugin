@@ -11,12 +11,12 @@ from typing import Callable, NamedTuple, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 try:
-    from .kicad_cli import kicad_cli as KicadCli  # type: ignore[attr-defined]
+    from .kicad_cli import kicad_cli as KicadCli
 except ImportError:
     from kicad_cli import kicad_cli as KicadCli  # type: ignore[import-not-found,no-redef]
 
 try:
-    cli: KicadCli | None = KicadCli()
+    cli: Optional[KicadCli] = KicadCli()
     logger.info("✓ kicad_cli initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize kicad_cli: {e}")
@@ -222,7 +222,7 @@ class EasyEDAImporter:
                     return False
 
                 symbol_content_to_add = upgraded_symbol_lib[
-                    symbol_start:upgraded_symbol_lib.rfind(")")
+                    symbol_start : upgraded_symbol_lib.rfind(")")
                 ].strip()
 
                 last_paren_pos = upgraded_existing_lib.rfind(")")

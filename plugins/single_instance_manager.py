@@ -42,7 +42,9 @@ class SingleInstanceManager:
             try:
                 client_socket.settimeout(1.0)
                 response = client_socket.recv(64)
-                logging.debug(f"Received response: {response.decode('utf-8', errors='replace')}")
+                logging.debug(
+                    f"Received response: {response.decode('utf-8', errors='replace')}"
+                )
             except socket.timeout:
                 pass  # No response is OK
 
