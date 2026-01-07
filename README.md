@@ -198,6 +198,28 @@ If you notice an error then please write me an issue. If you want to change the 
 
 <a href="https://ko-fi.com/steffenw1" target="_blank"><img src="https://storage.ko-fi.com/cdn/brandasset/kofi_button_stroke.png" alt="Support via Ko-fi" height="30"></a>
 
+## Development Setup
+
+### Building the KiCad Plugin Package
+
+```bash
+# Clone repository with submodules
+git clone --recurse-submodules https://github.com/Steffen-W/Import-LIB-KiCad-Plugin.git
+cd Import-LIB-KiCad-Plugin
+
+# Update to latest changes (including submodules)
+git pull --recurse-submodules
+git submodule update --remote --merge
+
+# Generate KiCad plugin ZIP file
+./generate_zip.sh
+```
+
+**The `generate_zip.sh` script:**
+- Updates version in `metadata.json` with current date
+- Packages only essential files (excludes dev files, caches, etc.)
+- Creates `Import-LIB-KiCad-Plugin.zip` ready for KiCad Plugin Manager
+
 ## Many thanks to
 
 [wexi with impart](https://github.com/wexi/impart) and [topherbuckley](https://github.com/topherbuckley/kicad_remote_import) for the code on which the GUI is based.
