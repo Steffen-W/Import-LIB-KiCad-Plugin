@@ -38,7 +38,9 @@ Provided that the paths have been [added correctly in KiCad](#including-the-impo
 
 ## Including the imported libraries in KiCad
 
-To use the imported libraries from the plugin, you will need to add a couple entries to KiCad's path first to see them. You can either let the plugin make the changes automatically (auto KiCad setting) or set the following changes manually in KiCad.
+⚠️ **IMPORTANT:** Before using the plugin, you must manually configure the library paths in KiCad. The automatic configuration option may not work reliably in all cases.
+
+**Step 1: Configure Environment Variable**
 
 **Preferences** -> **Configure paths** -> **Environment Variables** -> Add the following entry
 
@@ -46,8 +48,11 @@ To use the imported libraries from the plugin, you will need to add a couple ent
 | --------------- | --------------------------- |
 | KICAD_3RD_PARTY | **YourLibraryFolder**/KiCad |
 
+**Step 2: Add Symbol Libraries**
+
 **Preferences** -> **Manage Symbol Libraries** -> **Global Libraries** -> Add the following entries
-**(Note: Errors will show up if components weren't imported yet. The errors will disappear after importing as libraries will be created)**
+
+**Note:** Add only the libraries you plan to use. Errors will appear if you add libraries that don't exist yet - they will be created automatically when you import your first component from that source.
 
 | Active             | Visible            | Nickname       | Library Path                                | Library Format |
 | ------------------ | ------------------ | -------------- | ------------------------------------------- | -------------- |
@@ -56,8 +61,11 @@ To use the imported libraries from the plugin, you will need to add a couple ent
 | :heavy_check_mark: | :heavy_check_mark: | UltraLibrarian | ${KICAD_3RD_PARTY}/UltraLibrarian.kicad_sym | KiCad          |
 | :heavy_check_mark: | :heavy_check_mark: | EasyEDA        | ${KICAD_3RD_PARTY}/EasyEDA.kicad_sym        | KiCad          |
 
+**Step 3: Add Footprint Libraries**
+
 **Preferences** -> **Manage Footprint Libraries** -> **Global Libraries** -> Add the following entries
-**(Note: It is best to add the library only after the import has been done with the plugin. Afterwards only the created libraries have to be imported. Lower entries are only for example.)**
+
+**Note:** Add only the libraries you plan to use. As with symbol libraries, errors will appear until you import your first component.
 
 | Active             | Nickname       | Library Path                             | Library Format |
 | ------------------ | -------------- | ---------------------------------------- | -------------- |
@@ -65,6 +73,14 @@ To use the imported libraries from the plugin, you will need to add a couple ent
 | :heavy_check_mark: | Snapeda        | ${KICAD_3RD_PARTY}/Snapeda.pretty        | KiCad          |
 | :heavy_check_mark: | UltraLibrarian | ${KICAD_3RD_PARTY}/UltraLibrarian.pretty | KiCad          |
 | :heavy_check_mark: | EasyEDA        | ${KICAD_3RD_PARTY}/EasyEDA.pretty        | KiCad          |
+
+**Step 4: Restart KiCad**
+
+After adding the library paths, **restart KiCad** to ensure all settings are properly loaded.
+
+---
+
+**About the "auto KiCad setting" option:** While the plugin offers an automatic configuration option, it may not work reliably in all KiCad versions or configurations. If you encounter errors like "Failed to add library automatically", follow the manual steps above instead.
 
 ## Migrate the libraries
 
