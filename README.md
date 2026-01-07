@@ -1,8 +1,8 @@
 ![Static Badge](https://img.shields.io/badge/Supports_KiCad-v6%2C_v7%2C_v8%2C_v9-%23314cb0)
 ![Static Badge](https://img.shields.io/badge/Supports-Windows%2C_Mac%2C_Linux-Green)
 
-[![Static Badge](https://img.shields.io/badge/Samacsys-Works_(Component_Search_Engine)-1e8449)](https://componentsearchengine.com/)
-[![Static Badge](https://img.shields.io/badge/SnapEDA-Works_(v4%2C_v6)-27ae60)](https://www.snapeda.com/home/)
+[![Static Badge](<https://img.shields.io/badge/Samacsys-Works_(Component_Search_Engine)-1e8449>)](https://componentsearchengine.com/)
+[![Static Badge](<https://img.shields.io/badge/SnapEDA-Works_(v4%2C_v6)-27ae60>)](https://www.snapeda.com/home/)
 [![Static Badge](https://img.shields.io/badge/UltraLibrarian-Works-229954)](https://app.ultralibrarian.com/search)
 [![Static Badge](https://img.shields.io/badge/Octopart-Works-52be80)](https://octopart.com/)
 [![Static Badge](https://img.shields.io/badge/LCSC--EasyEDA-Works-008000)](https://www.lcsc.com/)
@@ -14,7 +14,7 @@
 
 This plugin allows importing downloaded libraries from the platforms [Octopart](https://octopart.com/), [Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search), [Snapeda](https://www.snapeda.com/home/) and [EasyEDA](https://www.lcsc.com/). It can import symbols, footprints, descriptions, and if available, 3D files. Normally, when you select the imported symbol in KiCad, the appropriate footprint and the 3D file should also be linked. Provided, of course, that the libraries have been included as specified below.
 
-[![SC2 Video](doc/demo.gif)]([https://youtu.be/cdOKDY-F4ZU](https://youtu.be/VrWPPHtCovQ))
+[![SC2 Video](doc/demo.gif)](<[https://youtu.be/cdOKDY-F4ZU](https://youtu.be/VrWPPHtCovQ)>)
 
 [YouTube - Instructions for installation and use](https://youtu.be/BYIKjCs1qKQ)
 
@@ -42,29 +42,29 @@ To use the imported libraries from the plugin, you will need to add a couple ent
 
 **Preferences** -> **Configure paths** -> **Environment Variables** -> Add the following entry
 
-|Name            |Path    |
-|----------------|--------|
-|KICAD_3RD_PARTY |**YourLibraryFolder**/KiCad |
+| Name            | Path                        |
+| --------------- | --------------------------- |
+| KICAD_3RD_PARTY | **YourLibraryFolder**/KiCad |
 
 **Preferences** -> **Manage Symbol Libraries** -> **Global Libraries** -> Add the following entries
 **(Note: Errors will show up if components weren't imported yet. The errors will disappear after importing as libraries will be created)**
 
-|Active            |Visible           |Nickname       |Library Path                                 | Library Format |
-|------------------|------------------|---------------|---------------------------------------------|----------------|
-|:heavy_check_mark:|:heavy_check_mark:|Samacsys       |${KICAD_3RD_PARTY}/Samacsys.kicad_sym        | KiCad          |
-|:heavy_check_mark:|:heavy_check_mark:|Snapeda        |${KICAD_3RD_PARTY}/Snapeda.kicad_sym         | KiCad          |
-|:heavy_check_mark:|:heavy_check_mark:|UltraLibrarian |${KICAD_3RD_PARTY}/UltraLibrarian.kicad_sym  | KiCad          |
-|:heavy_check_mark:|:heavy_check_mark:|EasyEDA        |${KICAD_3RD_PARTY}/EasyEDA.kicad_sym         | KiCad          |
+| Active             | Visible            | Nickname       | Library Path                                | Library Format |
+| ------------------ | ------------------ | -------------- | ------------------------------------------- | -------------- |
+| :heavy_check_mark: | :heavy_check_mark: | Samacsys       | ${KICAD_3RD_PARTY}/Samacsys.kicad_sym       | KiCad          |
+| :heavy_check_mark: | :heavy_check_mark: | Snapeda        | ${KICAD_3RD_PARTY}/Snapeda.kicad_sym        | KiCad          |
+| :heavy_check_mark: | :heavy_check_mark: | UltraLibrarian | ${KICAD_3RD_PARTY}/UltraLibrarian.kicad_sym | KiCad          |
+| :heavy_check_mark: | :heavy_check_mark: | EasyEDA        | ${KICAD_3RD_PARTY}/EasyEDA.kicad_sym        | KiCad          |
 
 **Preferences** -> **Manage Footprint Libraries** -> **Global Libraries** -> Add the following entries
 **(Note: It is best to add the library only after the import has been done with the plugin. Afterwards only the created libraries have to be imported. Lower entries are only for example.)**
 
-|Active             |Nickname       |Library Path                             | Library Format|
-|-------------------|---------------|-----------------------------------------|---------------|
-|:heavy_check_mark: |Samacsys       | ${KICAD_3RD_PARTY}/Samacsys.pretty      | KiCad         |
-|:heavy_check_mark: |Snapeda        | ${KICAD_3RD_PARTY}/Snapeda.pretty       | KiCad         |
-|:heavy_check_mark: |UltraLibrarian | ${KICAD_3RD_PARTY}/UltraLibrarian.pretty| KiCad         |
-|:heavy_check_mark: |EasyEDA        | ${KICAD_3RD_PARTY}/EasyEDA.pretty       | KiCad         |
+| Active             | Nickname       | Library Path                             | Library Format |
+| ------------------ | -------------- | ---------------------------------------- | -------------- |
+| :heavy_check_mark: | Samacsys       | ${KICAD_3RD_PARTY}/Samacsys.pretty       | KiCad          |
+| :heavy_check_mark: | Snapeda        | ${KICAD_3RD_PARTY}/Snapeda.pretty        | KiCad          |
+| :heavy_check_mark: | UltraLibrarian | ${KICAD_3RD_PARTY}/UltraLibrarian.pretty | KiCad          |
+| :heavy_check_mark: | EasyEDA        | ${KICAD_3RD_PARTY}/EasyEDA.pretty        | KiCad          |
 
 ## Migrate the libraries
 
@@ -82,7 +82,7 @@ Depending on the setup, further changes may be necessary. You will be notified i
 
 ## CLI Support
 
-The import process can also be done completely without the GUI. ```python -m plugins.KiCadImport -h```
+The import process can also be done completely without the GUI. `python -m plugins.KiCadImport -h`
 
 ```bash
 usage: __main__.py [-h] (--download-folder DOWNLOAD_FOLDER | --download-file DOWNLOAD_FILE | --easyeda EASYEDA) --lib-folder LIB_FOLDER [--overwrite-if-exists] [--path-variable PATH_VARIABLE]
@@ -134,17 +134,6 @@ If the **KiCad IPC API** is not available or activated, the plugin will automati
 
 **To activate the KiCad IPC API (recommended):**
 **KiCad** -> **Settings** -> **Plugins** -> **Activate KiCad API**
-
-**If using the fallback solution:**
-
-- A setup dialog will appear on first run
-- Click **Start Integration** to manually install required dependencies
-- Dependencies (pydantic, requests) will be installed in a separate virtual environment
-- Setup only needs to be done once
-
-![Fallback Setup](doc/fallback_setup.png)
-
-The fallback solution provides the same functionality but requires manual dependency setup and may have slower startup times. Using the KiCad IPC API is recommended for optimal performance and automatic dependency management.
 
 ## Warranty
 
@@ -216,6 +205,7 @@ git submodule update --remote --merge
 ```
 
 **The `generate_zip.sh` script:**
+
 - Updates version in `metadata.json` with current date
 - Packages only essential files (excludes dev files, caches, etc.)
 - Creates `Import-LIB-KiCad-Plugin.zip` ready for KiCad Plugin Manager
