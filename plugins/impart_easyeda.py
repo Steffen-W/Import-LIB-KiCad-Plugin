@@ -74,6 +74,7 @@ class ImportConfig:
     lib_name: str = "EasyEDA"
     overwrite: bool = False
     lib_var: str = "${EASYEDA2KICAD}"
+    prefer_step: bool = False
 
 
 class EasyEDAImporter:
@@ -303,7 +304,7 @@ class EasyEDAImporter:
             logger.error(f"Symbol library integration failed: {e}")
             return False
 
-    def _import_footprint(self, cad_data: dict) -> Optional[Path]:
+    def _import_footprint(self, cad_data: dict, use_step: bool = False) -> Optional[Path]:
         """Import footprint and return the file path"""
         try:
             importer = EasyedaFootprintImporter(easyeda_cp_cad_data=cad_data)
@@ -323,6 +324,7 @@ class EasyEDAImporter:
             exporter.export(
                 footprint_full_path=str(footprint_file),
                 model_3d_path=model_3d_path,
+                model_3d_extension="step" if use_step else "wrl",
             )
 
             self._print(f"Created footprint: {footprint_file.name}")
@@ -405,10 +407,11 @@ class EasyEDAImporter:
                 self._print(error_msg)
                 raise RuntimeError(error_msg)
 
-            # Import all parts
+            # Import all parts (3D model first to know if STEP is available)
             symbol_ok, component_name = self._import_symbol(cad_data)
-            footprint_path = self._import_footprint(cad_data)
             wrl_path, step_path = self._import_3d_model(cad_data)
+            use_step = self.config.prefer_step and step_path is not None
+            footprint_path = self._import_footprint(cad_data, use_step=use_step)
 
             # Prepare result
             result = ImportPaths(

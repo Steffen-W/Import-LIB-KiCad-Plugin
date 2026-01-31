@@ -104,7 +104,7 @@ class LibImporter:
     def print(self, txt):
         print("->" + txt)
 
-    def __init__(self):
+    def __init__(self, prefer_step: bool = False):
         self.KICAD_3RD_PARTY_LINK: str = "${KICAD_3RD_PARTY}"
         self.DEST_PATH = Path.home() / "KiCad"
         self.dcm_skipped = False
@@ -113,6 +113,7 @@ class LibImporter:
         self.model_skipped = False
         self.footprint_name = None
         self.footprint_parser = FootprintModelParser()
+        self.prefer_step = prefer_step
 
     def set_DEST_PATH(self, DEST_PATH_=Path.home() / "KiCad"):
         self.DEST_PATH = Path(DEST_PATH_)
@@ -427,11 +428,16 @@ class LibImporter:
             return (None, None)
 
     def update_footprint_with_model(
-        self, footprint_file: Path, model_name: str, remote_type: REMOTE_TYPES
+        self, footprint_file: Path, model_name: str, remote_type: REMOTE_TYPES, step_available: bool = False
     ) -> bool:
         """Update footprint file with model using string manipulation"""
         if not footprint_file.exists():
             return False
+
+        # If prefer_step and step is available, use .step extension
+        if self.prefer_step and step_available:
+            model_name_path = Path(model_name)
+            model_name = model_name_path.stem + ".step"
 
         model_path = (
             f"{self.KICAD_3RD_PARTY_LINK}/{remote_type.name}.3dshapes/{model_name}"
@@ -645,8 +651,9 @@ class LibImporter:
 
                     # Update footprint with model reference
                     if footprint_file_path and footprint_file_path.exists():
+                        step_available = model_path.suffix.lower() in (".step", ".stp")
                         model_update_success = self.update_footprint_with_model(
-                            footprint_file_path, model_path.name, remote_type
+                            footprint_file_path, model_path.name, remote_type, step_available
                         )
                         if not model_update_success:
                             logger.warning(
@@ -850,7 +857,7 @@ class LibImporter:
 
 
 def main(
-    lib_file, lib_folder, overwrite=False, KICAD_3RD_PARTY_LINK="${KICAD_3RD_PARTY}"
+    lib_file, lib_folder, overwrite=False, KICAD_3RD_PARTY_LINK="${KICAD_3RD_PARTY}", prefer_step=False
 ):
     lib_folder = Path(lib_folder)
     lib_file = Path(lib_file)
@@ -868,7 +875,7 @@ def main(
         print(f"Error file {lib_folder} to be imported was not found!")
         return 0
 
-    impart = LibImporter()
+    impart = LibImporter(prefer_step=prefer_step)
     impart.KICAD_3RD_PARTY_LINK = KICAD_3RD_PARTY_LINK
     impart.set_DEST_PATH(lib_folder)
     try:

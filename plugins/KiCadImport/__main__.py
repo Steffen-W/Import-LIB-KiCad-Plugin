@@ -50,6 +50,12 @@ if __name__ == "__main__":
         help="Example: if only project-specific '${KIPRJMOD}' standard is '${KICAD_3RD_PARTY}'",
     )
 
+    parser.add_argument(
+        "--prefer-step",
+        action="store_true",
+        help="Use STEP instead of WRL as the 3D model reference in footprints (falls back to WRL if no STEP available)",
+    )
+
     args = parser.parse_args()
 
     lib_folder = Path(args.lib_folder)
@@ -65,6 +71,7 @@ if __name__ == "__main__":
             lib_folder=args.lib_folder,
             overwrite=args.overwrite_if_exists,
             KICAD_3RD_PARTY_LINK=path_variable,
+            prefer_step=args.prefer_step,
         )
     elif args.download_folder:
         download_folder = Path(args.download_folder)
@@ -87,6 +94,7 @@ if __name__ == "__main__":
                         lib_folder=args.lib_folder,
                         overwrite=args.overwrite_if_exists,
                         KICAD_3RD_PARTY_LINK=path_variable,
+                        prefer_step=args.prefer_step,
                     )
                 else:
                     logger.warning(f"Skipping {zip_file}: too small or not a file")
@@ -106,6 +114,7 @@ if __name__ == "__main__":
                     lib_name="EasyEDA",
                     overwrite=args.overwrite_if_exists,
                     lib_var=path_variable,
+                    prefer_step=args.prefer_step,
                 )
 
                 logger.debug(f"EasyEDA config: {config}")
