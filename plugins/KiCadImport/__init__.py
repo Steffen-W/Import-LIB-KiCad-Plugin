@@ -104,7 +104,7 @@ class LibImporter:
     def print(self, txt):
         print("->" + txt)
 
-    def __init__(self, prefer_step: bool = False):
+    def __init__(self, prefer_step: bool = False, lib_name: Optional[str] = None):
         self.KICAD_3RD_PARTY_LINK: str = "${KICAD_3RD_PARTY}"
         self.DEST_PATH = Path.home() / "KiCad"
         self.dcm_skipped = False
@@ -114,9 +114,14 @@ class LibImporter:
         self.footprint_name = None
         self.footprint_parser = FootprintModelParser()
         self.prefer_step = prefer_step
+        self.lib_name = lib_name
 
     def set_DEST_PATH(self, DEST_PATH_=Path.home() / "KiCad"):
         self.DEST_PATH = Path(DEST_PATH_)
+
+    def get_lib_name(self, remote_type: REMOTE_TYPES) -> str:
+        """Get effective library name - custom name if set, otherwise remote type name"""
+        return self.lib_name if self.lib_name else remote_type.name
 
     def cleanName(self, name):
         invalid = '<>:"/\\|?* '
@@ -428,7 +433,11 @@ class LibImporter:
             return (None, None)
 
     def update_footprint_with_model(
-        self, footprint_file: Path, model_name: str, remote_type: REMOTE_TYPES, step_available: bool = False
+        self,
+        footprint_file: Path,
+        model_name: str,
+        remote_type: REMOTE_TYPES,
+        step_available: bool = False,
     ) -> bool:
         """Update footprint file with model using string manipulation"""
         if not footprint_file.exists():
@@ -439,9 +448,8 @@ class LibImporter:
             model_name_path = Path(model_name)
             model_name = model_name_path.stem + ".step"
 
-        model_path = (
-            f"{self.KICAD_3RD_PARTY_LINK}/{remote_type.name}.3dshapes/{model_name}"
-        )
+        lib_name = self.get_lib_name(remote_type)
+        model_path = f"{self.KICAD_3RD_PARTY_LINK}/{lib_name}.3dshapes/{model_name}"
 
         try:
             content = footprint_file.read_text(encoding="utf-8")
@@ -474,12 +482,11 @@ class LibImporter:
                     footprint_prop = prop
                     break
 
+            lib_name = self.get_lib_name(remote_type)
             if footprint_prop:
                 # Update the footprint reference with library prefix
                 old_value = footprint_prop.value
-                footprint_prop.value = (
-                    f"{remote_type.name}:{self.cleanName(footprint_name)}"
-                )
+                footprint_prop.value = f"{lib_name}:{self.cleanName(footprint_name)}"
                 logger.debug(
                     f"Updated footprint property: {old_value} -> {footprint_prop.value}"
                 )
@@ -487,7 +494,7 @@ class LibImporter:
                 # Add footprint property if it doesn't exist
                 new_prop = Property(
                     key="Footprint",
-                    value=f"{remote_type.name}:{self.cleanName(footprint_name)}",
+                    value=f"{lib_name}:{self.cleanName(footprint_name)}",
                     id=0,  # Will be assigned by kiutils
                     position=Position(0, 0),
                     effects=Effects(
@@ -523,9 +530,11 @@ class LibImporter:
         backup_files = {}  # Track backup files for rollback
 
         try:
+            lib_name = self.get_lib_name(remote_type)
+
             # 1. Save symbol library with atomic write
             if symbol_lib:
-                lib_file_path = self.DEST_PATH / f"{remote_type.name}.kicad_sym"
+                lib_file_path = self.DEST_PATH / f"{lib_name}.kicad_sym"
 
                 # Create backup if file exists
                 backup_path = None
@@ -624,7 +633,7 @@ class LibImporter:
 
             # 3. Save 3D model
             if model_path:
-                model_dir = self.DEST_PATH / f"{remote_type.name}.3dshapes"
+                model_dir = self.DEST_PATH / f"{lib_name}.3dshapes"
                 if not model_dir.exists():
                     model_dir.mkdir(parents=True, exist_ok=True)
                     modified_objects.append(model_dir, Modification.MKDIR)
@@ -653,7 +662,10 @@ class LibImporter:
                     if footprint_file_path and footprint_file_path.exists():
                         step_available = model_path.suffix.lower() in (".step", ".stp")
                         model_update_success = self.update_footprint_with_model(
-                            footprint_file_path, model_path.name, remote_type, step_available
+                            footprint_file_path,
+                            model_path.name,
+                            remote_type,
+                            step_available,
                         )
                         if not model_update_success:
                             logger.warning(
@@ -689,7 +701,7 @@ class LibImporter:
                         )
 
             # Clean up any remaining temporary files
-            for pattern in [f"{remote_type.name}.kicad_sym.tmp", "*.tmp"]:
+            for pattern in [f"{lib_name}.kicad_sym.tmp", "*.tmp"]:
                 for temp_file in self.DEST_PATH.glob(pattern):
                     if temp_file.exists():
                         temp_file.unlink(missing_ok=True)
@@ -740,7 +752,9 @@ class LibImporter:
                 # Handle footprint - extract directly to destination
                 footprint_file_path = None
                 if files["footprint"]:
-                    footprint_dir = self.DEST_PATH / f"{remote_type.name}.pretty"
+                    footprint_dir = (
+                        self.DEST_PATH / f"{self.get_lib_name(remote_type)}.pretty"
+                    )
                     if not footprint_dir.exists():
                         footprint_dir.mkdir(parents=True, exist_ok=True)
                         modified_objects.append(footprint_dir, Modification.MKDIR)
@@ -857,7 +871,12 @@ class LibImporter:
 
 
 def main(
-    lib_file, lib_folder, overwrite=False, KICAD_3RD_PARTY_LINK="${KICAD_3RD_PARTY}", prefer_step=False
+    lib_file,
+    lib_folder,
+    overwrite=False,
+    KICAD_3RD_PARTY_LINK="${KICAD_3RD_PARTY}",
+    prefer_step=False,
+    lib_name=None,
 ):
     lib_folder = Path(lib_folder)
     lib_file = Path(lib_file)
@@ -875,7 +894,7 @@ def main(
         print(f"Error file {lib_folder} to be imported was not found!")
         return 0
 
-    impart = LibImporter(prefer_step=prefer_step)
+    impart = LibImporter(prefer_step=prefer_step, lib_name=lib_name)
     impart.KICAD_3RD_PARTY_LINK = KICAD_3RD_PARTY_LINK
     impart.set_DEST_PATH(lib_folder)
     try:

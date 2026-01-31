@@ -56,6 +56,11 @@ if __name__ == "__main__":
         help="Use STEP instead of WRL as the 3D model reference in footprints (falls back to WRL if no STEP available)",
     )
 
+    parser.add_argument(
+        "--lib-name",
+        help="Use a custom library name for all imports (e.g., 'Custom' instead of Samacsys/Snapeda/EasyEDA)",
+    )
+
     args = parser.parse_args()
 
     lib_folder = Path(args.lib_folder)
@@ -72,6 +77,7 @@ if __name__ == "__main__":
             overwrite=args.overwrite_if_exists,
             KICAD_3RD_PARTY_LINK=path_variable,
             prefer_step=args.prefer_step,
+            lib_name=args.lib_name,
         )
     elif args.download_folder:
         download_folder = Path(args.download_folder)
@@ -95,6 +101,7 @@ if __name__ == "__main__":
                         overwrite=args.overwrite_if_exists,
                         KICAD_3RD_PARTY_LINK=path_variable,
                         prefer_step=args.prefer_step,
+                        lib_name=args.lib_name,
                     )
                 else:
                     logger.warning(f"Skipping {zip_file}: too small or not a file")
@@ -111,7 +118,7 @@ if __name__ == "__main__":
             try:
                 config = ImportConfig(
                     base_folder=lib_folder,
-                    lib_name="EasyEDA",
+                    lib_name=args.lib_name or "EasyEDA",
                     overwrite=args.overwrite_if_exists,
                     lib_var=path_variable,
                     prefer_step=args.prefer_step,

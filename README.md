@@ -98,10 +98,17 @@ Depending on the setup, further changes may be necessary. You will be notified i
 
 ## CLI Support
 
-The import process can also be done completely without the GUI. `python -m plugins.KiCadImport -h`
+The import process can also be done completely without the GUI. Run from the `plugins` directory:
 
 ```bash
-usage: __main__.py [-h] (--download-folder DOWNLOAD_FOLDER | --download-file DOWNLOAD_FILE | --easyeda EASYEDA) --lib-folder LIB_FOLDER [--overwrite-if-exists] [--path-variable PATH_VARIABLE]
+cd plugins
+python -m KiCadImport -h
+```
+
+```bash
+usage: __main__.py [-h] (--download-folder DOWNLOAD_FOLDER | --download-file DOWNLOAD_FILE | --easyeda EASYEDA)
+                   --lib-folder LIB_FOLDER [--overwrite-if-exists] [--path-variable PATH_VARIABLE]
+                   [--prefer-step] [--lib-name LIB_NAME]
 
 Import KiCad libraries from a file or folder.
 
@@ -118,6 +125,10 @@ options:
                         Overwrite existing files if they already exist
   --path-variable PATH_VARIABLE
                         Example: if only project-specific '${KIPRJMOD}' standard is '${KICAD_3RD_PARTY}'
+  --prefer-step         Use STEP instead of WRL as the 3D model reference in footprints
+                        (falls back to WRL if no STEP available)
+  --lib-name LIB_NAME   Use a custom library name for all imports
+                        (e.g., 'Custom' instead of Samacsys/Snapeda/EasyEDA)
 ```
 
 ## KiCad IPC API (Recommended)
