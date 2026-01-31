@@ -1,5 +1,94 @@
 #!/bin/bash
 
+set -e  # Exit on error
+
+# Cleanup function for early exit
+cleanup() {
+    # Restore metadata if backup exists
+    if [[ -f "metadata_.json" ]]; then
+        mv metadata_.json metadata.json
+    fi
+    # Remove temp directory if it exists
+    if [[ -n "$temp_dir" ]] && [[ -d "$temp_dir" ]]; then
+        rm -rf "$temp_dir"
+    fi
+}
+trap cleanup EXIT
+
+# Check for required tools
+if ! command -v jq &> /dev/null; then
+    echo "Error: jq is required but not installed"
+    echo "  macOS:   brew install jq"
+    echo "  Linux:   apt install jq"
+    echo "  Windows: choco install jq (or download from https://jqlang.github.io/jq/)"
+    exit 1
+fi
+
+if ! command -v zip &> /dev/null; then
+    echo "Error: zip is required but not installed"
+    echo "  macOS:   brew install zip"
+    echo "  Linux:   apt install zip"
+    echo "  Windows: Git Bash includes zip, or use: choco install zip"
+    exit 1
+fi
+
+# Check and initialize/update submodules if needed
+check_submodules() {
+    local needs_init=false
+
+    # Check if submodules are initialized (directories exist and are not empty)
+    if [[ ! -d "plugins/kiutils/src/kiutils" ]] || [[ ! -d "plugins/easyeda2kicad/easyeda2kicad" ]]; then
+        needs_init=true
+    fi
+
+    if $needs_init; then
+        echo "Initializing submodules..."
+        git submodule update --init
+        if [[ $? -ne 0 ]]; then
+            echo "  ⚠ Failed to initialize submodules"
+            echo "  Please run: git submodule update --init"
+            exit 1
+        fi
+        echo "  ✓ Submodules initialized"
+    fi
+
+    # Check for local changes in submodules before updating
+    if [[ "$1" != "--no-update" ]]; then
+        local has_local_changes=false
+
+        # Check for uncommitted changes in kiutils
+        if [[ -d "plugins/kiutils" ]]; then
+            if ! git -C plugins/kiutils diff --quiet 2>/dev/null || \
+               ! git -C plugins/kiutils diff --cached --quiet 2>/dev/null; then
+                echo "  ℹ kiutils has local changes - skipping update"
+                has_local_changes=true
+            fi
+        fi
+
+        # Check for uncommitted changes in easyeda2kicad
+        if [[ -d "plugins/easyeda2kicad" ]]; then
+            if ! git -C plugins/easyeda2kicad diff --quiet 2>/dev/null || \
+               ! git -C plugins/easyeda2kicad diff --cached --quiet 2>/dev/null; then
+                echo "  ℹ easyeda2kicad has local changes - skipping update"
+                has_local_changes=true
+            fi
+        fi
+
+        # Only update if no local changes
+        if ! $has_local_changes; then
+            echo "Checking for submodule updates..."
+            git submodule update --remote --merge 2>/dev/null
+            if [[ $? -eq 0 ]]; then
+                echo "  ✓ Submodules are up to date"
+            fi
+        else
+            echo "  → Using local submodule versions (local changes detected)"
+        fi
+    fi
+}
+
+check_submodules "$1"
+
 # Clean up old ZIP
 rm -f Import-LIB-KiCad-Plugin.zip
 
@@ -16,7 +105,7 @@ echo "Preparing clean package structure..."
 
 # Copy metadata and resources
 cp metadata.json "$build_dir/"
-cp -r resources "$build_dir/"
+cp -r resources "$build_dir/" 2>/dev/null || cp -r resources/ "$build_dir/resources/"
 
 # Copy plugins directory structure but exclude submodule bloat
 mkdir -p "$build_dir/plugins"
@@ -36,7 +125,8 @@ for dir in plugins/*/; do
     
     # Copy regular plugin directories
     if [[ -d "$dir" ]]; then
-        cp -r "$dir" "$build_dir/plugins/"
+        # Remove trailing slash to ensure directory is copied, not just contents (macOS compatibility)
+        cp -r "${dir%/}" "$build_dir/plugins/"
     fi
 done
 
@@ -49,7 +139,8 @@ if [[ -d "plugins/kiutils/src/kiutils" ]]; then
     cp -r plugins/kiutils/src/kiutils "$build_dir/plugins/kiutils/src/"
     echo "  ✓ Copied kiutils (keeping src/kiutils structure)"
 else
-    echo "  ⚠ kiutils/src/kiutils not found"
+    echo "  ⚠ kiutils/src/kiutils not found - run: git submodule update --init"
+    exit 1
 fi
 
 # Keep easyeda2kicad in its original structure for easier development
@@ -58,7 +149,8 @@ if [[ -d "plugins/easyeda2kicad/easyeda2kicad" ]]; then
     cp -r plugins/easyeda2kicad/easyeda2kicad "$build_dir/plugins/easyeda2kicad/"
     echo "  ✓ Copied easyeda2kicad (keeping easyeda2kicad structure)"
 else
-    echo "  ⚠ easyeda2kicad/easyeda2kicad not found"
+    echo "  ⚠ easyeda2kicad/easyeda2kicad not found - run: git submodule update --init"
+    exit 1
 fi
 
 # Copy kicad_advanced if it's a file/script
@@ -78,14 +170,10 @@ find "$build_dir" -name "*.svg" -delete 2>/dev/null
 echo "Creating ZIP file..."
 zip_target="$(pwd)/Import-LIB-KiCad-Plugin.zip"
 cd "$build_dir"
-zip -r "$zip_target" . -x "*.pyc" "*/__pycache__/*"
+zip -rq "$zip_target" . -x "*.pyc" "*/__pycache__/*"
 cd - > /dev/null
 
-# Restore original metadata
-mv metadata_.json metadata.json
-
-# Cleanup temp directory
-rm -rf "$temp_dir"
+# Cleanup is handled by trap
 
 
 # Show what's included
@@ -97,8 +185,18 @@ if [[ -f "Import-LIB-KiCad-Plugin.zip" ]]; then
     total_files=$(unzip -l Import-LIB-KiCad-Plugin.zip | tail -1 | awk '{print $2}')
     echo "Total files: $total_files"
     
-    # Show ZIP size
-    zip_size=$(ls -lh Import-LIB-KiCad-Plugin.zip | awk '{print $5}')
+    # Show ZIP size (portable across systems)
+    if command -v stat &> /dev/null; then
+        # Try GNU stat first, then BSD stat (macOS)
+        zip_bytes=$(stat -c%s Import-LIB-KiCad-Plugin.zip 2>/dev/null || stat -f%z Import-LIB-KiCad-Plugin.zip 2>/dev/null)
+        if [[ -n "$zip_bytes" ]]; then
+            zip_size=$((zip_bytes / 1024))K
+        else
+            zip_size=$(ls -lh Import-LIB-KiCad-Plugin.zip | awk '{print $5}')
+        fi
+    else
+        zip_size=$(ls -lh Import-LIB-KiCad-Plugin.zip | awk '{print $5}')
+    fi
     echo "ZIP size: $zip_size"
 else
     echo "Error: ZIP file not found after creation"
@@ -106,4 +204,9 @@ else
     ls -la *.zip 2>/dev/null || echo "No ZIP files found"
 fi
 
-echo "ZIP file created: $(realpath Import-LIB-KiCad-Plugin.zip)"
+# Use realpath if available, otherwise pwd
+if command -v realpath &> /dev/null; then
+    echo "ZIP file created: $(realpath Import-LIB-KiCad-Plugin.zip)"
+else
+    echo "ZIP file created: $(pwd)/Import-LIB-KiCad-Plugin.zip"
+fi

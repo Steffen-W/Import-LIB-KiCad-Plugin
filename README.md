@@ -212,11 +212,14 @@ If you notice an error then please write me an issue. If you want to change the 
 git clone --recurse-submodules https://github.com/Steffen-W/Import-LIB-KiCad-Plugin.git
 cd Import-LIB-KiCad-Plugin
 
+# If you already cloned without --recurse-submodules, initialize submodules:
+git submodule update --init
+
 # Update to latest changes (including submodules)
 git pull --recurse-submodules
 git submodule update --remote --merge
 
-# Generate KiCad plugin ZIP file
+# Generate KiCad plugin ZIP file (Linux/macOS/Windows Git Bash)
 ./generate_zip.sh
 ```
 
