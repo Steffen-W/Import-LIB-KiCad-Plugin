@@ -38,21 +38,21 @@ if easyeda_submodule.exists():
 
     logger.info(f"Using easyeda2kicad from: {easyeda_submodule}")
 
-from easyeda2kicad.easyeda.easyeda_api import EasyedaApi
-from easyeda2kicad.easyeda.easyeda_importer import (
+from easyeda2kicad.easyeda.easyeda_api import EasyedaApi  # noqa: E402
+from easyeda2kicad.easyeda.easyeda_importer import (  # noqa: E402
     Easyeda3dModelImporter,
     EasyedaFootprintImporter,
     EasyedaSymbolImporter,
     EeSymbol,
 )
-from easyeda2kicad.helpers import (
+from easyeda2kicad.helpers import (  # noqa: E402
     KicadVersion,
     id_already_in_symbol_lib,
     update_component_in_symbol_lib_file,
 )
-from easyeda2kicad.kicad.export_kicad_3d_model import Exporter3dModelKicad
-from easyeda2kicad.kicad.export_kicad_footprint import ExporterFootprintKicad
-from easyeda2kicad.kicad.export_kicad_symbol import ExporterSymbolKicad
+from easyeda2kicad.kicad.export_kicad_3d_model import Exporter3dModelKicad  # noqa: E402
+from easyeda2kicad.kicad.export_kicad_footprint import ExporterFootprintKicad  # noqa: E402
+from easyeda2kicad.kicad.export_kicad_symbol import ExporterSymbolKicad  # noqa: E402
 
 logger.info("Successfully imported easyeda2kicad modules")
 
@@ -171,8 +171,7 @@ class EasyEDAImporter:
                     match = re.search(pattern, sub_component_content, re.DOTALL)
                     if match:
                         renamed = match.group(0).replace(
-                            f'"{component_name}_0_1"',
-                            f'"{component_name}_{i}_1"'
+                            f'"{component_name}_0_1"', f'"{component_name}_{i}_1"'
                         )
                         sub_units.append(renamed)
 
@@ -187,7 +186,9 @@ class EasyEDAImporter:
                         count=1,
                         flags=re.DOTALL,
                     )
-                    self._print(f"Added {len(sub_units)} sub-symbols for: {component_name}")
+                    self._print(
+                        f"Added {len(sub_units)} sub-symbols for: {component_name}"
+                    )
 
             # Check if export was successful
             if not kicad_symbol_content:
@@ -304,7 +305,9 @@ class EasyEDAImporter:
             logger.error(f"Symbol library integration failed: {e}")
             return False
 
-    def _import_footprint(self, cad_data: dict, use_step: bool = False) -> Optional[Path]:
+    def _import_footprint(
+        self, cad_data: dict, use_step: bool = False
+    ) -> Optional[Path]:
         """Import footprint and return the file path"""
         try:
             importer = EasyedaFootprintImporter(easyeda_cp_cad_data=cad_data)

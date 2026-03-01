@@ -1,4 +1,4 @@
-from .impart_action import *
+from .impart_action import ImpartFrontend, wx
 
 if __name__ == "__main__":
     app = wx.App()

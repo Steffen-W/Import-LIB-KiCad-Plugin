@@ -26,7 +26,9 @@ class FileHandler:
         self.max_size = max_size
         self.file_extension = file_extension
         self.path = ""
-        self.known_files: set[str] = set()  # Set is more efficient for membership checks
+        self.known_files: set[str] = (
+            set()
+        )  # Set is more efficient for membership checks
         self.logger = logging.getLogger(__name__)
 
         self.change_path(path)
@@ -78,7 +80,6 @@ class FileHandler:
                 if file_path.name not in self.known_files and file_path.name.endswith(
                     self.file_extension
                 ):
-
                     # Check if the file size is within the allowed range
                     file_size = file_path.stat().st_size
                     if self.min_size <= file_size <= self.max_size:

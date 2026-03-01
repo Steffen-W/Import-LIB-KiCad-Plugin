@@ -22,10 +22,10 @@ kiutils_src = current_dir.parent / "kiutils" / "src"
 if str(kiutils_src) not in sys.path:
     sys.path.insert(0, str(kiutils_src))
 
-from kiutils.items.common import Font, Position
+from kiutils.items.common import Font, Position  # noqa: E402
 
 # Import kiutils modules directly
-from kiutils.symbol import Effects, Property, SymbolLib
+from kiutils.symbol import Effects, Property, SymbolLib  # noqa: E402
 
 try:
     from .footprint_model_parser import FootprintModelParser
@@ -111,7 +111,7 @@ class LibImporter:
         self.lib_skipped = False
         self.footprint_skipped = False
         self.model_skipped = False
-        self.footprint_name = None
+        self.footprint_name: Optional[str] = None
         self.footprint_parser = FootprintModelParser()
         self.prefer_step = prefer_step
         self.lib_name = lib_name
@@ -708,9 +708,7 @@ class LibImporter:
 
             return False
 
-    def import_all(
-        self, zip_file: Path, overwrite_if_exists=True, import_old_format=True
-    ):
+    def import_all(self, zip_file: Path, overwrite_if_exists=True):
         """Import symbols, footprints, and 3D models from a zip file"""
         logger.info(f"Importing {zip_file.name}")
 
@@ -882,7 +880,6 @@ def main(
     lib_file = Path(lib_file)
 
     logger.info(f"Starting import: {lib_file.name} -> {lib_folder}")
-    print("overwrite", overwrite)
 
     if not lib_folder.is_dir():
         logger.error(f"Destination folder {lib_folder} does not exist")

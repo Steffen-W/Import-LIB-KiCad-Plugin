@@ -8,7 +8,7 @@
 import logging
 from pathlib import Path
 
-from .__init__ import *
+from . import main
 
 logger = logging.getLogger(__name__)
 

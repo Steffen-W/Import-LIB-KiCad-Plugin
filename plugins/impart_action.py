@@ -213,7 +213,6 @@ class ImpartBackend:
         self.run_thread = False
         self.auto_import = False
         self.overwrite_import = False
-        self.import_old_format = False
         self.local_lib = False
         self.auto_lib = False
         self.print_buffer = ""
@@ -275,7 +274,6 @@ class ImpartBackend:
             result = self.importer.import_all(
                 lib_path,
                 overwrite_if_exists=self.overwrite_import,
-                import_old_format=self.import_old_format,
             )
             # Handle potential None result
             if result and len(result) > 0:
@@ -414,7 +412,6 @@ class ImpartFrontend(impartGUI):
         self.m_autoImport.SetValue(self.backend.auto_import)
         self.m_overwrite.SetValue(self.backend.overwrite_import)
         self.m_check_autoLib.SetValue(self.backend.auto_lib)
-        self.m_check_import_all.SetValue(self.backend.import_old_format)
         self.m_checkBoxLocalLib.SetValue(self.backend.local_lib)
 
         self._update_button_label()
@@ -643,7 +640,6 @@ class ImpartFrontend(impartGUI):
         self.backend.auto_import = self.m_autoImport.IsChecked()
         self.backend.overwrite_import = self.m_overwrite.IsChecked()
         self.backend.auto_lib = self.m_check_autoLib.IsChecked()
-        self.backend.import_old_format = self.m_check_import_all.IsChecked()
         self.backend.local_lib = self.m_checkBoxLocalLib.IsChecked()
 
     def BottonClick(self, event: wx.CommandEvent) -> None:

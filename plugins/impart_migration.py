@@ -21,7 +21,6 @@ def find_old_lib_files(
     folder_path: Union[str, Path],
     libs: list[str] = ["Octopart", "Samacsys", "UltraLibrarian", "Snapeda", "EasyEDA"],
 ) -> dict[str, dict[str, Path]]:
-
     folder_path = Path(folder_path).expanduser()
     found_files: dict[str, dict[str, Path]] = {}
 
@@ -37,7 +36,6 @@ def find_old_lib_files(
 
         for lib in libs:
             if file.name.startswith(lib):
-
                 entry: dict[str, Path]
                 if lib in found_files:
                     entry = found_files[lib]
@@ -91,7 +89,6 @@ def find_old_lib_files(
 
 
 def convert_lib(SRC: Path, DES: Path, drymode=True):
-
     BLK_file = SRC.with_suffix(SRC.suffix + ".blk")  # Backup
 
     msg = []
@@ -101,7 +98,6 @@ def convert_lib(SRC: Path, DES: Path, drymode=True):
         msg.append([SRC.name, BLK_file.name])
 
     else:
-
         SRC_dcm = SRC.with_suffix(".dcm")
         DES_dcm = DES.with_suffix(".dcm")
         if DES_dcm.exists() and DES_dcm.is_file():
@@ -135,14 +131,12 @@ def convert_lib(SRC: Path, DES: Path, drymode=True):
 
 
 def convert_lib_list(libs_dict, drymode=True):
-
     if cli is None or not cli.exists():
         logger.error("kicad_cli not found! Conversion is not possible.")
         drymode = True
 
     convertlist = []
     for lib, paths in libs_dict.items():
-
         # if "V6" in paths:
         #     print(f"No conversion needed for {lib}.")
 

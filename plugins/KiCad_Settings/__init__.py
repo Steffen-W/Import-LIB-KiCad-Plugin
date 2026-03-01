@@ -1,15 +1,16 @@
 import json
 import logging
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 current_dir = Path(__file__).resolve().parent
 kiutils_src = current_dir.parent / "kiutils" / "src"
-if str(kiutils_src) not in __import__("sys").path:
-    __import__("sys").path.insert(0, str(kiutils_src))
+if str(kiutils_src) not in sys.path:
+    sys.path.insert(0, str(kiutils_src))
 
-from kiutils.libraries import Library, LibTable
+from kiutils.libraries import Library, LibTable  # noqa: E402
 
 
 class KiCad_Settings:
@@ -387,7 +388,9 @@ class KiCad_Settings:
                     except Exception:
                         msg += "\nFailed to add symbol library automatically."
                         msg += "\nPlease add the library manually following the steps in the README:"
-                        msg += "\n  Preferences -> Manage Symbol Libraries -> Add entry:"
+                        msg += (
+                            "\n  Preferences -> Manage Symbol Libraries -> Add entry:"
+                        )
                         msg += "\n  Name: " + SearchLib_name_short
                         msg += "\n  Path: " + temp_path
                         msg += "\n  See: github.com/Steffen-W/Import-LIB-KiCad-Plugin#including-the-imported-libraries-in-kicad"

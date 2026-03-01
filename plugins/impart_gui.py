@@ -16,7 +16,6 @@ import wx.adv
 
 
 class impartGUI(wx.Dialog):
-
     def __init__(self, parent):
         wx.Dialog.__init__(
             self,
@@ -150,14 +149,6 @@ class impartGUI(wx.Dialog):
             0,
         )
         fgSizer1.Add(self.m_overwrite, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
-
-        self.m_check_import_all = wx.CheckBox(
-            self, wx.ID_ANY, "import old format", wx.DefaultPosition, wx.DefaultSize, 0
-        )
-        self.m_check_import_all.Enable(False)
-        self.m_check_import_all.Hide()
-
-        fgSizer1.Add(self.m_check_import_all, 0, wx.ALL, 5)
 
         self.m_check_autoLib = wx.CheckBox(
             self, wx.ID_ANY, "auto KiCad setting", wx.DefaultPosition, wx.DefaultSize, 0
