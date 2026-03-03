@@ -1,0 +1,43 @@
+name: Nightly Pre-Release
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: sudo apt-get install -y --no-install-recommends jq zip
+
+      - name: Build ZIP
+        run: bash generate_zip.sh --no-update
+
+      - name: Delete old nightly release
+        run: |
+          gh release delete nightly --yes 2>/dev/null || true
+          git push origin :refs/tags/nightly 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create nightly release
+        run: |
+          gh release create nightly \
+            --prerelease \
+            --title "Nightly Build ($(date +%Y.%m.%d))" \
+            --notes "Automatically generated from the latest commit on \`master\`.
+
+**Download:** [Import-LIB-KiCad-Plugin.zip](https://github.com/${{ github.repository }}/releases/download/nightly/Import-LIB-KiCad-Plugin.zip)" \
+            Import-LIB-KiCad-Plugin.zip
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
