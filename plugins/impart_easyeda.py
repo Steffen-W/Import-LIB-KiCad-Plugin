@@ -50,6 +50,7 @@ from easyeda2kicad.helpers import (  # noqa: E402
     id_already_in_symbol_lib,
     update_component_in_symbol_lib_file,
 )
+from easyeda2kicad._version import GENERATOR_URL  # noqa: E402
 from easyeda2kicad.kicad.export_kicad_3d_model import Exporter3dModelKicad  # noqa: E402
 from easyeda2kicad.kicad.export_kicad_footprint import ExporterFootprintKicad  # noqa: E402
 from easyeda2kicad.kicad.export_kicad_symbol import ExporterSymbolKicad  # noqa: E402
@@ -110,87 +111,34 @@ class EasyEDAImporter:
     def _import_symbol(self, cad_data: dict[str, Any]) -> tuple[bool, str | None]:
         """Import symbol and return success status and component name"""
         try:
-            importer = EasyedaSymbolImporter(easyeda_cp_cad_data=cad_data)
-            easyeda_symbol: EeSymbol = importer.get_symbol()
+            easyeda_symbol: EeSymbol = EasyedaSymbolImporter(
+                easyeda_cp_cad_data=cad_data
+            ).get_symbol()
             component_name = easyeda_symbol.info.name
 
-            # Process sub-symbols if they exist
-            easyeda_sub_symbols: list[EeSymbol] = []
-            for cad_data_subpart in cad_data.get("subparts", []):
-                importer = EasyedaSymbolImporter(easyeda_cp_cad_data=cad_data_subpart)
-                easyeda_sub_symbols.append(importer.get_symbol())
-
-            # Check if symbol library exists first, then check if symbol already exists
-            if self.symbol_lib_path.exists():
-                is_existing = id_already_in_symbol_lib(
+            is_existing = (
+                id_already_in_symbol_lib(
                     lib_path=str(self.symbol_lib_path),
                     component_name=component_name,
                     kicad_version=KicadVersion.v6,
                 )
-            else:
-                is_existing = False
+                if self.symbol_lib_path.exists()
+                else False
+            )
 
             if is_existing and not self.config.overwrite:
                 self._print(f"Symbol '{component_name}' already exists.")
                 return False, component_name
 
-            # Export symbol
-            exporter = ExporterSymbolKicad(
+            kicad_symbol_content = ExporterSymbolKicad(
                 symbol=easyeda_symbol, kicad_version=KicadVersion.v6
-            )
-            kicad_symbol_content = exporter.export(
-                footprint_lib_name=self.config.lib_name
-            )
+            ).export(footprint_lib_name=self.config.lib_name)
 
-            # Export sub-symbols
-            # Main symbol has no valid BBox (0,0,0,0), so sub-symbols should not be shifted
-            # Reset BBox to prevent coordinate shifting during export
-            kicad_sub_symbols_lib = []
-            for symbol in easyeda_sub_symbols:
-                # Reset BBox to 0 so no coordinate shift is applied during export
-                symbol.bbox.x = 0
-                symbol.bbox.y = 0
-
-                exporter = ExporterSymbolKicad(
-                    symbol=symbol, kicad_version=KicadVersion.v6
-                )
-                kicad_sub_symbols_lib.append(
-                    exporter.export(footprint_lib_name=self.config.lib_name)
+            if easyeda_symbol.sub_symbols:
+                self._print(
+                    f"Added {len(easyeda_symbol.sub_symbols)} sub-symbols for: {component_name}"
                 )
 
-            # Add sub-units to symbol content BEFORE adding to library
-            if kicad_sub_symbols_lib:
-                # Create a temporary file to hold the symbol with sub-units
-                import re
-                from easyeda2kicad.helpers import sanitize_for_regex
-
-                # Extract sub-unit definitions and rename them
-                sub_units = []
-                for i, sub_component_content in enumerate(kicad_sub_symbols_lib, 1):
-                    pattern = rf'( +)\(symbol "{sanitize_for_regex(component_name)}_0_1".*?\n\1\)(?=\n)'
-                    match = re.search(pattern, sub_component_content, re.DOTALL)
-                    if match:
-                        renamed = match.group(0).replace(
-                            f'"{component_name}_0_1"', f'"{component_name}_{i}_1"'
-                        )
-                        sub_units.append(renamed)
-
-                # Replace empty _0_1 with sub-units in the main symbol content
-                if sub_units:
-                    empty_unit_pattern = rf'( *)\(symbol "{sanitize_for_regex(component_name)}_0_1".*?\n\1\)'
-                    replacement_text = "\n".join(sub_units)
-                    kicad_symbol_content = re.sub(
-                        empty_unit_pattern,
-                        replacement_text,
-                        kicad_symbol_content,
-                        count=1,
-                        flags=re.DOTALL,
-                    )
-                    self._print(
-                        f"Added {len(sub_units)} sub-symbols for: {component_name}"
-                    )
-
-            # Check if export was successful
             if not kicad_symbol_content:
                 self._print(f"Failed to export symbol content for: {component_name}")
                 return False, component_name
@@ -239,7 +187,7 @@ class EasyEDAImporter:
 
             complete_symbol_lib = f"""(kicad_symbol_lib
     (version 20211014)
-    (generator https://github.com/uPesy/easyeda2kicad.py)
+    (generator {GENERATOR_URL})
     {symbol_content}
 )"""
 
@@ -368,9 +316,7 @@ class EasyEDAImporter:
                     return None, None
 
             # Export models
-            exporter.export(
-                lib_path=str(self.config.base_folder / self.config.lib_name)
-            )
+            exporter.export(output_dir=str(self.model_dir))
 
             wrl_path = filepath_wrl if filepath_wrl.exists() else None
             step_path = filepath_step if filepath_step.exists() else None

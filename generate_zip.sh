@@ -160,6 +160,7 @@ fi
 
 # Clean up unwanted files from the build
 echo "Cleaning up unwanted files..."
+find "$build_dir" -name ".*" -type d -exec rm -rf {} + 2>/dev/null
 find "$build_dir" -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null
 find "$build_dir" -name "*.pyc" -delete 2>/dev/null
 find "$build_dir" -name "*.log" -delete 2>/dev/null
