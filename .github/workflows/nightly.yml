@@ -35,9 +35,7 @@ jobs:
           gh release create nightly \
             --prerelease \
             --title "Nightly Build ($(date +%Y.%m.%d))" \
-            --notes "Automatically generated from the latest commit on \`master\`.
-
-**Download:** [Import-LIB-KiCad-Plugin.zip](https://github.com/${{ github.repository }}/releases/download/nightly/Import-LIB-KiCad-Plugin.zip)" \
+            --notes "Automatically generated from the latest commit on master." \
             Import-LIB-KiCad-Plugin.zip
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

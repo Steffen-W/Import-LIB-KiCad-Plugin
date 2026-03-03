@@ -8,6 +8,7 @@
 [![Static Badge](https://img.shields.io/badge/LCSC--EasyEDA-Works-008000)](https://www.lcsc.com/)
 
 [![GitHub Release](https://img.shields.io/github/release/Steffen-W/Import-LIB-KiCad-Plugin.svg)](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest)
+[![Nightly Build](https://img.shields.io/badge/nightly-download-orange)](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/tag/nightly)
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Steffen-W/Import-LIB-KiCad-Plugin/total)](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest/download/Import-LIB-KiCad-Plugin.zip)
 
 # KiCad Import-LIB-KiCad-Plugin ![icon](plugins/icon_small.png)
@@ -22,7 +23,7 @@ This plugin allows importing downloaded libraries from the platforms [Octopart](
 
 Install the plugin easily through KiCad's **Plugin And Content Manager**. Select ![icon](plugins/icon_small.png) **Import-LIB-KiCad-Plugin** in the Plugins tab, press **Install** and then **Apply Pending Changes**.
 
-You can also download the latest stable version [here](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest/download/Import-LIB-KiCad-Plugin.zip) or the latest development build (nightly) [here](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/download/nightly/Import-LIB-KiCad-Plugin.zip) and install it via **KiCad** -> **Plugin And Content Manager** -> **Install from File...** -> select **Import-LIB-KiCad-Plugin.zip** and import.
+You can also download the latest version [here](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest/download/Import-LIB-KiCad-Plugin.zip) and install it via **KiCad** -> **Plugin And Content Manager** -> **Install from File...** -> select **Import-LIB-KiCad-Plugin.zip** and import.
 
 ## Use of the application
 
