@@ -157,6 +157,33 @@ class impartGUI(wx.Dialog):
 
         bSizer.Add(fgSizer1, 0, wx.ALIGN_CENTER, 5)
 
+        bSizer3 = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.m_checkBoxSingleLib = wx.CheckBox(
+            self,
+            wx.ID_ANY,
+            "single library name",
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            0,
+        )
+        bSizer3.Add(self.m_checkBoxSingleLib, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        self.m_textCtrl_libname = wx.TextCtrl(
+            self,
+            wx.ID_ANY,
+            wx.EmptyString,
+            wx.DefaultPosition,
+            wx.DefaultSize,
+            0,
+        )
+        self.m_textCtrl_libname.SetMinSize(wx.Size(180, -1))
+        self.m_textCtrl_libname.SetHint("e.g. MyLibrary")
+        self.m_textCtrl_libname.Enable(False)
+        bSizer3.Add(self.m_textCtrl_libname, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        bSizer.Add(bSizer3, 0, wx.ALIGN_CENTER, 5)
+
         self.m_staticText_sourcepath = wx.StaticText(
             self,
             wx.ID_ANY,
@@ -269,6 +296,9 @@ class impartGUI(wx.Dialog):
         self.m_textCtrl2.Bind(wx.EVT_TEXT_ENTER, self.ButtomManualImport)
         self.m_dirPicker_sourcepath.Bind(wx.EVT_DIRPICKER_CHANGED, self.DirChange)
         self.m_checkBoxLocalLib.Bind(wx.EVT_CHECKBOX, self.m_checkBoxLocalLibOnCheckBox)
+        self.m_checkBoxSingleLib.Bind(
+            wx.EVT_CHECKBOX, self.m_checkBoxSingleLibOnCheckBox
+        )
         self.m_dirPicker_librarypath.Bind(wx.EVT_DIRPICKER_CHANGED, self.DirChange)
 
     def __del__(self):
@@ -291,4 +321,7 @@ class impartGUI(wx.Dialog):
         event.Skip()
 
     def m_checkBoxLocalLibOnCheckBox(self, event):
+        event.Skip()
+
+    def m_checkBoxSingleLibOnCheckBox(self, event):
         event.Skip()

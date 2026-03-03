@@ -312,7 +312,12 @@ def check_library_import(backend: ImpartBackend, add_if_possible: bool = True) -
         dest_path = backend.config.get_DEST_PATH()
         msg = kicad_settings.check_GlobalVar(dest_path, add_if_possible)
 
-    for lib_name in ImpartBackend.SUPPORTED_LIBRARIES:
+    libs_to_check = (
+        [backend.importer.lib_name]
+        if backend.importer.lib_name
+        else ImpartBackend.SUPPORTED_LIBRARIES
+    )
+    for lib_name in libs_to_check:
         msg += _check_single_library(
             kicad_settings, lib_name, dest_path, add_if_possible
         )
@@ -425,6 +430,13 @@ class ImpartFrontend(impartGUI):
         self.backend.local_lib = local_lib
         self.m_dirPicker_librarypath.Enable(not local_lib)
 
+        single_lib = self.backend.config.get_value("single_lib") == "True"
+        lib_name = self.backend.config.get_value("lib_name") or ""
+        self.m_checkBoxSingleLib.SetValue(single_lib)
+        self.m_textCtrl_libname.SetValue(lib_name)
+        self.m_textCtrl_libname.Enable(single_lib)
+        self.backend.importer.lib_name = lib_name if single_lib and lib_name else None
+
         self._update_button_label()
         self._check_migration_possible()
 
@@ -534,6 +546,17 @@ class ImpartFrontend(impartGUI):
         if old_local_lib != self.backend.local_lib:
             self._print_path_change("library_mode")
 
+        event.Skip()
+
+    def m_checkBoxSingleLibOnCheckBox(self, event: wx.CommandEvent) -> None:
+        """Handle single library name checkbox change."""
+        enabled = self.m_checkBoxSingleLib.IsChecked()
+        self.m_textCtrl_libname.Enable(enabled)
+        if enabled:
+            name = self.m_textCtrl_libname.GetValue().strip()
+            self.backend.importer.lib_name = name if name else None
+        else:
+            self.backend.importer.lib_name = None
         event.Skip()
 
     def on_close(self, event: wx.CloseEvent) -> None:
@@ -653,9 +676,17 @@ class ImpartFrontend(impartGUI):
         self.backend.auto_lib = self.m_check_autoLib.IsChecked()
         self.backend.local_lib = self.m_checkBoxLocalLib.IsChecked()
         self.backend.config.set_value("auto_import", str(self.backend.auto_import))
-        self.backend.config.set_value("overwrite_import", str(self.backend.overwrite_import))
+        self.backend.config.set_value(
+            "overwrite_import", str(self.backend.overwrite_import)
+        )
         self.backend.config.set_value("auto_lib", str(self.backend.auto_lib))
         self.backend.config.set_value("local_lib", str(self.backend.local_lib))
+        self.backend.config.set_value(
+            "single_lib", str(self.m_checkBoxSingleLib.IsChecked())
+        )
+        self.backend.config.set_value(
+            "lib_name", self.m_textCtrl_libname.GetValue().strip()
+        )
 
     def BottonClick(self, event: wx.CommandEvent) -> None:
         """Handle main button click."""
@@ -682,6 +713,13 @@ class ImpartFrontend(impartGUI):
             kicad_link = "${KICAD_3RD_PARTY}"
 
         self.backend.importer.KICAD_3RD_PARTY_LINK = kicad_link
+
+        # Update single library name
+        if self.m_checkBoxSingleLib.IsChecked():
+            name = self.m_textCtrl_libname.GetValue().strip()
+            self.backend.importer.lib_name = name if name else None
+        else:
+            self.backend.importer.lib_name = None
 
         # Handle overwrite setting change
         overwrite_changed = (
@@ -827,7 +865,7 @@ class ImpartFrontend(impartGUI):
 
         config = ImportConfig(
             base_folder=Path(base_folder),
-            lib_name="EasyEDA",
+            lib_name=self.backend.importer.lib_name or "EasyEDA",
             overwrite=self.m_overwrite.IsChecked(),
             lib_var=path_variable,
         )
