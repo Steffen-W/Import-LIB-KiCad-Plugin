@@ -29,11 +29,13 @@ You can also download the latest version [here](https://github.com/Steffen-W/Imp
 
 The import window is accessible in the **PCB Editor** -> **Tools** -> **External Plugins** -> **impartGUI**
 
-![Screenshot_GUI](doc/2025-08_Example_Import.png)
+<img width="648" height="649" alt="grafik" src="https://github.com/user-attachments/assets/b5c65f6f-7612-4883-9032-aaf6e16cc782" />
 
 The libraries to import must be located in the folder specified as **Folder of the library** to import. After pressing Start, the libraries will be imported into the specified folder (**Library save location**).
 
 **New:** You can also drag and drop ZIP files directly into the text area for instant import without setting up folder monitoring.
+
+By default, each source gets its own library (e.g. `Samacsys.kicad_sym`, `Snapeda.kicad_sym`). Enable **single lib name** and enter a name to merge all imports into one library file instead.
 
 Provided that the paths have been [added correctly in KiCad](#including-the-imported-libraries-in-kicad), the parts can be used immediately in KiCad. If the libraries have not been imported correctly, a warning will indicate this.
 
