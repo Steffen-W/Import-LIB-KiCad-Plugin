@@ -52,7 +52,7 @@ class FootprintModelParser:
         """Simply replace the model path, leave everything else untouched."""
         pattern = re.compile(r'(\(model\s+)"[^"]*"')
 
-        def replace_path(match):
+        def replace_path(match: re.Match[str]) -> str:
             return f'{match.group(1)}"{new_model_path}"'
 
         return pattern.sub(replace_path, footprint_content)

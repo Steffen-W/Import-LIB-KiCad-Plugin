@@ -465,7 +465,7 @@ def import_easyeda_component(
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    def print_to_console(message):
+    def print_to_console(message: str) -> None:
         print(message)
 
     config = ImportConfig(

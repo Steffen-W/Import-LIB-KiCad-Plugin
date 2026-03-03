@@ -53,10 +53,10 @@ class Modification(Enum):
 
 
 class ModifiedObject:
-    def __init__(self):
-        self.dict = {}
+    def __init__(self) -> None:
+        self.dict: dict[Path, Modification] = {}
 
-    def append(self, obj: Path, modification: Modification):
+    def append(self, obj: Path, modification: Modification) -> None:
         self.dict[obj] = modification
 
 
@@ -64,7 +64,7 @@ class ModifiedObject:
 modified_objects = ModifiedObject()
 
 
-def check_file(path: Path):
+def check_file(path: Path) -> None:
     """
     Check if file exists, if not create parent directories and touch file
     :param path:
@@ -101,7 +101,7 @@ class REMOTE_TYPES(Enum):
 
 
 class LibImporter:
-    def print(self, txt):
+    def print(self, txt: str) -> None:
         print("->" + txt)
 
     def __init__(self, prefer_step: bool = False, lib_name: Optional[str] = None):
@@ -116,14 +116,16 @@ class LibImporter:
         self.prefer_step = prefer_step
         self.lib_name = lib_name
 
-    def set_DEST_PATH(self, DEST_PATH_=Path.home() / "KiCad"):
+    def set_DEST_PATH(
+        self, DEST_PATH_: Union[str, Path] = Path.home() / "KiCad"
+    ) -> None:
         self.DEST_PATH = Path(DEST_PATH_)
 
     def get_lib_name(self, remote_type: REMOTE_TYPES) -> str:
         """Get effective library name - custom name if set, otherwise remote type name"""
         return self.lib_name if self.lib_name else remote_type.name
 
-    def cleanName(self, name):
+    def cleanName(self, name: str) -> str:
         invalid = '<>:"/\\|?* '
         name = name.strip()
         original_name = name
@@ -526,12 +528,11 @@ class LibImporter:
         Returns:
             True if successful, False otherwise
         """
+        lib_name = self.get_lib_name(remote_type)
         success_items = []
         backup_files = {}  # Track backup files for rollback
 
         try:
-            lib_name = self.get_lib_name(remote_type)
-
             # 1. Save symbol library with atomic write
             if symbol_lib:
                 lib_file_path = self.DEST_PATH / f"{lib_name}.kicad_sym"
@@ -708,7 +709,9 @@ class LibImporter:
 
             return False
 
-    def import_all(self, zip_file: Path, overwrite_if_exists=True):
+    def import_all(
+        self, zip_file: Path, overwrite_if_exists: bool = True
+    ) -> Optional[tuple[str, ...]]:
         """Import symbols, footprints, and 3D models from a zip file"""
         logger.info(f"Importing {zip_file.name}")
 
@@ -869,13 +872,13 @@ class LibImporter:
 
 
 def main(
-    lib_file,
-    lib_folder,
-    overwrite=False,
-    KICAD_3RD_PARTY_LINK="${KICAD_3RD_PARTY}",
-    prefer_step=False,
-    lib_name=None,
-):
+    lib_file: Union[str, Path],
+    lib_folder: Union[str, Path],
+    overwrite: bool = False,
+    KICAD_3RD_PARTY_LINK: str = "${KICAD_3RD_PARTY}",
+    prefer_step: bool = False,
+    lib_name: Optional[str] = None,
+) -> None:
     lib_folder = Path(lib_folder)
     lib_file = Path(lib_file)
 
@@ -884,12 +887,12 @@ def main(
     if not lib_folder.is_dir():
         logger.error(f"Destination folder {lib_folder} does not exist")
         print(f"Error destination folder {lib_folder} does not exist!")
-        return 0
+        return
 
     if not lib_file.is_file():
         logger.error(f"File {lib_file} not found")
         print(f"Error file {lib_folder} to be imported was not found!")
-        return 0
+        return
 
     impart = LibImporter(prefer_step=prefer_step, lib_name=lib_name)
     impart.KICAD_3RD_PARTY_LINK = KICAD_3RD_PARTY_LINK

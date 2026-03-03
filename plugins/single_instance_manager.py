@@ -136,7 +136,7 @@ class SingleInstanceManager:
                     except (socket.error, OSError):
                         pass
 
-    def _handle_command(self, message: dict) -> None:
+    def _handle_command(self, message: dict[str, Any]) -> None:
         """Handle incoming commands."""
         command = message.get("command")
 

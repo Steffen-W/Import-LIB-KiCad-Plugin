@@ -88,14 +88,14 @@ def find_old_lib_files(
     return found_files
 
 
-def convert_lib(SRC: Path, DES: Path, drymode=True):
+def convert_lib(SRC: Path, DES: Path, drymode: bool = True) -> list[tuple[str, str]]:
     BLK_file = SRC.with_suffix(SRC.suffix + ".blk")  # Backup
 
-    msg = []
+    msg: list[tuple[str, str]] = []
 
     if drymode:
-        msg.append([SRC.name, DES.name])
-        msg.append([SRC.name, BLK_file.name])
+        msg.append((SRC.name, DES.name))
+        msg.append((SRC.name, BLK_file.name))
 
     else:
         SRC_dcm = SRC.with_suffix(".dcm")
@@ -119,18 +119,20 @@ def convert_lib(SRC: Path, DES: Path, drymode=True):
             logger.info(
                 f"Successfully converted {SRC.name} to {DES.name}: {result.message}"
             )
-        msg.append([SRC.stem, DES.stem])
+        msg.append((SRC.stem, DES.stem))
 
         if SRC_dcm.exists() and SRC_dcm.is_file():
             SRC_dcm.rename(DES_dcm)
 
         SRC.rename(BLK_file)
-        msg.append([SRC.name, BLK_file.name])
+        msg.append((SRC.name, BLK_file.name))
 
     return msg
 
 
-def convert_lib_list(libs_dict, drymode=True):
+def convert_lib_list(
+    libs_dict: dict[str, dict[str, Path]], drymode: bool = True
+) -> list[tuple[str, str]]:
     if cli is None or not cli.exists():
         logger.error("kicad_cli not found! Conversion is not possible.")
         drymode = True

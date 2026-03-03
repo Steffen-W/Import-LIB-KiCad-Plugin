@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, cast
 
 current_dir = Path(__file__).resolve().parent
 kiutils_src = current_dir.parent / "kiutils" / "src"
@@ -238,7 +238,7 @@ class KiCad_Settings:
             with open(path) as json_data:
                 data = json.load(json_data)
             self.logger.info("Successfully loaded KiCad JSON config")
-            return data
+            return cast(Dict[str, Any], data)
 
         except FileNotFoundError:
             self.logger.warning(f"KiCad JSON config not found: {path}")
@@ -271,7 +271,7 @@ class KiCad_Settings:
             with open(path) as json_data:
                 data = json.load(json_data)
             self.logger.info("Successfully loaded KiCad common config")
-            return data
+            return cast(Dict[str, Any], data)
 
         except FileNotFoundError:
             self.logger.warning(f"KiCad common config not found: {path}")
@@ -303,13 +303,13 @@ class KiCad_Settings:
             KiCadjson = self.get_kicad_common()
             global_vars = KiCadjson.get("environment", {}).get("vars", {})
             self.logger.info(f"Found {len(global_vars)} global variables")
-            return global_vars
+            return cast(Dict[str, str], global_vars)
 
         except Exception as e:
             self.logger.error(f"Failed to get KiCad global variables: {e}")
             return {}
 
-    def check_footprintlib(self, SearchLib, add_if_possible=True):
+    def check_footprintlib(self, SearchLib: str, add_if_possible: bool = True) -> str:
         msg = ""
         try:
             FootprintTable = self.get_lib_table()
@@ -354,7 +354,7 @@ class KiCad_Settings:
 
         return msg
 
-    def check_symbollib(self, SearchLib: str, add_if_possible: bool = True):
+    def check_symbollib(self, SearchLib: str, add_if_possible: bool = True) -> str:
         msg = ""
         try:
             SearchLib_name = SearchLib.split(".")[0]
@@ -406,11 +406,11 @@ class KiCad_Settings:
 
         return msg
 
-    def check_GlobalVar(self, LocalLibFolder, add_if_possible=True):
+    def check_GlobalVar(self, LocalLibFolder: str, add_if_possible: bool = True) -> str:
         msg = ""
         GlobalVars = self.get_kicad_GlobalVars()
 
-        def setup_kicad_common():
+        def setup_kicad_common() -> None:
             kicad_common = self.get_kicad_common()
             # Ensure the nested structure exists
             if "environment" not in kicad_common:

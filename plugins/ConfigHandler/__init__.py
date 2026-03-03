@@ -1,10 +1,11 @@
 import configparser
 import logging
 from pathlib import Path
+from typing import Optional, Union
 
 
 class ConfigHandler:
-    def __init__(self, config_path):
+    def __init__(self, config_path: Union[str, Path]) -> None:
         self.config = configparser.ConfigParser()
         self.config_path = config_path
         self.config_is_set = False
@@ -36,7 +37,7 @@ class ConfigHandler:
         if not self.config_is_set:
             self.save_config()
 
-    def _create_default_config(self):
+    def _create_default_config(self) -> None:
         self.config = configparser.ConfigParser()
         self.config.add_section("config")
 
@@ -45,34 +46,34 @@ class ConfigHandler:
 
         self.config_is_set = False
 
-    def get_SRC_PATH(self):
+    def get_SRC_PATH(self) -> str:
         return self.config["config"]["SRC_PATH"]
 
-    def set_SRC_PATH(self, var):
+    def set_SRC_PATH(self, var: str) -> None:
         self.config["config"]["SRC_PATH"] = var
         self.save_config()
 
-    def get_DEST_PATH(self):
+    def get_DEST_PATH(self) -> str:
         return self.config["config"]["DEST_PATH"]
 
-    def set_DEST_PATH(self, var):
+    def set_DEST_PATH(self, var: str) -> None:
         self.config["config"]["DEST_PATH"] = var
         self.save_config()
 
-    def get_value(self, key, section="config"):
+    def get_value(self, key: str, section: str = "config") -> Optional[str]:
         try:
             return self.config[section][key]
         except KeyError:
             return None
 
-    def set_value(self, key, value, section="config"):
+    def set_value(self, key: str, value: str, section: str = "config") -> None:
         if section not in self.config:
             self.config.add_section(section)
 
         self.config[section][key] = value
         self.save_config()
 
-    def save_config(self):
+    def save_config(self) -> None:
         try:
             with open(self.config_path, "w") as configfile:
                 self.config.write(configfile)

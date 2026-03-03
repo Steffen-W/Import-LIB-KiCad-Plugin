@@ -20,7 +20,7 @@ logger = logging.getLogger("impart_plugin")
 log_handler: Optional[logging.FileHandler] = None
 
 
-def setup_logging():
+def setup_logging() -> bool:
     """Setup logging for the plugin"""
     global logger, log_handler
 
@@ -56,7 +56,7 @@ def setup_logging():
         return False
 
 
-def cleanup_logging():
+def cleanup_logging() -> None:
     """Clean up logging resources"""
     try:
         if log_handler:
@@ -72,7 +72,7 @@ def cleanup_logging():
         print(f"Logging cleanup failed: {e}")
 
 
-def setup_submodule_paths():
+def setup_submodule_paths() -> bool:
     """Set up Python paths for git submodules"""
     try:
         # Add kiutils submodule path
@@ -105,7 +105,7 @@ def setup_submodule_paths():
         return False
 
 
-def show_error_dialog(title, message):
+def show_error_dialog(title: str, message: str) -> None:
     """Show error dialog with fallback to console"""
     try:
         app = wx.App() if not wx.GetApp() else None
@@ -119,7 +119,7 @@ def show_error_dialog(title, message):
 class ActionImpartPlugin(pcbnew.ActionPlugin):
     """KiCad Action Plugin for library import using git submodules."""
 
-    def defaults(self):
+    def defaults(self) -> None:
         self.name = "impartGUI (fallback pcbnew)"
         self.category = "Import library files"
         self.description = "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA"
@@ -129,7 +129,7 @@ class ActionImpartPlugin(pcbnew.ActionPlugin):
         self.icon_file_name = str(icon_path)
         self.dark_icon_file_name = str(icon_path)
 
-    def Run(self):
+    def Run(self) -> None:
         """Run the plugin with git submodules."""
         try:
             setup_logging()
@@ -164,7 +164,7 @@ class ActionImpartPlugin(pcbnew.ActionPlugin):
         finally:
             cleanup_logging()
 
-    def _start_plugin_frontend(self):
+    def _start_plugin_frontend(self) -> None:
         """Start the main plugin frontend"""
         try:
             logger.info("Starting plugin frontend")

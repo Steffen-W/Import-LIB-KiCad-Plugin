@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from threading import Thread
 from time import sleep
-from typing import Any, List, Optional, Tuple
+from typing import Any, Callable, List, Optional
 
 # Setup paths for local imports
 script_dir = Path(__file__).resolve().parent
@@ -123,12 +123,14 @@ class ResultEvent(wx.PyEvent):
 class FileDropTarget(wx.FileDropTarget):
     """Drop target for ZIP files on the text control."""
 
-    def __init__(self, window, callback):
+    def __init__(
+        self, window: wx.Window, callback: Callable[[list[str]], None]
+    ) -> None:
         wx.FileDropTarget.__init__(self)
         self.window = window
         self.callback = callback
 
-    def OnDropFiles(self, x, y, filenames):
+    def OnDropFiles(self, x: int, y: int, filenames: list[str]) -> bool:
         """Called when files are dropped on the text control."""
         zip_files = [f for f in filenames if f.lower().endswith(".zip")]
 
@@ -147,7 +149,7 @@ class FileDropTarget(wx.FileDropTarget):
 class PluginThread(Thread):
     """Background thread for monitoring import status."""
 
-    def __init__(self, wx_object: wx.Window, backend) -> None:
+    def __init__(self, wx_object: wx.Window, backend: "ImpartBackend") -> None:
         Thread.__init__(self)
         self.wx_object = wx_object
         self.backend = backend
@@ -759,7 +761,7 @@ class ImpartFrontend(impartGUI):
             from .impart_easyeda import ImportConfig, import_easyeda_component
         except ImportError:
             try:
-                from impart_easyeda import (  # type: ignore[import-not-found,no-redef]
+                from impart_easyeda import (  # type: ignore[no-redef]
                     ImportConfig,
                     import_easyeda_component,
                 )
@@ -808,7 +810,7 @@ class ImpartFrontend(impartGUI):
             base_folder = project_path
         else:
             path_variable = "${KICAD_3RD_PARTY}"
-            base_folder = self.backend.config.get_DEST_PATH()
+            base_folder = Path(self.backend.config.get_DEST_PATH())
 
         config = ImportConfig(
             base_folder=Path(base_folder),
@@ -844,7 +846,7 @@ class ImpartFrontend(impartGUI):
             logging.exception(f"Unexpected error importing {component_id}")
             wx.MessageBox(error_msg, "Unexpected Error", wx.OK | wx.ICON_ERROR)
 
-    def get_old_lib_files(self) -> dict:
+    def get_old_lib_files(self) -> dict[str, dict[str, Path]]:
         """Get list of old library files for migration."""
         lib_path = self.m_dirPicker_librarypath.GetPath()
         result = find_old_lib_files(
@@ -876,7 +878,9 @@ class ImpartFrontend(impartGUI):
         event.Skip()
 
     def _perform_migration(
-        self, libs_to_migrate: dict, conversion_info: List[Tuple]
+        self,
+        libs_to_migrate: dict[str, dict[str, Path]],
+        conversion_info: list[tuple[str, str]],
     ) -> None:
         """Perform the actual library migration."""
         msg, lib_rename = self.backend.kicad_settings.prepare_library_migration(
@@ -896,9 +900,9 @@ class ImpartFrontend(impartGUI):
         dlg = wx.MessageDialog(
             None, msg, "WARNING", wx.OK | wx.ICON_WARNING | wx.CANCEL
         )
-        return dlg.ShowModal() == wx.ID_OK
+        return bool(dlg.ShowModal() == wx.ID_OK)
 
-    def _execute_conversion(self, libs_to_migrate: dict) -> None:
+    def _execute_conversion(self, libs_to_migrate: dict[str, dict[str, Path]]) -> None:
         """Execute the library conversion."""
         self.backend.print_to_buffer("Converted libraries:")
         conversion_results = convert_lib_list(libs_to_migrate, drymode=False)
@@ -909,7 +913,9 @@ class ImpartFrontend(impartGUI):
             else:
                 self.backend.print_to_buffer(f"{old_path} convert to {new_path}")
 
-    def _handle_library_renaming(self, msg: str, lib_rename: List[dict]) -> None:
+    def _handle_library_renaming(
+        self, msg: str, lib_rename: list[dict[str, str]]
+    ) -> None:
         """Handle library renaming in KiCad settings."""
         msg_lib = (
             "\nShould the change be made automatically? "
@@ -928,7 +934,9 @@ class ImpartFrontend(impartGUI):
         else:
             self._show_manual_migration_instructions(lib_rename)
 
-    def _show_manual_migration_instructions(self, lib_rename: List[dict]) -> None:
+    def _show_manual_migration_instructions(
+        self, lib_rename: list[dict[str, str]]
+    ) -> None:
         """Show manual migration instructions."""
         if not lib_rename:
             return
@@ -948,7 +956,7 @@ class ImpartFrontend(impartGUI):
         self.backend.print_to_buffer(msg_summary)
 
 
-def create_backend_handler():
+def create_backend_handler() -> "ImpartBackend":
     """Create a new backend handler instance."""
     try:
         backend = ImpartBackend()
