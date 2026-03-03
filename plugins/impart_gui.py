@@ -125,64 +125,37 @@ class impartGUI(wx.Dialog):
 
         bSizer.Add(self.m_staticline12, 0, wx.EXPAND | wx.ALL, 5)
 
-        fgSizer1 = wx.FlexGridSizer(0, 4, 0, 0)
-        fgSizer1.SetFlexibleDirection(wx.BOTH)
-        fgSizer1.SetNonFlexibleGrowMode(wx.FLEX_GROWMODE_SPECIFIED)
+        fgSizer1 = wx.BoxSizer(wx.HORIZONTAL)
 
-        fgSizer1.SetMinSize(wx.Size(-1, 0))
         self.m_autoImport = wx.CheckBox(
-            self,
-            wx.ID_ANY,
-            "auto background import",
-            wx.DefaultPosition,
-            wx.DefaultSize,
-            0,
+            self, wx.ID_ANY, "auto import", wx.DefaultPosition, wx.DefaultSize, 0
         )
         fgSizer1.Add(self.m_autoImport, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
         self.m_overwrite = wx.CheckBox(
-            self,
-            wx.ID_ANY,
-            "overwrite existing lib",
-            wx.DefaultPosition,
-            wx.DefaultSize,
-            0,
+            self, wx.ID_ANY, "overwrite lib", wx.DefaultPosition, wx.DefaultSize, 0
         )
         fgSizer1.Add(self.m_overwrite, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
         self.m_check_autoLib = wx.CheckBox(
-            self, wx.ID_ANY, "auto KiCad setting", wx.DefaultPosition, wx.DefaultSize, 0
+            self, wx.ID_ANY, "auto settings", wx.DefaultPosition, wx.DefaultSize, 0
         )
-        fgSizer1.Add(self.m_check_autoLib, 0, wx.ALL, 5)
-
-        bSizer.Add(fgSizer1, 0, wx.ALIGN_CENTER, 5)
-
-        bSizer3 = wx.BoxSizer(wx.HORIZONTAL)
+        fgSizer1.Add(self.m_check_autoLib, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
         self.m_checkBoxSingleLib = wx.CheckBox(
-            self,
-            wx.ID_ANY,
-            "single library name",
-            wx.DefaultPosition,
-            wx.DefaultSize,
-            0,
+            self, wx.ID_ANY, "single lib name", wx.DefaultPosition, wx.DefaultSize, 0
         )
-        bSizer3.Add(self.m_checkBoxSingleLib, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+        fgSizer1.Add(self.m_checkBoxSingleLib, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
         self.m_textCtrl_libname = wx.TextCtrl(
-            self,
-            wx.ID_ANY,
-            wx.EmptyString,
-            wx.DefaultPosition,
-            wx.DefaultSize,
-            0,
+            self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0
         )
-        self.m_textCtrl_libname.SetMinSize(wx.Size(180, -1))
+        self.m_textCtrl_libname.SetMinSize(wx.Size(150, -1))
         self.m_textCtrl_libname.SetHint("e.g. MyLibrary")
-        self.m_textCtrl_libname.Enable(False)
-        bSizer3.Add(self.m_textCtrl_libname, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+        self.m_textCtrl_libname.Show(False)
+        fgSizer1.Add(self.m_textCtrl_libname, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
-        bSizer.Add(bSizer3, 0, wx.ALIGN_CENTER, 5)
+        bSizer.Add(fgSizer1, 0, wx.ALIGN_CENTER, 5)
 
         self.m_staticText_sourcepath = wx.StaticText(
             self,

@@ -434,7 +434,8 @@ class ImpartFrontend(impartGUI):
         lib_name = self.backend.config.get_value("lib_name") or ""
         self.m_checkBoxSingleLib.SetValue(single_lib)
         self.m_textCtrl_libname.SetValue(lib_name)
-        self.m_textCtrl_libname.Enable(single_lib)
+        self.m_textCtrl_libname.Show(single_lib)
+        self.Layout()
         self.backend.importer.lib_name = lib_name if single_lib and lib_name else None
 
         self._update_button_label()
@@ -551,7 +552,8 @@ class ImpartFrontend(impartGUI):
     def m_checkBoxSingleLibOnCheckBox(self, event: wx.CommandEvent) -> None:
         """Handle single library name checkbox change."""
         enabled = self.m_checkBoxSingleLib.IsChecked()
-        self.m_textCtrl_libname.Enable(enabled)
+        self.m_textCtrl_libname.Show(enabled)
+        self.Layout()
         if enabled:
             name = self.m_textCtrl_libname.GetValue().strip()
             self.backend.importer.lib_name = name if name else None
@@ -797,6 +799,7 @@ class ImpartFrontend(impartGUI):
 
     def ButtomManualImport(self, event: wx.CommandEvent) -> None:
         """Handle manual EasyEDA import."""
+        self._update_backend_settings()
         try:
             self._perform_easyeda_import()
         except Exception as e:
@@ -805,6 +808,7 @@ class ImpartFrontend(impartGUI):
             logging.exception("Manual import failed")
         finally:
             event.Skip()
+        self._check_and_show_library_warnings()
 
     def _perform_easyeda_import(self) -> None:
         """Perform EasyEDA component import."""
