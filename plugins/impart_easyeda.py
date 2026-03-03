@@ -5,7 +5,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, NamedTuple, Optional, Tuple
+from typing import Any, Callable, NamedTuple
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ except ImportError:
     from kicad_cli import kicad_cli as KicadCli  # type: ignore[import-not-found,no-redef]
 
 try:
-    cli: Optional[KicadCli] = KicadCli()
+    cli: KicadCli | None = KicadCli()
     logger.info("✓ kicad_cli initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize kicad_cli: {e}")
@@ -60,10 +60,10 @@ logger.info("Successfully imported easyeda2kicad modules")
 class ImportPaths(NamedTuple):
     """Container for all generated file paths"""
 
-    symbol_lib: Optional[Path] = None
-    footprint_file: Optional[Path] = None
-    model_wrl: Optional[Path] = None
-    model_step: Optional[Path] = None
+    symbol_lib: Path | None = None
+    footprint_file: Path | None = None
+    model_wrl: Path | None = None
+    model_step: Path | None = None
 
 
 @dataclass
@@ -81,10 +81,10 @@ class EasyEDAImporter:
     """EasyEDA to KiCad component importer - focused on new symbol format only"""
 
     def __init__(
-        self, config: ImportConfig, print_func: Optional[Callable[[str], None]] = None
+        self, config: ImportConfig, print_func: Callable[[str], None] | None = None
     ):
         """Initialize importer with configuration"""
-        self.print_func = print_func or (lambda x: None)
+        self.print_func = print_func or (lambda _: None)
         self.config = config
         self.config.base_folder = Path(self.config.base_folder).expanduser()
         self.api = EasyedaApi()
@@ -107,7 +107,7 @@ class EasyEDAImporter:
         self.model_dir.mkdir(exist_ok=True)
         logger.debug(f"Ensured directories exist in {self.config.base_folder}")
 
-    def _import_symbol(self, cad_data: dict) -> Tuple[bool, Optional[str]]:
+    def _import_symbol(self, cad_data: dict[str, Any]) -> tuple[bool, str | None]:
         """Import symbol and return success status and component name"""
         try:
             importer = EasyedaSymbolImporter(easyeda_cp_cad_data=cad_data)
@@ -306,8 +306,8 @@ class EasyEDAImporter:
             return False
 
     def _import_footprint(
-        self, cad_data: dict, use_step: bool = False
-    ) -> Optional[Path]:
+        self, cad_data: dict[str, Any], use_step: bool = False
+    ) -> Path | None:
         """Import footprint and return the file path"""
         try:
             importer = EasyedaFootprintImporter(easyeda_cp_cad_data=cad_data)
@@ -338,11 +338,13 @@ class EasyEDAImporter:
             logger.error(f"Footprint import failed: {e}")
             return None
 
-    def _import_3d_model(self, cad_data: dict) -> Tuple[Optional[Path], Optional[Path]]:
+    def _import_3d_model(
+        self, cad_data: dict[str, Any]
+    ) -> tuple[Path | None, Path | None]:
         """Import 3D model and return paths to wrl and step files"""
         try:
             model_3d = Easyeda3dModelImporter(
-                easyeda_cp_cad_data=cad_data, download_raw_3d_model=True
+                easyeda_cp_cad_data=cad_data, download_raw_3d_model=True, api=self.api
             ).output
 
             if not model_3d:
@@ -411,7 +413,7 @@ class EasyEDAImporter:
                 raise RuntimeError(error_msg)
 
             # Import all parts (3D model first to know if STEP is available)
-            symbol_ok, component_name = self._import_symbol(cad_data)
+            symbol_ok, _ = self._import_symbol(cad_data)
             wrl_path, step_path = self._import_3d_model(cad_data)
             use_step = self.config.prefer_step and step_path is not None
             footprint_path = self._import_footprint(cad_data, use_step=use_step)
