@@ -410,11 +410,20 @@ class ImpartFrontend(impartGUI):
         self.m_dirPicker_sourcepath.SetPath(self.backend.config.get_SRC_PATH())
         self.m_dirPicker_librarypath.SetPath(self.backend.config.get_DEST_PATH())
 
-        # Set checkboxes
-        self.m_autoImport.SetValue(self.backend.auto_import)
-        self.m_overwrite.SetValue(self.backend.overwrite_import)
-        self.m_check_autoLib.SetValue(self.backend.auto_lib)
-        self.m_checkBoxLocalLib.SetValue(self.backend.local_lib)
+        # Set checkboxes (load from persistent config)
+        auto_import = self.backend.config.get_value("auto_import") == "True"
+        overwrite_import = self.backend.config.get_value("overwrite_import") == "True"
+        auto_lib = self.backend.config.get_value("auto_lib") == "True"
+        local_lib = self.backend.config.get_value("local_lib") == "True"
+        self.m_autoImport.SetValue(auto_import)
+        self.m_overwrite.SetValue(overwrite_import)
+        self.m_check_autoLib.SetValue(auto_lib)
+        self.m_checkBoxLocalLib.SetValue(local_lib)
+        self.backend.auto_import = auto_import
+        self.backend.overwrite_import = overwrite_import
+        self.backend.auto_lib = auto_lib
+        self.backend.local_lib = local_lib
+        self.m_dirPicker_librarypath.Enable(not local_lib)
 
         self._update_button_label()
         self._check_migration_possible()
@@ -638,11 +647,15 @@ class ImpartFrontend(impartGUI):
             return "cancel"
 
     def _save_settings(self) -> None:
-        """Save current settings to backend."""
+        """Save current settings to backend and persistent config."""
         self.backend.auto_import = self.m_autoImport.IsChecked()
         self.backend.overwrite_import = self.m_overwrite.IsChecked()
         self.backend.auto_lib = self.m_check_autoLib.IsChecked()
         self.backend.local_lib = self.m_checkBoxLocalLib.IsChecked()
+        self.backend.config.set_value("auto_import", str(self.backend.auto_import))
+        self.backend.config.set_value("overwrite_import", str(self.backend.overwrite_import))
+        self.backend.config.set_value("auto_lib", str(self.backend.auto_lib))
+        self.backend.config.set_value("local_lib", str(self.backend.local_lib))
 
     def BottonClick(self, event: wx.CommandEvent) -> None:
         """Handle main button click."""
