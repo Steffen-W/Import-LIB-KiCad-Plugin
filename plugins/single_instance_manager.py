@@ -29,9 +29,10 @@ class SingleInstanceManager:
 
     def is_already_running(self) -> bool:
         """Check if another instance is running and send focus command."""
+        logging.info(f"Checking for existing instance on port {self.port}...")
         try:
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.settimeout(2.0)  # Longer timeout
+            client_socket.settimeout(2.0)
             client_socket.connect(("127.0.0.1", self.port))
 
             message = {"command": "focus"}
@@ -42,23 +43,25 @@ class SingleInstanceManager:
             try:
                 client_socket.settimeout(1.0)
                 response = client_socket.recv(64)
-                logging.debug(
-                    f"Received response: {response.decode('utf-8', errors='replace')}"
+                logging.info(
+                    f"Focus command acknowledged: {response.decode('utf-8', errors='replace')}"
                 )
             except socket.timeout:
-                pass  # No response is OK
+                logging.warning("Focus command sent but no acknowledgment received")
 
             client_socket.close()
 
-            logging.info("Sent focus command to existing instance")
+            logging.info("Existing instance found - focus command sent")
             return True
 
         except (socket.error, ConnectionRefusedError, OSError) as e:
-            logging.debug(f"No existing instance found: {e}")
+            logging.info(f"No existing instance found ({e}) - starting new instance")
             return False
 
     def start_server(self, frontend_instance: Any) -> bool:
         """Start IPC server to listen for commands."""
+        self._stopped = False
+        self._stopping = False
         self.frontend_instance = frontend_instance
 
         # Try to find an available port if default is busy
@@ -108,7 +111,7 @@ class SingleInstanceManager:
                 if self.socket is None:
                     break
                 self.socket.settimeout(1.0)  # Add timeout to server socket
-                client_socket, addr = self.socket.accept()
+                client_socket, _ = self.socket.accept()
                 client_socket.settimeout(5.0)
 
                 data = client_socket.recv(1024).decode("utf-8", errors="ignore")
@@ -186,11 +189,17 @@ class SingleInstanceManager:
                 logging.info("Window is iconized - restoring")
                 self.frontend_instance.Iconize(False)
 
-            # Bring to foreground
+            # Bring to foreground: briefly iconize then restore so the window
+            # manager treats it as a newly shown window and places it on top.
+            if not self.frontend_instance.IsIconized():
+                self.frontend_instance.Iconize(True)
+            self.frontend_instance.Iconize(False)
             self.frontend_instance.Raise()
             self.frontend_instance.SetFocus()
 
-            # Request user attention (platform-specific notification)
+            # Fallback for cases where Raise() is blocked by another
+            # top-level window (e.g. board editor has focus): at least
+            # notify the user via taskbar.
             if hasattr(self.frontend_instance, "RequestUserAttention"):
                 self.frontend_instance.RequestUserAttention()
 

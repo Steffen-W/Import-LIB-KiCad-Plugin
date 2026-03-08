@@ -31,7 +31,7 @@
         "easyeda"
     ],
     "keep_on_update": [
-        ".*/config.ini"
+        "^/plugins/com_github_Steffen-W_impartGUI/config\\.ini$"
     ],
     "versions": [
         {
