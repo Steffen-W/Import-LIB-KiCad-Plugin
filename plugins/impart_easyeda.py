@@ -40,11 +40,11 @@ if easyeda_submodule.exists():
 
 from easyeda2kicad.easyeda.easyeda_api import EasyedaApi  # noqa: E402
 from easyeda2kicad.easyeda.easyeda_importer import (  # noqa: E402
-    Easyeda3dModelImporter,
     EasyedaFootprintImporter,
     EasyedaSymbolImporter,
     EeSymbol,
 )
+from easyeda2kicad.easyeda.parameters_easyeda import Ee3dModel, EeFootprint  # noqa: E402
 from easyeda2kicad.helpers import (  # noqa: E402
     KicadVersion,
     id_already_in_symbol_lib,
@@ -134,30 +134,34 @@ class EasyEDAImporter:
                 symbol=easyeda_symbol, kicad_version=KicadVersion.v6
             ).export(footprint_lib_name=self.config.lib_name)
 
-            if easyeda_symbol.sub_symbols:
-                self._print(
-                    f"Added {len(easyeda_symbol.sub_symbols)} sub-symbols for: {component_name}"
-                )
-
             if not kicad_symbol_content:
                 self._print(f"Failed to export symbol content for: {component_name}")
                 return False, component_name
 
             # Add or update symbol in library
             if is_existing:
-                logger.warning(
-                    f"Using unsafe legacy update function for existing symbol: {component_name}"
-                )
+                # update_component_in_symbol_lib_file uses regex replacement with the
+                # pre-upgrade symbol content. This may insert un-upgraded format into an
+                # already-upgraded library, which KiCad tolerates in practice but can
+                # produce minor inconsistencies (e.g. indentation, version fields).
                 update_component_in_symbol_lib_file(
                     lib_path=str(self.symbol_lib_path),
                     component_name=component_name,
                     component_content=kicad_symbol_content,
                     kicad_version=KicadVersion.v6,
                 )
+                if easyeda_symbol.sub_symbols:
+                    self._print(
+                        f"Updated {len(easyeda_symbol.sub_symbols)} sub-symbols for: {component_name}"
+                    )
                 self._print(f"Updated symbol: {component_name}")
             else:
                 success = self.add_symbol_to_upgraded_lib(kicad_symbol_content)
                 if success:
+                    if easyeda_symbol.sub_symbols:
+                        self._print(
+                            f"Imported {len(easyeda_symbol.sub_symbols)} sub-symbols for: {component_name}"
+                        )
                     self._print(f"Added symbol: {component_name}")
                 else:
                     self._print(f"Failed to add symbol: {component_name}")
@@ -254,25 +258,18 @@ class EasyEDAImporter:
             return False
 
     def _import_footprint(
-        self, cad_data: dict[str, Any], use_step: bool = False
+        self, ee_footprint: EeFootprint, use_step: bool = False
     ) -> Path | None:
-        """Import footprint and return the file path"""
+        """Export footprint to .kicad_mod and return the file path"""
         try:
-            importer = EasyedaFootprintImporter(easyeda_cp_cad_data=cad_data)
-            easyeda_footprint = importer.get_footprint()
-
-            footprint_file = (
-                self.footprint_dir / f"{easyeda_footprint.info.name}.kicad_mod"
-            )
+            footprint_file = self.footprint_dir / f"{ee_footprint.info.name}.kicad_mod"
 
             if footprint_file.exists() and not self.config.overwrite:
                 self._print(f"Footprint already exists: {footprint_file.name}")
                 return None
 
-            exporter = ExporterFootprintKicad(footprint=easyeda_footprint)
             model_3d_path = f"{self.config.lib_var}/{self.config.lib_name}.3dshapes"
-
-            exporter.export(
+            ExporterFootprintKicad(footprint=ee_footprint).export(
                 footprint_full_path=str(footprint_file),
                 model_3d_path=model_3d_path,
                 model_3d_extension="step" if use_step else "wrl",
@@ -287,25 +284,26 @@ class EasyEDAImporter:
             return None
 
     def _import_3d_model(
-        self, cad_data: dict[str, Any]
+        self, model_3d: Ee3dModel | None
     ) -> tuple[Path | None, Path | None]:
-        """Import 3D model and return paths to wrl and step files"""
+        """Download and export 3D model. Returns (wrl_path, step_path)."""
         try:
-            model_3d = Easyeda3dModelImporter(
-                easyeda_cp_cad_data=cad_data, download_raw_3d_model=True, api=self.api
-            ).output
-
             if not model_3d:
                 self._print("No 3D model available for this component.")
                 return None, None
 
+            # Download raw geometry; uuid and translation come from the footprint parser
+            model_3d.raw_obj = self.api.get_raw_3d_model_obj(uuid=model_3d.uuid)
+            model_3d.step = self.api.get_step_3d_model(uuid=model_3d.uuid)
+
             exporter = Exporter3dModelKicad(model_3d=model_3d)
 
-            if not (exporter.output or exporter.output_step):
+            # STEP export also requires exporter.output (WRL data); without it no files are written.
+            if not exporter.output:
                 self._print("No exportable 3D model found.")
                 return None, None
 
-            output_name = exporter.output.name if exporter.output else "model"
+            output_name = exporter.output.name
             filepath_wrl = self.model_dir / f"{output_name}.wrl"
             filepath_step = self.model_dir / f"{output_name}.step"
 
@@ -358,11 +356,18 @@ class EasyEDAImporter:
                 self._print(error_msg)
                 raise RuntimeError(error_msg)
 
+            # Parse footprint once — EasyedaFootprintImporter extracts the canvas origin
+            # internally (canvas[16]/[17] → head.x/y fallback), so model_3d.translation
+            # is already correctly positioned without any additional origin extraction.
+            ee_footprint = EasyedaFootprintImporter(
+                easyeda_cp_cad_data=cad_data
+            ).get_footprint()
+
             # Import all parts (3D model first to know if STEP is available)
             symbol_ok, _ = self._import_symbol(cad_data)
-            wrl_path, step_path = self._import_3d_model(cad_data)
+            wrl_path, step_path = self._import_3d_model(ee_footprint.model_3d)
             use_step = self.config.prefer_step and step_path is not None
-            footprint_path = self._import_footprint(cad_data, use_step=use_step)
+            footprint_path = self._import_footprint(ee_footprint, use_step=use_step)
 
             # Prepare result
             result = ImportPaths(
@@ -373,16 +378,7 @@ class EasyEDAImporter:
             )
 
             # Final status
-            created_files = sum(
-                1
-                for path in [
-                    result.symbol_lib,
-                    result.footprint_file,
-                    result.model_wrl,
-                    result.model_step,
-                ]
-                if path
-            )
+            created_files = sum(1 for path in result if path)
 
             if created_files > 0:
                 self._print(
