@@ -85,20 +85,6 @@ After adding the library paths, **restart KiCad** to ensure all settings are pro
 
 **About the "auto KiCad setting" option:** While the plugin offers an automatic configuration option, it may not work reliably in all KiCad versions or configurations. If you encounter errors like "Failed to add library automatically", follow the manual steps above instead.
 
-## Migrate the libraries
-
-It is strongly recommended to migrate the libraries. If you see the "migrate the libraries" button, you have been using the plugin for some time. From now on, only the latest library format will be supported. If this does not work, the old format will continue to work.
-
-![GUI_migrate](doc/2024-08-17_GUI_migrate.png)
-
-By pressing "migrate the libraries" the following window appears. Depending on how many libraries you use, fewer libraries may be displayed. Now you can start the conversion process. Important: The conversion only works completely from KiCad 8.0.4. If possible, use the latest stable [![GitHub Release](https://img.shields.io/badge/KiCad-V8-blue.svg)](https://www.kicad.org/download/) version.
-
-![Migration](doc/2024-08-17_Migration.png)
-
-Depending on the setup, further changes may be necessary. You will be notified if this is necessary. Press ok to apply them. A restart of KiCad is mandatory to apply the changes.
-
-![update setting](doc/2024-08-17_setting.png)
-
 ## CLI Support
 
 The import process can also be done completely without the GUI. Run from the `plugins` directory:

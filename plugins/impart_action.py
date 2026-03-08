@@ -69,7 +69,6 @@ try:
     from .ConfigHandler import ConfigHandler
     from .FileHandler import FileHandler
     from .impart_gui import impartGUI
-    from .impart_migration import convert_lib_list, find_old_lib_files
     from .KiCad_Settings import KiCad_Settings
     from .KiCadImport import LibImporter
     from .KiCadSettingsPaths import KiCadApp
@@ -83,7 +82,6 @@ except ImportError as e1:
         from ConfigHandler import ConfigHandler  # type: ignore[import-not-found,no-redef]
         from FileHandler import FileHandler  # type: ignore[import-not-found,no-redef]
         from impart_gui import impartGUI  # type: ignore[import-not-found,no-redef]
-        from impart_migration import convert_lib_list, find_old_lib_files  # type: ignore[import-not-found,no-redef]
         from KiCad_Settings import KiCad_Settings  # type: ignore[import-not-found,no-redef]
         from KiCadImport import LibImporter  # type: ignore[import-not-found,no-redef]
         from KiCadSettingsPaths import KiCadApp  # type: ignore[import-not-found,no-redef]
@@ -439,8 +437,6 @@ class ImpartFrontend(impartGUI):
         self.backend.importer.lib_name = lib_name if single_lib and lib_name else None
 
         self._update_button_label()
-        self._check_migration_possible()
-
         # Add drag & drop support
         self._setup_drag_drop()
         self._add_drag_drop_hint()
@@ -794,7 +790,6 @@ class ImpartFrontend(impartGUI):
         if old_dest != new_dest:
             self._print_path_change("destination", new_dest)
 
-        self._check_migration_possible()
         event.Skip()
 
     def ButtomManualImport(self, event: wx.CommandEvent) -> None:
@@ -900,115 +895,6 @@ class ImpartFrontend(impartGUI):
             self.backend.print_to_buffer(error_msg)
             logging.exception(f"Unexpected error importing {component_id}")
             wx.MessageBox(error_msg, "Unexpected Error", wx.OK | wx.ICON_ERROR)
-
-    def get_old_lib_files(self) -> dict[str, dict[str, Path]]:
-        """Get list of old library files for migration."""
-        lib_path = self.m_dirPicker_librarypath.GetPath()
-        result = find_old_lib_files(
-            folder_path=lib_path, libs=ImpartBackend.SUPPORTED_LIBRARIES
-        )
-        return result
-
-    def _check_migration_possible(self) -> None:
-        """Check if library migration is possible and show/hide button."""
-        libs_to_migrate = self.get_old_lib_files()
-        conversion_info = convert_lib_list(libs_to_migrate, drymode=True)
-
-        if conversion_info:
-            self.m_button_migrate.Show()
-        else:
-            self.m_button_migrate.Hide()
-
-    def migrate_libs(self, event: wx.CommandEvent) -> None:
-        """Handle library migration."""
-        libs_to_migrate = self.get_old_lib_files()
-        conversion_info = convert_lib_list(libs_to_migrate, drymode=True)
-
-        if not conversion_info:
-            self.backend.print_to_buffer("Error in migrate_libs()")
-            return
-
-        self._perform_migration(libs_to_migrate, conversion_info)
-        self._check_migration_possible()
-        event.Skip()
-
-    def _perform_migration(
-        self,
-        libs_to_migrate: dict[str, dict[str, Path]],
-        conversion_info: list[tuple[str, str]],
-    ) -> None:
-        """Perform the actual library migration."""
-        msg, lib_rename = self.backend.kicad_settings.prepare_library_migration(
-            conversion_info
-        )
-
-        if not self._confirm_migration(msg):
-            return
-
-        self._execute_conversion(libs_to_migrate)
-
-        if lib_rename:
-            self._handle_library_renaming(msg, lib_rename)
-
-    def _confirm_migration(self, msg: str) -> bool:
-        """Confirm migration with user."""
-        dlg = wx.MessageDialog(
-            None, msg, "WARNING", wx.OK | wx.ICON_WARNING | wx.CANCEL
-        )
-        return bool(dlg.ShowModal() == wx.ID_OK)
-
-    def _execute_conversion(self, libs_to_migrate: dict[str, dict[str, Path]]) -> None:
-        """Execute the library conversion."""
-        self.backend.print_to_buffer("Converted libraries:")
-        conversion_results = convert_lib_list(libs_to_migrate, drymode=False)
-
-        for old_path, new_path in conversion_results:
-            if new_path.endswith(".blk"):
-                self.backend.print_to_buffer(f"{old_path} rename to {new_path}")
-            else:
-                self.backend.print_to_buffer(f"{old_path} convert to {new_path}")
-
-    def _handle_library_renaming(
-        self, msg: str, lib_rename: list[dict[str, str]]
-    ) -> None:
-        """Handle library renaming in KiCad settings."""
-        msg_lib = (
-            "\nShould the change be made automatically? "
-            "A restart of KiCad is then necessary to apply all changes."
-        )
-
-        dlg = wx.MessageDialog(
-            None, msg + msg_lib, "WARNING", wx.OK | wx.ICON_WARNING | wx.CANCEL
-        )
-
-        if dlg.ShowModal() == wx.ID_OK:
-            result_msg = self.backend.kicad_settings.execute_library_migration(
-                lib_rename
-            )
-            self.backend.print_to_buffer(result_msg)
-        else:
-            self._show_manual_migration_instructions(lib_rename)
-
-    def _show_manual_migration_instructions(
-        self, lib_rename: list[dict[str, str]]
-    ) -> None:
-        """Show manual migration instructions."""
-        if not lib_rename:
-            return
-
-        msg_summary = (
-            "The following changes must be made to the list of imported Symbol libs:\n"
-        )
-
-        for item in lib_rename:
-            msg_summary += f"\n{item['name']}: {item['oldURI']} \n-> {item['newURI']}"
-
-        msg_summary += (
-            "\n\nIt is necessary to adjust the settings of the imported "
-            "symbol libraries in KiCad."
-        )
-
-        self.backend.print_to_buffer(msg_summary)
 
 
 def create_backend_handler() -> "ImpartBackend":

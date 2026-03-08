@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, cast
+from typing import Any, Dict, List, cast
 
 current_dir = Path(__file__).resolve().parent
 kiutils_src = current_dir.parent / "kiutils" / "src"
@@ -441,81 +441,4 @@ class KiCad_Settings:
             else:
                 msg += "\nYou must add them manually or select the automatic option."
 
-        return msg
-
-    def prepare_library_migration(
-        self, libs_to_migrate: List[Tuple[str, str]]
-    ) -> Tuple[str, List[Dict[str, str]]]:
-        """Prepares library migration by analyzing which symbol libraries need to be updated
-
-        Args:
-            libs_to_migrate (list): List of tuples with (old_lib, new_lib) format
-
-        Returns:
-            tuple: (message, libraries_to_rename)
-                - message: Information about the changes to be made
-                - libraries_to_rename: List of dictionaries with library renaming information
-        """
-        if not libs_to_migrate or len(libs_to_migrate) <= 0:
-            return "Error in prepare_library_migration()", []
-
-        SymbolTable = self.get_sym_table()
-        SymbolLibsUri = {lib["uri"]: lib for lib in SymbolTable}
-        libraries_to_rename: List[Dict[str, str]] = []
-
-        def lib_entry(lib: str) -> str:
-            return self.path_prefix + "/" + lib
-
-        msg = ""
-        for old_lib, new_lib in libs_to_migrate:
-            if new_lib.endswith(".blk"):
-                msg += f"\n{old_lib} rename to {new_lib}"
-            else:
-                msg += f"\n{old_lib} convert to {new_lib}"
-
-            # Check if this library is in the symbol table
-            if lib_entry(old_lib) in SymbolLibsUri:
-                entry = SymbolLibsUri[lib_entry(old_lib)]
-                tmp = {
-                    "oldURI": entry["uri"],
-                    "newURI": lib_entry(new_lib),
-                    "name": entry["name"],
-                }
-                libraries_to_rename.append(tmp)
-
-        # Create message about symbol library changes
-        msg_lib = ""
-        if len(libraries_to_rename):
-            msg_lib += "The following changes must be made to the list of imported Symbol libs:\n"
-            for tmp in libraries_to_rename:
-                msg_lib += f"\n{tmp['name']} : {tmp['oldURI']} \n-> {tmp['newURI']}"
-            msg_lib += "\n\n"
-            msg_lib += "It is necessary to adjust the settings of the imported symbol libraries in KiCad."
-
-        msg += "\n\n" + msg_lib
-        msg += "\n\nBackup files are also created automatically. "
-        msg += "These are named '*.blk'.\nShould the changes be applied?"
-
-        return msg, libraries_to_rename
-
-    def execute_library_migration(
-        self, libraries_to_rename: List[Dict[str, str]]
-    ) -> str:
-        """Executes the library migration by changing entries in the symbol table
-
-        Args:
-            libraries_to_rename (list): List of dictionaries with library renaming information
-
-        Returns:
-            str: Message about the changes made
-        """
-        if not libraries_to_rename or len(libraries_to_rename) <= 0:
-            return "No libraries to migrate."
-
-        msg = ""
-        for lib in libraries_to_rename:
-            msg += f"\n{lib['name']} : {lib['oldURI']} \n-> {lib['newURI']}"
-            self.sym_table_change_entry(lib["oldURI"], lib["newURI"])
-
-        msg += "\n\nA restart of KiCad is necessary to apply all changes."
         return msg

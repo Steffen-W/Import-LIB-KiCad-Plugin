@@ -32,29 +32,6 @@ class impartGUI(wx.Dialog):
 
         bSizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.m_button_migrate = wx.Button(
-            self,
-            wx.ID_ANY,
-            "migrate the libraries (highly recommended)",
-            wx.DefaultPosition,
-            wx.DefaultSize,
-            0,
-        )
-        self.m_button_migrate.SetFont(
-            wx.Font(
-                15,
-                wx.FONTFAMILY_DEFAULT,
-                wx.FONTSTYLE_NORMAL,
-                wx.FONTWEIGHT_NORMAL,
-                False,
-                wx.EmptyString,
-            )
-        )
-        self.m_button_migrate.Hide()
-        self.m_button_migrate.SetMaxSize(wx.Size(-1, 150))
-
-        bSizer.Add(self.m_button_migrate, 1, wx.ALL | wx.EXPAND, 5)
-
         self.m_button = wx.Button(
             self, wx.ID_ANY, "Start", wx.DefaultPosition, wx.DefaultSize, 0
         )
@@ -263,7 +240,6 @@ class impartGUI(wx.Dialog):
 
         # Connect Events
         self.Bind(wx.EVT_CLOSE, self.on_close)
-        self.m_button_migrate.Bind(wx.EVT_BUTTON, self.migrate_libs)
         self.m_button.Bind(wx.EVT_BUTTON, self.BottonClick)
         self.m_buttonImportManual.Bind(wx.EVT_BUTTON, self.ButtomManualImport)
         self.m_textCtrl2.Bind(wx.EVT_TEXT_ENTER, self.ButtomManualImport)
@@ -279,9 +255,6 @@ class impartGUI(wx.Dialog):
 
     # Virtual event handlers, override them in your derived class
     def on_close(self, event):
-        event.Skip()
-
-    def migrate_libs(self, event):
         event.Skip()
 
     def BottonClick(self, event):
