@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 import shutil
@@ -5,7 +7,6 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 
 @dataclass
@@ -19,7 +20,7 @@ class CommandResult:
     message: str = ""
 
 
-class kicad_cli:
+class KicadCli:
     def __init__(self) -> None:
         """Initialize the KiCad CLI wrapper with logger and command discovery."""
         self.logger: logging.Logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ class kicad_cli:
                     return path
 
         # Check system PATH for standard commands
-        possible_commands: List[str] = ["kicad-cli", "kicad-cli.exe"]
+        possible_commands: list[str] = ["kicad-cli", "kicad-cli.exe"]
         for cmd in possible_commands:
             if shutil.which(cmd):
                 self.logger.info(f"Found KiCad CLI in PATH: {cmd}")
@@ -50,43 +51,42 @@ class kicad_cli:
         self.logger.warning("KiCad CLI not found, using default 'kicad-cli'")
         return "kicad-cli"
 
-    def run_kicad_cli(self, command: List[str]) -> CommandResult:
+    def _get_creation_flags(self) -> int:
+        """Return Windows-specific subprocess creation flags (0 on other platforms)."""
+        if sys.platform == "win32":
+            try:
+                return subprocess.CREATE_NO_WINDOW
+            except AttributeError:
+                return 0x08000000  # CREATE_NO_WINDOW constant
+        return 0
+
+    def _get_subprocess_env(self) -> dict[str, str]:
+        """Return environment with forced English locale for consistent CLI output."""
+        env = os.environ.copy()
+        env["LANG"] = "en_US.UTF-8"
+        env["LC_ALL"] = "en_US.UTF-8"
+        return env
+
+    def run_kicad_cli(self, command: list[str]) -> CommandResult:
         """Execute a KiCad CLI command with detailed result information."""
         full_command = [self.kicad_cmd] + command
         self.logger.info(f"Executing: {' '.join(full_command)}")
 
         try:
-            # Windows-specific flag to hide console window
-            creation_flags = 0
-            if sys.platform == "win32":
-                try:
-                    creation_flags = subprocess.CREATE_NO_WINDOW
-                except AttributeError:
-                    # Fallback for older Python versions on Windows
-                    creation_flags = 0x08000000  # CREATE_NO_WINDOW constant
-
-            # Set LANG to English to ensure consistent output
-            env = os.environ.copy()
-            env["LANG"] = "en_US.UTF-8"
-            env["LC_ALL"] = "en_US.UTF-8"
-
             result = subprocess.run(
                 full_command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
                 timeout=30,
-                creationflags=creation_flags,
-                env=env,
+                creationflags=self._get_creation_flags(),
+                env=self._get_subprocess_env(),
             )
 
             success = result.returncode == 0
             if success:
                 self.logger.info("Command completed successfully")
             else:
-                self.logger.error(
-                    f"Command failed with return code {result.returncode}"
-                )
+                self.logger.error(f"Command failed with return code {result.returncode}")
 
             return CommandResult(
                 success=success,
@@ -109,11 +109,11 @@ class kicad_cli:
             self.logger.error(error_msg)
             return CommandResult(False, "", str(e), -1, error_msg)
 
-    def version_to_tuple(self, version_str: str) -> Tuple[int, int, int]:
+    def version_to_tuple(self, version_str: str) -> tuple[int, int, int]:
         """Convert a version string like '8.0.4' or '8.0.4-rc1' to tuple."""
         try:
             clean_version: str = version_str.split("-")[0]
-            parts: List[str] = clean_version.split(".")
+            parts: list[str] = clean_version.split(".")
             while len(parts) < 3:
                 parts.append("0")
             return (int(parts[0]), int(parts[1]), int(parts[2]))
@@ -122,41 +122,23 @@ class kicad_cli:
 
     def exists(self) -> bool:
         """Check if KiCad CLI exists and meets minimum version requirements."""
+        min_version = "8.0.4"
         try:
-            # Windows-specific flag to hide console window
-            creation_flags = 0
-            if sys.platform == "win32":
-                try:
-                    creation_flags = subprocess.CREATE_NO_WINDOW
-                except AttributeError:
-                    # Fallback for older Python versions on Windows
-                    creation_flags = 0x08000000  # CREATE_NO_WINDOW constant
-
-            # Set LANG to English to ensure consistent output
-            env = os.environ.copy()
-            env["LANG"] = "en_US.UTF-8"
-            env["LC_ALL"] = "en_US.UTF-8"
-
             result = subprocess.run(
                 [self.kicad_cmd, "--version"],
                 check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
                 timeout=10,
-                creationflags=creation_flags,
-                env=env,
+                creationflags=self._get_creation_flags(),
+                env=self._get_subprocess_env(),
             )
-            version: str = result.stdout.strip()
-            min_version: str = "8.0.4"
-            kicad_vers: Tuple[int, int, int] = self.version_to_tuple(version)
-
+            version = result.stdout.strip()
             self.logger.info(f"KiCad Version: {version}")
-            if not kicad_vers or kicad_vers < self.version_to_tuple(min_version):
+            if self.version_to_tuple(version) < self.version_to_tuple(min_version):
                 self.logger.warning(f"Minimum required KiCad version is: {min_version}")
                 return False
-            else:
-                return True
+            return True
 
         except subprocess.TimeoutExpired:
             self.logger.error("Timeout checking KiCad version")
@@ -171,10 +153,10 @@ class kicad_cli:
     def _is_valid_symbol_file(self, filepath: str) -> bool:
         """Check if file appears to be a valid KiCad symbol file."""
         try:
-            with open(filepath, "r", encoding="utf-8") as f:
+            with open(filepath, encoding="utf-8") as f:
                 content = f.read(100)
                 return content.strip().startswith("(kicad_symbol_lib")
-        except (IOError, UnicodeDecodeError):
+        except (OSError, UnicodeDecodeError):
             return False
 
     def _validate_upgrade_result(
@@ -191,9 +173,7 @@ class kicad_cli:
 
         if not self._is_valid_symbol_file(target_file):
             result.success = False
-            result.message = (
-                f"Output file is not a valid KiCad symbol file: {target_file}"
-            )
+            result.message = f"Output file is not a valid KiCad symbol file: {target_file}"
             self.logger.error(result.message)
             return result
 
@@ -231,11 +211,9 @@ class kicad_cli:
         # Validate file format
         if input_file.endswith(".lib"):
             try:
-                with open(input_file, "r", encoding="utf-8") as f:
+                with open(input_file, encoding="utf-8") as f:
                     if not f.readline().strip().startswith("EESchema-LIBRARY"):
-                        error_msg = (
-                            f"Input file is not a valid KiCad .lib file: {input_file}"
-                        )
+                        error_msg = f"Input file is not a valid KiCad .lib file: {input_file}"
                         self.logger.error(error_msg)
                         return CommandResult(False, "", error_msg, -1, error_msg)
             except Exception as e:
@@ -292,9 +270,7 @@ class kicad_cli:
                     shutil.move(backup_path, input_file)
                     self.logger.info("Restored from backup after exception")
                 except Exception as restore_e:
-                    self.logger.error(
-                        f"Failed to restore backup after exception: {restore_e}"
-                    )
+                    self.logger.error(f"Failed to restore backup after exception: {restore_e}")
 
             error_msg = f"Unexpected error during upgrade: {e}"
             self.logger.error(error_msg)
@@ -302,7 +278,7 @@ class kicad_cli:
 
     def upgrade_sym_lib_from_string(
         self, symbol_lib_content: str, force: bool = True
-    ) -> Tuple[bool, str, str]:
+    ) -> tuple[bool, str, str]:
         """
         Upgrade a KiCad symbol library from string content.
 
@@ -347,18 +323,14 @@ class kicad_cli:
                     f"Upgrading symbol library from string (temp files: {input_temp_path} -> {output_temp_path})"
                 )
 
-                result = self.upgrade_sym_lib(
-                    input_temp_path, output_temp_path, force=force
-                )
+                result = self.upgrade_sym_lib(input_temp_path, output_temp_path, force=force)
 
                 if result.success:
                     try:
-                        with open(output_temp_path, "r", encoding="utf-8") as f:
+                        with open(output_temp_path, encoding="utf-8") as f:
                             upgraded_content = f.read()
 
-                        self.logger.info(
-                            "Symbol library successfully upgraded from string"
-                        )
+                        self.logger.info("Symbol library successfully upgraded from string")
                         return True, upgraded_content, ""
 
                     except Exception as e:
@@ -377,9 +349,7 @@ class kicad_cli:
                     try:
                         if os.path.exists(temp_dir):
                             shutil.rmtree(temp_dir)
-                            self.logger.debug(
-                                f"Cleaned up temporary directory: {temp_dir}"
-                            )
+                            self.logger.debug(f"Cleaned up temporary directory: {temp_dir}")
                     except Exception as cleanup_error:
                         self.logger.warning(
                             f"Failed to cleanup temporary directory {temp_dir}: {cleanup_error}"
@@ -393,7 +363,7 @@ class kicad_cli:
     def upgrade_footprint_lib(
         self,
         pretty_folder: str,
-        output_folder: Optional[str] = None,
+        output_folder: str | None = None,
         force: bool = False,
     ) -> CommandResult:
         """Upgrade a KiCad footprint library folder to current format."""
@@ -424,28 +394,20 @@ class kicad_cli:
 
         if result.success and not os.path.exists(target_folder):
             result.success = False
-            result.message = (
-                f"Footprint folder disappeared after upgrade: {target_folder}"
-            )
+            result.message = f"Footprint folder disappeared after upgrade: {target_folder}"
             self.logger.error(result.message)
         elif result.success:
-            upgrade_mode = (
-                "to output folder" if output_folder is not None else "in-place"
-            )
-            result.message = (
-                f"Footprint library upgrade completed successfully ({upgrade_mode})"
-            )
+            upgrade_mode = "to output folder" if output_folder is not None else "in-place"
+            result.message = f"Footprint library upgrade completed successfully ({upgrade_mode})"
             self.logger.info(result.message)
 
         return result
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-    cli: kicad_cli = kicad_cli()
+    cli: KicadCli = KicadCli()
 
     if not cli.exists():
         print("KiCad CLI not found or version too old!")

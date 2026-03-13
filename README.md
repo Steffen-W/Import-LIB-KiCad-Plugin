@@ -1,5 +1,6 @@
 ![Static Badge](https://img.shields.io/badge/Supports_KiCad-v6%2C_v7%2C_v8%2C_v9-%23314cb0)
 ![Static Badge](https://img.shields.io/badge/Supports-Windows%2C_Mac%2C_Linux-Green)
+![Static Badge](https://img.shields.io/badge/Python-3.9_%7C_3.10_%7C_3.11_%7C_3.12-blue?logo=python&logoColor=white)
 
 [![Static Badge](<https://img.shields.io/badge/Samacsys-Works_(Component_Search_Engine)-1e8449>)](https://componentsearchengine.com/)
 [![Static Badge](<https://img.shields.io/badge/SnapEDA-Works_(v4%2C_v6)-27ae60>)](https://www.snapeda.com/home/)
@@ -15,7 +16,7 @@
 
 This plugin allows importing downloaded libraries from the platforms [Octopart](https://octopart.com/), [Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search), [Snapeda](https://www.snapeda.com/home/) and [EasyEDA](https://www.lcsc.com/). It can import symbols, footprints, descriptions, and if available, 3D files. Normally, when you select the imported symbol in KiCad, the appropriate footprint and the 3D file should also be linked. Provided, of course, that the libraries have been included as specified below.
 
-[![SC2 Video](doc/demo.gif)](<[https://youtu.be/cdOKDY-F4ZU](https://youtu.be/VrWPPHtCovQ)>)
+[![SC2 Video](doc/demo.gif)](https://youtu.be/VrWPPHtCovQ)
 
 [YouTube - Instructions for installation and use](https://youtu.be/BYIKjCs1qKQ)
 
@@ -171,7 +172,7 @@ In the libraries relative paths are used, the absolute path is not considered.
 Yes, this is of course always possible. But you should keep in mind that the existing libraries will not be moved automatically. You would have to do that yourself if necessary.
 
 **If I import from one source, do I have to stay with that source, or can I import from all sources?**
-For each source, a separate library is created for KiCad. Maximum actually three (Samacsys, Ultralibrarian and Snapeda), Octopart components as well as from other suppliers can be found in the Snapeda library. So if you import from a new source, a new library can be created. But maximum three.
+No, you can import from all sources freely. Each source gets its own library (e.g. `Samacsys.kicad_sym`, `Snapeda.kicad_sym`, `Octopart.kicad_sym`, `UltraLibrarian.kicad_sym`, `EasyEDA.kicad_sym`). If you enable **single lib name**, all imports are merged into one library instead.
 
 ### General KiCad Questions
 
