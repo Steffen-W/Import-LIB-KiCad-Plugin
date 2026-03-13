@@ -3,11 +3,13 @@ Single Instance Manager with IPC communication for KiCad Plugin.
 Handles ensuring only one instance runs and brings existing window to foreground.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import socket
 import threading
-from typing import Any, Optional
+from typing import Any
 
 try:
     import wx
@@ -20,10 +22,10 @@ class SingleInstanceManager:
 
     def __init__(self, port: int = 59999):
         self.port = port
-        self.socket: Optional[socket.socket] = None
-        self.server_thread: Optional[threading.Thread] = None
+        self.socket: socket.socket | None = None
+        self.server_thread: threading.Thread | None = None
         self.running = False
-        self.frontend_instance: Optional[Any] = None
+        self.frontend_instance: Any | None = None
         self._stopped: bool = False
         self._stopping: bool = False
 
@@ -54,7 +56,7 @@ class SingleInstanceManager:
             logging.info("Existing instance found - focus command sent")
             return True
 
-        except (socket.error, ConnectionRefusedError, OSError) as e:
+        except (ConnectionRefusedError, OSError) as e:
             logging.info(f"No existing instance found ({e}) - starting new instance")
             return False
 
@@ -80,15 +82,13 @@ class SingleInstanceManager:
 
                 # Update port if we had to use a different one
                 if port_attempt != self.port:
-                    logging.info(
-                        f"Port {self.port} was busy, using {port_attempt} instead"
-                    )
+                    logging.info(f"Port {self.port} was busy, using {port_attempt} instead")
                     self.port = port_attempt
 
                 self.running = True
                 break
 
-            except socket.error as e:
+            except OSError as e:
                 if self.socket:
                     self.socket.close()
                     self.socket = None
@@ -127,7 +127,7 @@ class SingleInstanceManager:
 
             except socket.timeout:
                 continue
-            except socket.error as e:
+            except OSError as e:
                 if self.running:
                     logging.error(f"Server socket error: {e}")
                 break
@@ -136,7 +136,7 @@ class SingleInstanceManager:
                 if client_socket:
                     try:
                         client_socket.close()
-                    except (socket.error, OSError):
+                    except OSError:
                         pass
 
     def _handle_command(self, message: dict[str, Any]) -> None:
@@ -162,9 +162,7 @@ class SingleInstanceManager:
         try:
             # Check if window object is still valid
             if not hasattr(self.frontend_instance, "IsShown"):
-                logging.error(
-                    "Frontend instance has no IsShown method - window may be destroyed"
-                )
+                logging.error("Frontend instance has no IsShown method - window may be destroyed")
                 self.frontend_instance = None
                 return
 
@@ -217,9 +215,7 @@ class SingleInstanceManager:
             logging.info("Registered new frontend instance")
             return True
         else:
-            logging.info(
-                "Frontend instance already exists - new instance should not be created"
-            )
+            logging.info("Frontend instance already exists - new instance should not be created")
             return False
 
     def unregister_frontend(self) -> None:

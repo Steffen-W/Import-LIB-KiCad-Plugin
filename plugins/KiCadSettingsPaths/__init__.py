@@ -5,11 +5,14 @@ Provides utilities for detecting KiCad settings paths across different operating
 and a simplified interface for interacting with KiCad applications.
 """
 
+from __future__ import annotations
+
 import logging
+import os
 import platform
 import sys
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable
 
 
 class KiCadSettingsPaths:
@@ -27,17 +30,15 @@ class KiCadSettingsPaths:
             return home / "Library" / "Preferences" / "kicad"
         else:  # Linux and Unix-like systems
             # Check XDG_CONFIG_HOME environment variable
-            import os
-
             xdg_config = os.environ.get("XDG_CONFIG_HOME")
             if xdg_config:
                 return Path(xdg_config) / "kicad"
             return home / ".config" / "kicad"
 
     @staticmethod
-    def find_all_possible_paths() -> List[Path]:
+    def find_all_possible_paths() -> list[Path]:
         """Discovers all possible KiCad settings paths on the current system."""
-        paths: List[Path] = []
+        paths: list[Path] = []
         system = platform.system()
         home = Path.home()
 
@@ -78,8 +79,6 @@ class KiCadSettingsPaths:
                 )
 
                 # Check XDG_CONFIG_HOME
-                import os
-
                 xdg_config = os.environ.get("XDG_CONFIG_HOME")
                 if xdg_config:
                     xdg_kicad_path = Path(xdg_config) / "kicad"
@@ -87,7 +86,7 @@ class KiCadSettingsPaths:
                         paths.append(xdg_kicad_path)
 
         except (OSError, PermissionError) as e:
-            print(f"Warning: Error accessing paths during discovery: {e}")
+            logging.warning(f"Error accessing paths during discovery: {e}")
 
         return [path for path in paths if path.exists()]
 
@@ -120,7 +119,7 @@ class KiCadSettingsPaths:
 class KiCadVersionInfo:
     """Container for KiCad version information."""
 
-    def __init__(self, version_tuple: Tuple[int, int, int], full_version: str):
+    def __init__(self, version_tuple: tuple[int, int, int], full_version: str):
         self.major, self.minor, self.patch = version_tuple
         self.version_tuple = version_tuple
         self.full_version = full_version
@@ -137,9 +136,9 @@ class KiCadProjectInfo:
 
     def __init__(
         self,
-        name: Optional[str] = None,
-        directory: Optional[Path] = None,
-        board_filename: Optional[Path] = None,
+        name: str | None = None,
+        directory: Path | None = None,
+        board_filename: Path | None = None,
     ):
         self.name = name
         self.directory = directory
@@ -151,12 +150,12 @@ class KiCadProjectInfo:
         return any([self.name, self.directory, self.board_filename])
 
     @property
-    def directory_str(self) -> Optional[str]:
+    def directory_str(self) -> str | None:
         """Returns directory as string for backward compatibility."""
         return str(self.directory) if self.directory else None
 
     @property
-    def board_filename_str(self) -> Optional[str]:
+    def board_filename_str(self) -> str | None:
         """Returns board filename as string for backward compatibility."""
         return str(self.board_filename) if self.board_filename else None
 
@@ -183,13 +182,13 @@ class KiCadApp:
         """
         self.min_version = min_version
         self.connection_type: str = "FALLBACK"
-        self.pcbnew: Optional[Any] = None
-        self.kicad_ipc: Optional[Any] = None
-        self.kipy_errors: Optional[Any] = None
+        self.pcbnew: Any | None = None
+        self.kicad_ipc: Any | None = None
+        self.kipy_errors: Any | None = None
 
         # Initialize all properties with default values
         self.settings_path: Path = KiCadSettingsPaths.find_actual_settings_path()
-        self.version_info: Optional[KiCadVersionInfo] = None
+        self.version_info: KiCadVersionInfo | None = None
         self.project_info: KiCadProjectInfo = KiCadProjectInfo()
         self.is_connected: bool = False
 
@@ -203,9 +202,7 @@ class KiCadApp:
             self.is_connected = True
             self._load_swig_properties()
         else:
-            print(
-                "Warning: Neither IPC API nor SWIG bindings available. Limited functionality."
-            )
+            logging.warning("Neither IPC API nor SWIG bindings available. Limited functionality.")
 
     def _setup_venv_path(self) -> None:
         """Sets up virtual environment path for IPC API imports."""
@@ -240,10 +237,10 @@ class KiCadApp:
             return True
 
         except ImportError:
-            print("KiCad IPC API not available")
+            logging.debug("KiCad IPC API not available")
             return False
         except Exception as e:
-            print(f"KiCad IPC API initialization failed: {e}")
+            logging.debug(f"KiCad IPC API initialization failed: {e}")
             return False
 
     def _try_init_swig(self) -> bool:
@@ -254,10 +251,10 @@ class KiCadApp:
             self.pcbnew = pcbnew
             return True
         except ImportError:
-            print("SWIG bindings (pcbnew) not available")
+            logging.debug("SWIG bindings (pcbnew) not available")
             return False
         except Exception as e:
-            print(f"SWIG initialization failed: {e}")
+            logging.debug(f"SWIG initialization failed: {e}")
             return False
 
     def _load_ipc_properties(self) -> None:
@@ -269,15 +266,13 @@ class KiCadApp:
             # Version information
             version_info = self.kicad_ipc.get_version()
             version_tuple = (version_info.major, version_info.minor, version_info.patch)
-            self.version_info = KiCadVersionInfo(
-                version_tuple, version_info.full_version
-            )
+            self.version_info = KiCadVersionInfo(version_tuple, version_info.full_version)
 
             # Project and board information
             self._load_ipc_project_info()
 
         except Exception as e:
-            print(f"Error loading IPC properties: {e}")
+            logging.error(f"Error loading IPC properties: {e}")
 
     def _load_swig_properties(self) -> None:
         """Loads all properties using SWIG (pcbnew)."""
@@ -300,9 +295,9 @@ class KiCadApp:
             self._load_swig_project_info()
 
         except Exception as e:
-            print(f"Error loading SWIG properties: {e}")
+            logging.error(f"Error loading SWIG properties: {e}")
 
-    def _version_to_tuple(self, version_str: str) -> Tuple[int, int, int]:
+    def _version_to_tuple(self, version_str: str) -> tuple[int, int, int]:
         """Converts a version string to a tuple of integers."""
         try:
             clean_version = version_str.split("-")[0]
@@ -335,7 +330,7 @@ class KiCadApp:
             # No PCB open - this is normal
             self.project_info = KiCadProjectInfo()
         except Exception as e:
-            print(f"Warning: Could not load project information: {e}")
+            logging.warning(f"Could not load project information: {e}")
             self.project_info = KiCadProjectInfo()
 
     def _load_swig_project_info(self) -> None:
@@ -361,11 +356,11 @@ class KiCadApp:
             )
 
         except Exception as e:
-            print(f"Warning: Could not load board information: {e}")
+            logging.warning(f"Could not load board information: {e}")
             self.project_info = KiCadProjectInfo()
 
     @property
-    def version(self) -> Optional[Tuple[int, int, int]]:
+    def version(self) -> tuple[int, int, int] | None:
         """Returns version tuple."""
         return self.version_info.version_tuple if self.version_info else None
 
@@ -375,25 +370,25 @@ class KiCadApp:
         return self.version_info.full_version if self.version_info else "Unknown"
 
     @property
-    def project_name(self) -> Optional[str]:
+    def project_name(self) -> str | None:
         """Returns project name."""
         return self.project_info.name
 
     @property
-    def project_dir(self) -> Optional[str]:
+    def project_dir(self) -> str | None:
         """Returns project directory as string."""
         return self.project_info.directory_str
 
     @property
-    def board_filename(self) -> Optional[str]:
+    def board_filename(self) -> str | None:
         """Returns board filename as string."""
         return self.project_info.board_filename_str
 
-    def get_board_filename(self) -> Optional[str]:
+    def get_board_filename(self) -> str | None:
         """Returns the filename of the current board."""
         return self.board_filename
 
-    def get_project_dir(self) -> Optional[str]:
+    def get_project_dir(self) -> str | None:
         """Returns the directory of the current KiCad project."""
         return self.project_dir
 
@@ -414,10 +409,7 @@ class KiCadApp:
         try:
             min_version_tuple = self._version_to_tuple(self.min_version)
 
-            if (
-                not self.version_info
-                or self.version_info.version_tuple < min_version_tuple
-            ):
+            if not self.version_info or self.version_info.version_tuple < min_version_tuple:
                 output_func(f"KiCad Version: {self.full_version}")
                 output_func(f"Minimum required KiCad version is {self.min_version}")
                 output_func("This may limit the functionality of the plugin.")
@@ -426,7 +418,7 @@ class KiCadApp:
             return True
 
         except Exception as e:
-            print(f"Error during KiCad version check: {e}")
+            logging.error(f"Error during KiCad version check: {e}")
             return False
 
     def refresh_project_info(self) -> None:
@@ -439,7 +431,7 @@ class KiCadApp:
         elif self.connection_type == "SWIG":
             self._load_swig_project_info()
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Returns all loaded information as a dictionary."""
         return {
             "connection_type": self.connection_type,
@@ -464,9 +456,9 @@ class KiCadApp:
         print(f"Version: {self.full_version}")
 
         if self.check_min_version(lambda x: None):
-            print("✓ Version meets requirements")
+            print("Version meets requirements")
         else:
-            print("⚠ Version may be insufficient")
+            print("Version may be insufficient")
 
         if self.is_connected:
             print("\n=== Project Information ===")
@@ -481,7 +473,7 @@ class KiCadApp:
                 print("No project currently open or accessible")
 
 
-def connect_kicad() -> Optional[Any]:
+def connect_kicad() -> Any | None:
     """
     Connect to KiCad IPC API
 
@@ -492,7 +484,7 @@ def connect_kicad() -> Optional[Any]:
     if app.connection_type == "IPC":
         return app.kicad_ipc
     else:
-        print("Not connected to KiCad IPC API")
+        logging.warning("Not connected to KiCad IPC API")
         return None
 
 

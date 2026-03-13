@@ -94,7 +94,7 @@ if __name__ == "__main__":
     # Test with existing model
     content_with_model = """(footprint "Test" (layer F.Cu)
   (pad 1 smd rect (at 0 0) (size 1 1) (layers F.Cu F.Paste F.Mask))
-  (model "${KICAD_3RD_PARTY}/old.3dshapes/old_model.step"    
+  (model "${KICAD_3RD_PARTY}/old.3dshapes/old_model.step"
         (offset
             (xyz 0 0 0)
         )

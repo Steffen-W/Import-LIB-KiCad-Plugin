@@ -8,6 +8,7 @@
     "**/node_modules",
     "**/__pycache__"
   ],
+  "pythonVersion": "3.9",
   "typeCheckingMode": "basic",
   "reportMissingImports": false,
   "reportMissingTypeStubs": false

@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import logging
 import platform
 import sys
 from pathlib import Path
-from typing import Optional
 
 import pcbnew
 
@@ -17,7 +18,7 @@ log_file = plugin_dir / "plugin_fallback.log"
 
 # Initialize logger immediately - it will be configured later in setup_logging()
 logger = logging.getLogger("impart_plugin")
-log_handler: Optional[logging.FileHandler] = None
+log_handler: logging.FileHandler | None = None
 
 
 def setup_logging() -> bool:
@@ -34,9 +35,7 @@ def setup_logging() -> bool:
             handler.close()
             logger.removeHandler(handler)
 
-        log_handler = logging.FileHandler(
-            str(log_file), mode="w", encoding="utf-8", delay=False
-        )
+        log_handler = logging.FileHandler(str(log_file), mode="w", encoding="utf-8", delay=False)
 
         formatter = logging.Formatter(
             "%(asctime)s %(levelname)s [%(name)s:%(filename)s:%(lineno)d]: %(message)s"
@@ -81,7 +80,7 @@ def setup_submodule_paths() -> bool:
             kiutils_str = str(kiutils_path)
             if kiutils_str not in sys.path:
                 sys.path.insert(0, kiutils_str)
-                logger.info(f"✓ Added kiutils to sys.path: {kiutils_str}")
+                logger.info(f"Added kiutils to sys.path: {kiutils_str}")
 
         # Add easyeda2kicad submodule path
         easyeda2kicad_path = plugin_dir / "easyeda2kicad"
@@ -89,15 +88,15 @@ def setup_submodule_paths() -> bool:
             easyeda2kicad_str = str(easyeda2kicad_path)
             if easyeda2kicad_str not in sys.path:
                 sys.path.insert(0, easyeda2kicad_str)
-                logger.info(f"✓ Added easyeda2kicad to sys.path: {easyeda2kicad_str}")
+                logger.info(f"Added easyeda2kicad to sys.path: {easyeda2kicad_str}")
 
         # Add plugin directory itself
         plugin_dir_str = str(plugin_dir)
         if plugin_dir_str not in sys.path:
             sys.path.insert(0, plugin_dir_str)
-            logger.info(f"✓ Added plugin directory to sys.path: {plugin_dir_str}")
+            logger.info(f"Added plugin directory to sys.path: {plugin_dir_str}")
 
-        logger.info("✓ All submodule paths configured successfully")
+        logger.info("All submodule paths configured successfully")
         return True
 
     except Exception as e:
@@ -122,7 +121,9 @@ class ActionImpartPlugin(pcbnew.ActionPlugin):
     def defaults(self) -> None:
         self.name = "impartGUI (fallback pcbnew)"
         self.category = "Import library files"
-        self.description = "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA"
+        self.description = (
+            "Import library files from Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA"
+        )
         self.show_toolbar_button = True
 
         icon_path = plugin_dir / "icon.png"
@@ -181,9 +182,7 @@ class ActionImpartPlugin(pcbnew.ActionPlugin):
             logger.exception("Frontend error occurred")
 
             error_msg = (
-                f"Frontend Error:\n\n"
-                f"Error: {str(e)}\n\n"
-                f"Check log file for details: {log_file}"
+                f"Frontend Error:\n\nError: {str(e)}\n\nCheck log file for details: {log_file}"
             )
 
             show_error_dialog("Frontend Error", error_msg)

@@ -1,4 +1,5 @@
 import wx
+
 from .impart_action import ImpartFrontend
 
 if __name__ == "__main__":

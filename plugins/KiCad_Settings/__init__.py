@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, cast
+from typing import Any, cast
 
 current_dir = Path(__file__).resolve().parent
 kiutils_src = current_dir.parent / "kiutils" / "src"
@@ -14,35 +16,24 @@ from kiutils.libraries import Library, LibTable  # noqa: E402
 
 
 class KiCad_Settings:
-    def __init__(
-        self, SettingPath: str, path_prefix: str = "${KICAD_3RD_PARTY}"
-    ) -> None:
+    def __init__(self, SettingPath: str, path_prefix: str = "${KICAD_3RD_PARTY}") -> None:
         self.logger = logging.getLogger(__name__)
         self.path_prefix = path_prefix
         base_path = Path(SettingPath)
 
-        if (
-            not (base_path / "sym-lib-table").exists()
-            and not (base_path / "fp-lib-table").exists()
-        ):
+        if not (base_path / "sym-lib-table").exists() and not (base_path / "fp-lib-table").exists():
             version_dirs = [
-                d
-                for d in base_path.iterdir()
-                if d.is_dir() and d.name.replace(".", "").isdigit()
+                d for d in base_path.iterdir() if d.is_dir() and d.name.replace(".", "").isdigit()
             ]
 
             if version_dirs:
                 # Sort by version and take the highest
                 latest_version = max(
                     version_dirs,
-                    key=lambda x: tuple(
-                        int(p) for p in x.name.split(".") if p.isdigit()
-                    ),
+                    key=lambda x: tuple(int(p) for p in x.name.split(".") if p.isdigit()),
                 )
                 self.SettingPath = str(latest_version)
-                self.logger.info(
-                    f"Auto-detected KiCad version directory: {self.SettingPath}"
-                )
+                self.logger.info(f"Auto-detected KiCad version directory: {self.SettingPath}")
             else:
                 self.SettingPath = SettingPath
         else:
@@ -50,15 +41,13 @@ class KiCad_Settings:
 
         self.logger.info(f"Initializing KiCad_Settings with path: {SettingPath}")
 
-    def get_sym_table(self) -> List[Dict[str, str]]:
+    def get_sym_table(self) -> list[dict[str, str]]:
         path = os.path.join(self.SettingPath, "sym-lib-table")
         self.logger.debug(f"Attempting to read symbol library table from: {path}")
 
         try:
             if not os.path.exists(path):
-                self.logger.info(
-                    f"Symbol library table not found, creating empty table: {path}"
-                )
+                self.logger.info(f"Symbol library table not found, creating empty table: {path}")
                 empty_table = LibTable()
                 empty_table.to_file(path)
 
@@ -89,15 +78,11 @@ class KiCad_Settings:
 
     def set_sym_table(self, libname: str, libpath: str) -> None:
         path = os.path.join(self.SettingPath, "sym-lib-table")
-        self.logger.debug(
-            f"Adding symbol library '{libname}' with path '{libpath}' to {path}"
-        )
+        self.logger.debug(f"Adding symbol library '{libname}' with path '{libpath}' to {path}")
 
         try:
             if not os.path.exists(path):
-                self.logger.info(
-                    f"Symbol library table not found, creating empty table: {path}"
-                )
+                self.logger.info(f"Symbol library table not found, creating empty table: {path}")
                 empty_table = LibTable()
                 empty_table.to_file(path)
 
@@ -106,15 +91,11 @@ class KiCad_Settings:
             # Check if library already exists
             for lib in sym_table.libs:
                 if lib.name == libname:
-                    self.logger.error(
-                        f"Symbol library '{libname}' already exists in table"
-                    )
+                    self.logger.error(f"Symbol library '{libname}' already exists in table")
                     raise ValueError(f"Entry with the name '{libname}' already exists.")
 
             # Create new library and add it to the table
-            new_lib = Library(
-                name=libname, type="KiCad", uri=libpath, options="", description=""
-            )
+            new_lib = Library(name=libname, type="KiCad", uri=libpath, options="", description="")
             sym_table.libs.append(new_lib)
             sym_table.to_file(path)
 
@@ -126,9 +107,7 @@ class KiCad_Settings:
 
     def sym_table_change_entry(self, old_uri: str, new_uri: str) -> None:
         path = os.path.join(self.SettingPath, "sym-lib-table")
-        self.logger.debug(
-            f"Changing symbol library URI from '{old_uri}' to '{new_uri}'"
-        )
+        self.logger.debug(f"Changing symbol library URI from '{old_uri}' to '{new_uri}'")
 
         try:
             sym_table = LibTable.from_file(path)
@@ -154,15 +133,13 @@ class KiCad_Settings:
             self.logger.error(f"Failed to change symbol library URI: {e}")
             raise
 
-    def get_lib_table(self) -> List[Dict[str, str]]:
+    def get_lib_table(self) -> list[dict[str, str]]:
         path = os.path.join(self.SettingPath, "fp-lib-table")
         self.logger.debug(f"Attempting to read footprint library table from: {path}")
 
         try:
             if not os.path.exists(path):
-                self.logger.info(
-                    f"Footprint library table not found, creating empty table: {path}"
-                )
+                self.logger.info(f"Footprint library table not found, creating empty table: {path}")
                 empty_table = LibTable()
                 empty_table.to_file(path)
 
@@ -188,9 +165,7 @@ class KiCad_Settings:
             self.logger.warning(f"Footprint library table not found: {path}")
             return []
         except Exception as e:
-            self.logger.error(
-                f"Failed to parse footprint library table from {path}: {e}"
-            )
+            self.logger.error(f"Failed to parse footprint library table from {path}: {e}")
             return []
 
     def set_lib_table_entry(self, libname: str) -> None:
@@ -199,9 +174,7 @@ class KiCad_Settings:
 
         try:
             if not os.path.exists(path):
-                self.logger.info(
-                    f"Footprint library table not found, creating empty table: {path}"
-                )
+                self.logger.info(f"Footprint library table not found, creating empty table: {path}")
                 empty_table = LibTable()
                 empty_table.to_file(path)
 
@@ -210,15 +183,11 @@ class KiCad_Settings:
             # Check if library already exists
             for lib in fp_table.libs:
                 if lib.name == libname:
-                    self.logger.error(
-                        f"Footprint library '{libname}' already exists in table"
-                    )
+                    self.logger.error(f"Footprint library '{libname}' already exists in table")
                     raise ValueError(f"Entry with the name '{libname}' already exists.")
 
             uri_lib = self.path_prefix + "/" + libname + ".pretty"
-            new_lib = Library(
-                name=libname, type="KiCad", uri=uri_lib, options="", description=""
-            )
+            new_lib = Library(name=libname, type="KiCad", uri=uri_lib, options="", description="")
             fp_table.libs.append(new_lib)
             fp_table.to_file(path)
 
@@ -230,7 +199,7 @@ class KiCad_Settings:
             self.logger.error(f"Failed to add footprint library '{libname}': {e}")
             raise
 
-    def get_kicad_json(self) -> Dict[str, Any]:
+    def get_kicad_json(self) -> dict[str, Any]:
         path = os.path.join(self.SettingPath, "kicad.json")
         self.logger.debug(f"Attempting to read KiCad JSON config from: {path}")
 
@@ -238,7 +207,7 @@ class KiCad_Settings:
             with open(path) as json_data:
                 data = json.load(json_data)
             self.logger.info("Successfully loaded KiCad JSON config")
-            return cast(Dict[str, Any], data)
+            return cast(dict[str, Any], data)
 
         except FileNotFoundError:
             self.logger.warning(f"KiCad JSON config not found: {path}")
@@ -250,7 +219,7 @@ class KiCad_Settings:
             self.logger.error(f"Failed to read KiCad JSON config from {path}: {e}")
             return {}
 
-    def set_kicad_json(self, kicad_json: Dict[str, Any]) -> None:
+    def set_kicad_json(self, kicad_json: dict[str, Any]) -> None:
         path = os.path.join(self.SettingPath, "kicad.json")
         self.logger.debug(f"Writing KiCad JSON config to: {path}")
 
@@ -263,7 +232,7 @@ class KiCad_Settings:
             self.logger.error(f"Failed to write KiCad JSON config to {path}: {e}")
             raise
 
-    def get_kicad_common(self) -> Dict[str, Any]:
+    def get_kicad_common(self) -> dict[str, Any]:
         path = os.path.join(self.SettingPath, "kicad_common.json")
         self.logger.debug(f"Attempting to read KiCad common config from: {path}")
 
@@ -271,7 +240,7 @@ class KiCad_Settings:
             with open(path) as json_data:
                 data = json.load(json_data)
             self.logger.info("Successfully loaded KiCad common config")
-            return cast(Dict[str, Any], data)
+            return cast(dict[str, Any], data)
 
         except FileNotFoundError:
             self.logger.warning(f"KiCad common config not found: {path}")
@@ -283,7 +252,7 @@ class KiCad_Settings:
             self.logger.error(f"Failed to read KiCad common config from {path}: {e}")
             return {"environment": {"vars": {}}}
 
-    def set_kicad_common(self, kicad_common: Dict[str, Any]) -> None:
+    def set_kicad_common(self, kicad_common: dict[str, Any]) -> None:
         path = os.path.join(self.SettingPath, "kicad_common.json")
         self.logger.debug(f"Writing KiCad common config to: {path}")
 
@@ -296,14 +265,14 @@ class KiCad_Settings:
             self.logger.error(f"Failed to write KiCad common config to {path}: {e}")
             raise
 
-    def get_kicad_GlobalVars(self) -> Dict[str, str]:
+    def get_kicad_GlobalVars(self) -> dict[str, str]:
         self.logger.debug("Getting KiCad global variables")
 
         try:
             KiCadjson = self.get_kicad_common()
             global_vars = KiCadjson.get("environment", {}).get("vars", {})
             self.logger.info(f"Found {len(global_vars)} global variables")
-            return cast(Dict[str, str], global_vars)
+            return cast(dict[str, str], global_vars)
 
         except Exception as e:
             self.logger.error(f"Failed to get KiCad global variables: {e}")
@@ -320,13 +289,10 @@ class KiCad_Settings:
                 if not FootprintLibs[SearchLib]["uri"] == temp_path:
                     msg += "\n" + SearchLib
                     msg += " in the Footprint Libraries is not imported correctly."
-                    msg += "\nYou have to import the library " + SearchLib
-                    msg += "' with the path '" + temp_path + "' in Footprint Libraries."
+                    msg += f"\nYou have to import the library '{SearchLib}'"
+                    msg += f" with the path '{temp_path}' in Footprint Libraries."
                     if add_if_possible:
-                        msg += (
-                            "\nThe entry must either be corrected manually or deleted."
-                        )
-                        # self.set_lib_table_entry(SearchLib) # TODO
+                        msg += "\nThe entry must either be corrected manually or deleted."
             else:
                 msg += "\n" + SearchLib + " is not in the Footprint Libraries."
                 if add_if_possible:
@@ -337,7 +303,9 @@ class KiCad_Settings:
                         msg += "\n##### A restart of KiCad is necessary. #####"
                     except Exception:
                         msg += "\nFailed to add library automatically."
-                        msg += "\nPlease add the library manually following the steps in the README:"
+                        msg += (
+                            "\nPlease add the library manually following the steps in the README:"
+                        )
                         msg += "\n  Preferences -> Manage Footprint Libraries -> Add entry:"
                         msg += "\n  Name: " + SearchLib.split(".")[0]
                         msg += "\n  Path: " + temp_path
@@ -367,9 +335,7 @@ class KiCad_Settings:
             temp_path = self.path_prefix + "/" + SearchLib
 
             if temp_path not in SymbolLibsUri:
-                msg += (
-                    "\n'" + temp_path + "' is not imported into the Symbol Libraries."
-                )
+                msg += "\n'" + temp_path + "' is not imported into the Symbol Libraries."
                 if add_if_possible:
                     try:
                         if SearchLib_name_short not in SymbolLibs:
@@ -384,13 +350,12 @@ class KiCad_Settings:
                             msg += "\n##### A restart of KiCad is necessary. #####"
                         else:
                             msg += "\nThe entry must either be corrected manually or deleted."
-                            # self.set_sym_table(SearchLib_name, temp_path) # TODO
                     except Exception:
                         msg += "\nFailed to add symbol library automatically."
-                        msg += "\nPlease add the library manually following the steps in the README:"
                         msg += (
-                            "\n  Preferences -> Manage Symbol Libraries -> Add entry:"
+                            "\nPlease add the library manually following the steps in the README:"
                         )
+                        msg += "\n  Preferences -> Manage Symbol Libraries -> Add entry:"
                         msg += "\n  Name: " + SearchLib_name_short
                         msg += "\n  Path: " + temp_path
                         msg += "\n  See: github.com/Steffen-W/Import-LIB-KiCad-Plugin#including-the-imported-libraries-in-kicad"

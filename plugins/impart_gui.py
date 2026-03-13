@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 ###########################################################################
 ## Python code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 ## http://www.wxformbuilder.org/
@@ -32,9 +30,7 @@ class impartGUI(wx.Dialog):
 
         bSizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.m_button = wx.Button(
-            self, wx.ID_ANY, "Start", wx.DefaultPosition, wx.DefaultSize, 0
-        )
+        self.m_button = wx.Button(self, wx.ID_ANY, "Start", wx.DefaultPosition, wx.DefaultSize, 0)
         bSizer.Add(self.m_button, 0, wx.ALL | wx.EXPAND, 5)
 
         self.m_text = wx.TextCtrl(
@@ -50,12 +46,8 @@ class impartGUI(wx.Dialog):
         self.m_staticline11 = wx.StaticLine(
             self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL
         )
-        self.m_staticline11.SetForegroundColour(
-            wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW)
-        )
-        self.m_staticline11.SetBackgroundColour(
-            wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRAYTEXT)
-        )
+        self.m_staticline11.SetForegroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
+        self.m_staticline11.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRAYTEXT))
         self.m_staticline11.Hide()
 
         bSizer.Add(self.m_staticline11, 0, wx.EXPAND | wx.ALL, 5)
@@ -93,12 +85,8 @@ class impartGUI(wx.Dialog):
         self.m_staticline12 = wx.StaticLine(
             self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL
         )
-        self.m_staticline12.SetForegroundColour(
-            wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW)
-        )
-        self.m_staticline12.SetBackgroundColour(
-            wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRAYTEXT)
-        )
+        self.m_staticline12.SetForegroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
+        self.m_staticline12.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRAYTEXT))
 
         bSizer.Add(self.m_staticline12, 0, wx.EXPAND | wx.ALL, 5)
 
@@ -197,12 +185,8 @@ class impartGUI(wx.Dialog):
         self.m_staticline1 = wx.StaticLine(
             self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL
         )
-        self.m_staticline1.SetForegroundColour(
-            wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW)
-        )
-        self.m_staticline1.SetBackgroundColour(
-            wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRAYTEXT)
-        )
+        self.m_staticline1.SetForegroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
+        self.m_staticline1.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRAYTEXT))
         self.m_staticline1.Hide()
 
         bSizer.Add(self.m_staticline1, 0, wx.EXPAND | wx.ALL, 5)
@@ -245,9 +229,7 @@ class impartGUI(wx.Dialog):
         self.m_textCtrl2.Bind(wx.EVT_TEXT_ENTER, self.ButtomManualImport)
         self.m_dirPicker_sourcepath.Bind(wx.EVT_DIRPICKER_CHANGED, self.DirChange)
         self.m_checkBoxLocalLib.Bind(wx.EVT_CHECKBOX, self.m_checkBoxLocalLibOnCheckBox)
-        self.m_checkBoxSingleLib.Bind(
-            wx.EVT_CHECKBOX, self.m_checkBoxSingleLibOnCheckBox
-        )
+        self.m_checkBoxSingleLib.Bind(wx.EVT_CHECKBOX, self.m_checkBoxSingleLibOnCheckBox)
         self.m_dirPicker_librarypath.Bind(wx.EVT_DIRPICKER_CHANGED, self.DirChange)
 
     def __del__(self):

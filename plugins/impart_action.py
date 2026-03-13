@@ -3,6 +3,8 @@ KiCad Import Plugin for library files from various sources.
 Supports Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA.
 """
 
+from __future__ import annotations
+
 import atexit
 import logging
 import os
@@ -11,7 +13,7 @@ import sys
 from pathlib import Path
 from threading import Thread
 from time import sleep
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable
 
 # Setup paths for local imports
 script_dir = Path(__file__).resolve().parent
@@ -27,7 +29,7 @@ def quick_instance_check(port: int = 59999) -> bool:
         client_socket.connect(("127.0.0.1", port))
         client_socket.close()
         return True
-    except (socket.error, socket.timeout, ConnectionRefusedError, OSError):
+    except (socket.timeout, ConnectionRefusedError, OSError):
         return False
 
 
@@ -49,9 +51,7 @@ if __name__ == "__main__":
             filename=script_dir / "plugin.log",
             filemode="a",  # Append for existing instance
         )
-        logging.warning(
-            "Another instance detected - exiting or continuing with limited logging"
-        )
+        logging.warning("Another instance detected - exiting or continuing with limited logging")
 
     logging.debug("Application starting...")
 
@@ -85,14 +85,14 @@ except ImportError as e1:
         from KiCad_Settings import KiCad_Settings  # type: ignore[import-not-found,no-redef]
         from KiCadImport import LibImporter  # type: ignore[import-not-found,no-redef]
         from KiCadSettingsPaths import KiCadApp  # type: ignore[import-not-found,no-redef]
-        from single_instance_manager import SingleInstanceManager  # type: ignore[import-not-found,no-redef]
+        from single_instance_manager import (  # type: ignore[import-not-found,no-redef]
+            SingleInstanceManager,
+        )
 
         logging.info("Successfully imported all local modules using absolute imports")
 
     except ImportError as e2:
-        logging.exception(
-            "Failed to import local modules with both relative and absolute imports"
-        )
+        logging.exception("Failed to import local modules with both relative and absolute imports")
         print(f"Relative import error: {e1}")
         print(f"Absolute import error: {e2}")
         print(f"Python path: {sys.path}")
@@ -121,14 +121,12 @@ class ResultEvent(wx.PyEvent):
 class FileDropTarget(wx.FileDropTarget):
     """Drop target for ZIP files on the text control."""
 
-    def __init__(
-        self, window: wx.Window, callback: Callable[[list[str]], None]
-    ) -> None:
+    def __init__(self, window: wx.Window, callback: Callable[[list[str]], None]) -> None:
         wx.FileDropTarget.__init__(self)
         self.window = window
         self.callback = callback
 
-    def OnDropFiles(self, x: int, y: int, filenames: list[str]) -> bool:
+    def OnDropFiles(self, _x: int, _y: int, filenames: list[str]) -> bool:
         """Called when files are dropped on the text control."""
         zip_files = [f for f in filenames if f.lower().endswith(".zip")]
 
@@ -147,7 +145,7 @@ class FileDropTarget(wx.FileDropTarget):
 class PluginThread(Thread):
     """Background thread for monitoring import status."""
 
-    def __init__(self, wx_object: wx.Window, backend: "ImpartBackend") -> None:
+    def __init__(self, wx_object: wx.Window, backend: ImpartBackend) -> None:
         Thread.__init__(self)
         self.wx_object = wx_object
         self.backend = backend
@@ -185,10 +183,8 @@ class ImpartBackend:
         """Initialize backend components."""
         logging.info("Initializing ImpartBackend")
 
-        """Setup file paths."""
         self.config_path = os.path.join(os.path.dirname(__file__), "config.ini")
 
-        """Initialize core components."""
         try:
             self.kicad_app = KiCadApp(prefer_ipc=True, min_version="8.0.4")
             self.config = ConfigHandler(self.config_path)
@@ -209,7 +205,6 @@ class ImpartBackend:
             logging.exception("Failed to initialize backend components")
             raise
 
-        """Initialize control flags."""
         self.run_thread = False
         self.auto_import = False
         self.overwrite_import = False
@@ -217,7 +212,6 @@ class ImpartBackend:
         self.auto_lib = False
         self.print_buffer = ""
 
-        """Check initial configuration and version."""
         try:
             self.kicad_app.check_min_version(output_func=self.print_to_buffer)
         except Exception as e:
@@ -316,9 +310,7 @@ def check_library_import(backend: ImpartBackend, add_if_possible: bool = True) -
         else ImpartBackend.SUPPORTED_LIBRARIES
     )
     for lib_name in libs_to_check:
-        msg += _check_single_library(
-            kicad_settings, lib_name, dest_path, add_if_possible
-        )
+        msg += _check_single_library(kicad_settings, lib_name, dest_path, add_if_possible)
 
     return msg
 
@@ -380,9 +372,7 @@ class ImpartFrontend(impartGUI):
         if not self.fallback_mode:
             if not instance_manager.register_frontend(self):
                 # Another instance already exists - this shouldn't happen
-                logging.warning(
-                    "Frontend instance already exists - destroying this one"
-                )
+                logging.warning("Frontend instance already exists - destroying this one")
                 self.Destroy()
                 return
         else:
@@ -398,7 +388,7 @@ class ImpartFrontend(impartGUI):
             logging.warning(f"Could not set window icon: {e}")
 
         self.backend = create_backend_handler()
-        self.thread: Optional[PluginThread] = None
+        self.thread: PluginThread | None = None
 
         self._setup_gui()
         self._setup_events()
@@ -451,8 +441,7 @@ class ImpartFrontend(impartGUI):
         self.m_text.SetDropTarget(drop_target)
 
         self.m_text.SetToolTip(
-            "Drag ZIP files here for direct import\n"
-            "Supported: Samacsys, UltraLibrarian, Snapeda"
+            "Drag ZIP files here for direct import\nSupported: Samacsys, UltraLibrarian, Snapeda"
         )
 
     def _add_drag_drop_hint(self) -> None:
@@ -461,19 +450,17 @@ class ImpartFrontend(impartGUI):
         self.backend.print_to_buffer(hint_text)
         self.backend.print_to_buffer("=" * 50)
 
-    def _on_files_dropped(self, zip_files: List[str]) -> None:
+    def _on_files_dropped(self, zip_files: list[str]) -> None:
         """Callback when ZIP files are dropped on the text control."""
-        self.backend.print_to_buffer(
-            f"\n{len(zip_files)} file(s) received via drag & drop:"
-        )
+        self.backend.print_to_buffer(f"\n{len(zip_files)} file(s) received via drag & drop:")
 
         for zip_file in zip_files:
-            self.backend.print_to_buffer(f"  • {os.path.basename(zip_file)}")
+            self.backend.print_to_buffer(f"  - {os.path.basename(zip_file)}")
 
         self.backend.print_to_buffer("")
         self._import_dropped_files(zip_files)
 
-    def _import_dropped_files(self, zip_files: List[str]) -> None:
+    def _import_dropped_files(self, zip_files: list[str]) -> None:
         """Import files received via drag & drop."""
         self._update_backend_settings()
 
@@ -574,9 +561,7 @@ class ImpartFrontend(impartGUI):
                     return
                 elif choice == "background":
                     self._safe_cleanup(close_ipc=False, stop_backend=False)
-                    logging.info(
-                        "Fallback mode: GUI closed, background thread continues"
-                    )
+                    logging.info("Fallback mode: GUI closed, background thread continues")
                     event.Skip()  # Close GUI completely
                     return
                 else:  # choice == "close"
@@ -594,7 +579,6 @@ class ImpartFrontend(impartGUI):
                     self._safe_cleanup(close_ipc=False, stop_backend=False)
                     if not self.IsIconized():
                         self.Iconize(True)
-                    # self.Hide()
                     logging.info(
                         "IPC mode: Frontend minimized, running in background with IPC active"
                     )
@@ -643,9 +627,9 @@ class ImpartFrontend(impartGUI):
         """Confirm what to do when background process is running."""
         msg = (
             "Import process runs in automatic mode.\n\n"
-            "• HIDE: Keep running, hide window\n"
-            "• STOP: Stop import and close\n"
-            "• CANCEL: Back to window"
+            "- HIDE: Keep running, hide window\n"
+            "- STOP: Stop import and close\n"
+            "- CANCEL: Back to window"
         )
 
         dlg = wx.MessageDialog(
@@ -674,17 +658,11 @@ class ImpartFrontend(impartGUI):
         self.backend.auto_lib = self.m_check_autoLib.IsChecked()
         self.backend.local_lib = self.m_checkBoxLocalLib.IsChecked()
         self.backend.config.set_value("auto_import", str(self.backend.auto_import))
-        self.backend.config.set_value(
-            "overwrite_import", str(self.backend.overwrite_import)
-        )
+        self.backend.config.set_value("overwrite_import", str(self.backend.overwrite_import))
         self.backend.config.set_value("auto_lib", str(self.backend.auto_lib))
         self.backend.config.set_value("local_lib", str(self.backend.local_lib))
-        self.backend.config.set_value(
-            "single_lib", str(self.m_checkBoxSingleLib.IsChecked())
-        )
-        self.backend.config.set_value(
-            "lib_name", self.m_textCtrl_libname.GetValue().strip()
-        )
+        self.backend.config.set_value("single_lib", str(self.m_checkBoxSingleLib.IsChecked()))
+        self.backend.config.set_value("lib_name", self.m_textCtrl_libname.GetValue().strip())
 
     def BottonClick(self, event: wx.CommandEvent) -> None:
         """Handle main button click."""
@@ -720,9 +698,7 @@ class ImpartFrontend(impartGUI):
             self.backend.importer.lib_name = None
 
         # Handle overwrite setting change
-        overwrite_changed = (
-            self.m_overwrite.IsChecked() and not self.backend.overwrite_import
-        )
+        overwrite_changed = self.m_overwrite.IsChecked() and not self.backend.overwrite_import
         if overwrite_changed:
             self.backend.folder_handler.known_files = set()
 
@@ -841,9 +817,7 @@ class ImpartFrontend(impartGUI):
                 self.backend.print_to_buffer(
                     "  2. Uncheck 'Local Library' to use global library path"
                 )
-                logging.error(
-                    "Local library mode selected but no KiCad project available"
-                )
+                logging.error("Local library mode selected but no KiCad project available")
                 return
 
             # Verify the project path exists and is valid
@@ -897,7 +871,7 @@ class ImpartFrontend(impartGUI):
             wx.MessageBox(error_msg, "Unexpected Error", wx.OK | wx.ICON_ERROR)
 
 
-def create_backend_handler() -> "ImpartBackend":
+def create_backend_handler() -> ImpartBackend:
     """Create a new backend handler instance."""
     try:
         backend = ImpartBackend()

@@ -21,10 +21,7 @@ class ConfigHandler:
                     self.config.add_section("config")
 
                 for key, default_value in self.defaults.items():
-                    if (
-                        key not in self.config["config"]
-                        or not self.config["config"][key]
-                    ):
+                    if key not in self.config["config"] or not self.config["config"][key]:
                         self.config["config"][key] = default_value
 
                 self.config_is_set = True

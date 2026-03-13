@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# coding: utf-8
 
 # Assembles local KiCad component libraries from downloaded Octopart,
 # Samacsys, Ultralibrarian and Snapeda zipfiles using kiutils.
@@ -19,9 +18,7 @@ if __name__ == "__main__":
 
     # Example: python plugins/KiCadImport.py --lib-folder import_test --download-folder Demo/libs
 
-    parser = argparse.ArgumentParser(
-        description="Import KiCad libraries from a file or folder."
-    )
+    parser = argparse.ArgumentParser(description="Import KiCad libraries from a file or folder.")
 
     # Create mutually exclusive arguments for file or folder
     group = parser.add_mutually_exclusive_group(required=True)

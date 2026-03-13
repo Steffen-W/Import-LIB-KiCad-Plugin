@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import logging
 from pathlib import Path
-from typing import List, Optional
 
 
 class FileHandler:
@@ -26,9 +27,7 @@ class FileHandler:
         self.max_size = max_size
         self.file_extension = file_extension
         self.path = ""
-        self.known_files: set[str] = (
-            set()
-        )  # Set is more efficient for membership checks
+        self.known_files: set[str] = set()  # Set is more efficient for membership checks
         self.logger = logging.getLogger(__name__)
 
         self.change_path(path)
@@ -43,9 +42,7 @@ class FileHandler:
         path_obj = Path(new_path)
 
         if not path_obj.is_dir():
-            self.logger.warning(
-                f"Path '{new_path}' is not a directory. Using current directory."
-            )
+            self.logger.warning(f"Path '{new_path}' is not a directory. Using current directory.")
             new_path = "."
             path_obj = Path(new_path)
 
@@ -54,7 +51,7 @@ class FileHandler:
             self.known_files = set()  # Reset known files
             self.logger.info(f"Changed directory to '{new_path}'")
 
-    def get_new_files(self, path: Optional[str] = None) -> List[str]:
+    def get_new_files(self, path: str | None = None) -> list[str]:
         """
         Finds new files in the specified directory.
 
@@ -87,8 +84,7 @@ class FileHandler:
                         self.known_files.add(file_path.name)
                     else:
                         self.logger.debug(
-                            f"File '{file_path.name}' is outside the size range "
-                            f"({file_size} bytes)"
+                            f"File '{file_path.name}' is outside the size range ({file_size} bytes)"
                         )
 
             return new_files
