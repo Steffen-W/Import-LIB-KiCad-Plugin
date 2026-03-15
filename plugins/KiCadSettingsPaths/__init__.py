@@ -207,8 +207,6 @@ class KiCadApp:
     def _setup_venv_path(self) -> None:
         """Sets up virtual environment path for IPC API imports."""
         try:
-            import os
-
             venv = os.environ.get("VIRTUAL_ENV")
             if venv:
                 venv_path = Path(venv)
@@ -310,28 +308,175 @@ class KiCadApp:
             return (0, 0, 0)
 
     def _load_ipc_project_info(self) -> None:
-        """Loads project info using IPC API."""
+        """Loads project info using IPC API.
+
+        Tries PCB editor first, then falls back to schematic editor,
+        so the plugin works when launched from either context.
+        """
         if not self.kicad_ipc or not self.kipy_errors:
             return
 
         try:
-            board = self.kicad_ipc.get_board()
-            board_filename = Path(board.name) if board.name else None
+            from kipy.proto.common.types import DocumentType
 
-            project = board.get_project()
-            project_name = project.name
-            project_dir = Path(project.path) if project.path else None
+            docs = self.kicad_ipc.get_open_documents(DocumentType.DOCTYPE_PCB)
+            doc_type = "PCB"
+            if not docs:
+                docs = self.kicad_ipc.get_open_documents(DocumentType.DOCTYPE_SCHEMATIC)
+                doc_type = "Schematic"
+            if not docs:
+                logging.debug("IPC: no open PCB or Schematic document found, trying proc scan")
+                project_dir = self._find_project_via_process_args()
+                if project_dir:
+                    self.project_info = KiCadProjectInfo(
+                        name=project_dir.name, directory=project_dir
+                    )
+                else:
+                    self.project_info = KiCadProjectInfo()
+                return
+
+            doc = docs[0]
+            project_name = doc.project.name or None
+            project_dir = Path(doc.project.path) if doc.project.path else None
+            board_filename = (
+                Path(doc.board_filename) if doc_type == "PCB" and doc.board_filename else None
+            )
+
+            logging.debug(
+                f"IPC: found {doc_type} document - project='{project_name}' path='{project_dir}'"
+            )
 
             self.project_info = KiCadProjectInfo(
                 name=project_name, directory=project_dir, board_filename=board_filename
             )
 
-        except self.kipy_errors.ApiError:
-            # No PCB open - this is normal
-            self.project_info = KiCadProjectInfo()
         except Exception as e:
-            logging.warning(f"Could not load project information: {e}")
-            self.project_info = KiCadProjectInfo()
+            # kipy errors and common API-shape issues are expected → DEBUG
+            # anything else (e.g. TypeError, NameError) signals a programming bug → WARNING
+            is_expected = type(e).__module__.startswith("kipy") or isinstance(
+                e, (AttributeError, RuntimeError)
+            )
+            logging.log(
+                logging.DEBUG if is_expected else logging.WARNING,
+                f"IPC project info unavailable ({e}), trying process scan",
+            )
+            project_dir = self._find_project_via_process_args()
+            self.project_info = (
+                KiCadProjectInfo(name=project_dir.name, directory=project_dir)
+                if project_dir
+                else KiCadProjectInfo()
+            )
+
+    @staticmethod
+    def _find_project_via_process_args() -> Path | None:
+        """Finds the KiCad project directory by inspecting running KiCad process arguments.
+
+        Uses /proc on Linux, ps on macOS, and psutil on Windows.
+        Also detects projects from .kicad_pcb/.kicad_sch arguments if no .kicad_pro is found.
+        Returns None on failure or if psutil is not available on Windows.
+        """
+        kicad_executables = {"kicad", "eeschema", "pcbnew"}
+        kicad_suffixes = {".kicad_pro", ".kicad_pcb", ".kicad_sch"}
+
+        def _check_args(args: list[str]) -> Path | None:
+            if not args:
+                return None
+            exe_name = Path(args[0]).name.lower()
+            if not any(k in exe_name for k in kicad_executables):
+                return None
+            pro_dir = None
+            fallback_dir = None
+            for arg in args[1:]:
+                try:
+                    p = Path(arg.strip('"'))
+                    suffix = p.suffix.lower()
+                    if suffix not in kicad_suffixes or not p.exists():
+                        continue
+                    if suffix == ".kicad_pro":
+                        pro_dir = p.parent
+                    else:
+                        # .kicad_pcb/.kicad_sch: check if a .kicad_pro exists nearby
+                        candidate = next(p.parent.glob("*.kicad_pro"), None)
+                        if candidate:
+                            pro_dir = candidate.parent
+                        else:
+                            fallback_dir = p.parent
+                except Exception:
+                    continue
+            return pro_dir or fallback_dir
+
+        try:
+            # psutil is cross-platform and returns pre-split args (handles spaces in paths
+            # correctly on all platforms). Use it first if available.
+            try:
+                import psutil
+
+                for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+                    try:
+                        result = _check_args(proc.info["cmdline"] or [])
+                        if result:
+                            logging.debug(
+                                f"psutil: found project via PID {proc.info['pid']}: {result}"
+                            )
+                            return result
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                        continue
+                return None
+
+            except ImportError:
+                pass  # fall through to platform-specific fallback
+
+            system = platform.system()
+
+            if system == "Linux":
+                for pid_dir in Path("/proc").iterdir():
+                    if not pid_dir.name.isdigit():
+                        continue
+                    try:
+                        cmdline = (pid_dir / "cmdline").read_text(
+                            encoding="utf-8", errors="replace"
+                        )
+                        args = [a for a in cmdline.split("\x00") if a]
+                        result = _check_args(args)
+                        if result:
+                            logging.debug(f"proc: found project via PID {pid_dir.name}: {result}")
+                            return result
+                    except (PermissionError, FileNotFoundError, OSError, UnicodeDecodeError):
+                        continue
+
+            elif system == "Darwin":
+                # Note: ps output does not preserve shell quoting, so paths with spaces
+                # in the project directory will not be found. Install psutil to fix this.
+                import shlex
+                import subprocess
+
+                out = subprocess.run(
+                    ["ps", "-A", "-o", "pid=,command="],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    timeout=3,
+                ).stdout
+                for line in out.splitlines():
+                    parts = line.strip().split(None, 1)
+                    if len(parts) < 2:
+                        continue
+                    try:
+                        args = shlex.split(parts[1])
+                    except ValueError:
+                        args = parts[1].split()
+                    result = _check_args(args)
+                    if result:
+                        logging.debug(f"ps: found project via PID {parts[0]}: {result}")
+                        return result
+
+            elif system == "Windows":
+                logging.debug("psutil not installed, cannot scan processes on Windows")
+
+        except Exception as e:
+            logging.debug(f"process scan failed: {e}")
+
+        return None
 
     def _load_swig_project_info(self) -> None:
         """Loads project info using SWIG."""
@@ -340,6 +485,8 @@ class KiCadApp:
 
         try:
             board = self.pcbnew.GetBoard()
+            if board is None:
+                raise ValueError("GetBoard() returned None")
             board_filename_str = board.GetFileName()
 
             project_name = None
@@ -350,6 +497,12 @@ class KiCadApp:
                 board_filename = Path(board_filename_str)
                 project_dir = board_filename.parent
                 project_name = board_filename.stem
+
+            if not project_dir:
+                project_dir = self._find_project_via_process_args()
+                if project_dir:
+                    project_name = project_dir.name
+                    logging.debug(f"SWIG: no board open, project found via proc: {project_dir}")
 
             self.project_info = KiCadProjectInfo(
                 name=project_name, directory=project_dir, board_filename=board_filename
@@ -443,7 +596,7 @@ class KiCadApp:
             "project_dir": self.project_dir,
             "board_filename": self.board_filename,
             "min_version": self.min_version,
-            "version_sufficient": self.check_min_version(lambda x: None),
+            "version_sufficient": self.check_min_version(lambda _: None),
             "project_valid": self.project_info.is_valid,
         }
 
@@ -455,7 +608,7 @@ class KiCadApp:
         print(f"Settings Path: {self.settings_path}")
         print(f"Version: {self.full_version}")
 
-        if self.check_min_version(lambda x: None):
+        if self.check_min_version(lambda _: None):
             print("Version meets requirements")
         else:
             print("Version may be insufficient")
