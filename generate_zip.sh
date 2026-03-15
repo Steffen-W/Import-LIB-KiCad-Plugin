@@ -77,9 +77,10 @@ check_submodules() {
         # Only update if no local changes
         if ! $has_local_changes; then
             echo "Checking for submodule updates..."
-            git submodule update --remote --merge 2>/dev/null
-            if [[ $? -eq 0 ]]; then
+            if git submodule update --remote --merge 2>/dev/null; then
                 echo "  ✓ Submodules are up to date"
+            else
+                echo "  ⚠ Submodule update failed (no network?) - using local versions"
             fi
         else
             echo "  → Using local submodule versions (local changes detected)"

@@ -698,25 +698,33 @@ class LibImporter:
                     if temp_footprint_name:
                         footprint_file_path = footprint_dir / f"{temp_footprint_name}.kicad_mod"
 
-                        # Extract footprint with upgrade
-                        extracted_name = self.extract_footprint_to_file(
-                            files["footprint"], footprint_file_path
-                        )
-
-                        if extracted_name:
-                            self.footprint_name = extracted_name
-                            # Rename file if name changed after parsing
-                            if extracted_name != temp_footprint_name:
-                                new_footprint_path = footprint_dir / f"{extracted_name}.kicad_mod"
-                                if footprint_file_path.exists():
-                                    footprint_file_path.rename(new_footprint_path)
-                                    footprint_file_path = new_footprint_path
-
-                            logger.info(f"Successfully processed footprint: {self.footprint_name}")
+                        if footprint_file_path.exists() and not overwrite_if_exists:
+                            # Skip extraction entirely – file must not be overwritten
+                            logger.debug(f"Footprint {footprint_file_path.name} exists, skipping")
                         else:
-                            logger.warning("Failed to extract footprint")
-                            self.print("Warning: Failed to extract footprint")
-                            footprint_file_path = None
+                            # Extract footprint with upgrade
+                            extracted_name = self.extract_footprint_to_file(
+                                files["footprint"], footprint_file_path
+                            )
+
+                            if extracted_name:
+                                self.footprint_name = extracted_name
+                                # Rename file if name changed after parsing
+                                if extracted_name != temp_footprint_name:
+                                    new_footprint_path = (
+                                        footprint_dir / f"{extracted_name}.kicad_mod"
+                                    )
+                                    if footprint_file_path.exists():
+                                        footprint_file_path.rename(new_footprint_path)
+                                        footprint_file_path = new_footprint_path
+
+                                logger.info(
+                                    f"Successfully processed footprint: {self.footprint_name}"
+                                )
+                            else:
+                                logger.warning("Failed to extract footprint")
+                                self.print("Warning: Failed to extract footprint")
+                                footprint_file_path = None
 
                 # Load 3D model
                 model_temp_dir = None

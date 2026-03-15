@@ -1,6 +1,8 @@
 [submodule "plugins/kiutils"]
 	path = plugins/kiutils
 	url = https://github.com/Steffen-W/kiutils.git
+	branch = master
 [submodule "plugins/easyeda2kicad"]
 	path = plugins/easyeda2kicad
 	url = https://github.com/Steffen-W/easyeda2kicad.py.git
+	branch = master
