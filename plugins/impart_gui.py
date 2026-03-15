@@ -52,21 +52,15 @@ class impartGUI(wx.Dialog):
 
         bSizer.Add(self.m_staticline11, 0, wx.EXPAND | wx.ALL, 5)
 
-        fgSizer2 = wx.FlexGridSizer(0, 3, 0, 0)
+        fgSizer2 = wx.FlexGridSizer(0, 4, 0, 0)
         fgSizer2.SetFlexibleDirection(wx.HORIZONTAL)
         fgSizer2.SetNonFlexibleGrowMode(wx.FLEX_GROWMODE_ALL)
+        fgSizer2.AddGrowableCol(1)
 
-        self.m_buttonImportManual = wx.Button(
-            self, wx.ID_ANY, "Manual Import", wx.DefaultPosition, wx.DefaultSize, 0
+        self.m_staticTextLCSC = wx.StaticText(
+            self, wx.ID_ANY, "EasyEDA / LCSC Part#", wx.DefaultPosition, wx.DefaultSize, 0
         )
-        fgSizer2.Add(self.m_buttonImportManual, 0, wx.ALL, 5)
-
-        m_choice1Choices = ["EeasyEDA /  LCSC Part#"]
-        self.m_choice1 = wx.Choice(
-            self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_choice1Choices, 0
-        )
-        self.m_choice1.SetSelection(0)
-        fgSizer2.Add(self.m_choice1, 0, wx.ALL | wx.EXPAND, 5)
+        fgSizer2.Add(self.m_staticTextLCSC, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
         self.m_textCtrl2 = wx.TextCtrl(
             self,
@@ -77,10 +71,19 @@ class impartGUI(wx.Dialog):
             wx.TE_PROCESS_ENTER,
         )
         self.m_textCtrl2.SetMinSize(wx.Size(220, -1))
+        fgSizer2.Add(self.m_textCtrl2, 1, wx.EXPAND | wx.ALL, 5)
 
-        fgSizer2.Add(self.m_textCtrl2, 0, wx.EXPAND | wx.ALL, 5)
+        self.m_buttonImportManual = wx.Button(
+            self, wx.ID_ANY, "Import", wx.DefaultPosition, wx.DefaultSize, 0
+        )
+        fgSizer2.Add(self.m_buttonImportManual, 0, wx.ALL, 5)
 
-        bSizer.Add(fgSizer2, 0, wx.ALIGN_CENTER_HORIZONTAL, 5)
+        self.m_buttonComponentSearch = wx.Button(
+            self, wx.ID_ANY, "Component Search", wx.DefaultPosition, wx.DefaultSize, 0
+        )
+        fgSizer2.Add(self.m_buttonComponentSearch, 0, wx.ALL, 5)
+
+        bSizer.Add(fgSizer2, 0, wx.EXPAND | wx.ALL, 0)
 
         self.m_staticline12 = wx.StaticLine(
             self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL
@@ -227,6 +230,7 @@ class impartGUI(wx.Dialog):
         self.m_button.Bind(wx.EVT_BUTTON, self.BottonClick)
         self.m_buttonImportManual.Bind(wx.EVT_BUTTON, self.ButtomManualImport)
         self.m_textCtrl2.Bind(wx.EVT_TEXT_ENTER, self.ButtomManualImport)
+        self.m_buttonComponentSearch.Bind(wx.EVT_BUTTON, self.OnComponentSearch)
         self.m_dirPicker_sourcepath.Bind(wx.EVT_DIRPICKER_CHANGED, self.DirChange)
         self.m_checkBoxLocalLib.Bind(wx.EVT_CHECKBOX, self.m_checkBoxLocalLibOnCheckBox)
         self.m_checkBoxSingleLib.Bind(wx.EVT_CHECKBOX, self.m_checkBoxSingleLibOnCheckBox)
@@ -243,6 +247,9 @@ class impartGUI(wx.Dialog):
         event.Skip()
 
     def ButtomManualImport(self, event):
+        event.Skip()
+
+    def OnComponentSearch(self, event):
         event.Skip()
 
     def DirChange(self, event):

@@ -486,6 +486,8 @@ class ImpartFrontend(impartGUI):
             lib_mode = "Global Library"
 
         self.backend.print_to_buffer(f"Library Mode: {lib_mode}")
+        if self.kicad_project:
+            self.backend.print_to_buffer(f"KiCad Project: {self.kicad_project}")
         self.backend.print_to_buffer(f"Source Directory: {src_path}")
         self.backend.print_to_buffer(f"Destination Directory: {dest_path}")
         self.backend.print_to_buffer("=" * 50)
@@ -768,6 +770,21 @@ class ImpartFrontend(impartGUI):
 
         event.Skip()
 
+    def OnComponentSearch(self, event: wx.CommandEvent) -> None:
+        """Open the component search dialog and fill the LCSC field on selection."""
+        try:
+            from .component_search import SearchDialog
+        except ImportError:
+            from component_search import SearchDialog  # type: ignore[import-not-found,no-redef]
+
+        def _live_update(lcsc: str) -> None:
+            self.m_textCtrl2.SetValue(lcsc)
+
+        dlg = SearchDialog(self, on_select=_live_update)
+        dlg.ShowModal()
+        dlg.Destroy()
+        event.Skip()
+
     def ButtomManualImport(self, event: wx.CommandEvent) -> None:
         """Handle manual EasyEDA import."""
         self._update_backend_settings()
@@ -809,6 +826,10 @@ class ImpartFrontend(impartGUI):
 
         if self.backend.local_lib:
             if not self.kicad_project:
+                # Try a late refresh – KiCad may have opened a project after plugin start
+                self.backend.kicad_app.refresh_project_info()
+                self.kicad_project = self.backend.kicad_app.get_project_dir()
+            if not self.kicad_project:  # still None after refresh → genuine error
                 self.backend.print_to_buffer(
                     "Error: Local library mode selected, but no KiCad project is open."
                 )
