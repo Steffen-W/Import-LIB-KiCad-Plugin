@@ -12,6 +12,10 @@ psutil
 # - kiutils       (plugins/kiutils/src/kiutils/)
 # - easyeda2kicad (plugins/easyeda2kicad/easyeda2kicad/)
 
+# SVG -> PNG rendering for component preview thumbnails (text support).
+# Optional: without it, SVG previews fall back to wx.svg (shapes only, no text).
+cairosvg
+
 # Provided by KiCad itself - not installed via pip:
 # - pcbnew   (SWIG bindings)
 # - wxPython (GUI)

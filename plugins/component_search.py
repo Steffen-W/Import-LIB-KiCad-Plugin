@@ -9,8 +9,10 @@ from __future__ import annotations
 import io
 import logging
 import sys
+import tempfile
 import threading
 import urllib.request
+import webbrowser
 from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -30,11 +32,16 @@ if easyeda_submodule.exists():
         sys.path.insert(0, easyeda_str)
 
 from easyeda2kicad.easyeda.easyeda_api import EasyedaApi  # noqa: E402
+from easyeda2kicad.easyeda.easyeda_svg_renderer import (  # noqa: E402
+    render_footprint_svg,
+    render_symbol_svg,
+)
 
 Row = dict[str, Any]
 
 _SEARCH_PAGE_SIZE = 25  # API page size; results are capped at this value
 _IMAGE_CACHE_MAX = 50  # max cached product images per session
+_CAD_CACHE_MAX = 30  # max cached CAD data entries per session
 
 # (label, field_keys, min_width)  - first matching key wins
 COLUMNS: list[tuple[str, list[str], int]] = [
@@ -234,33 +241,57 @@ class DetailPanel(wx.ScrolledWindow):  # type: ignore[misc]
     """Grid of label/value rows; URL values become clickable hyperlinks."""
 
     _IMG_MAX = 160  # max image dimension in pixels
+    _SVG_WIDTH = 160  # fixed width for SVG previews; height scales proportionally
 
     def __init__(self, parent: wx.Window) -> None:
         super().__init__(parent, style=wx.VSCROLL)
         self.SetScrollRate(0, 12)
 
+        self._component_url: str | None = None
+
         self._img_bmp = wx.StaticBitmap(self)
         self._img_bmp.Hide()
+        self._img_bmp.Bind(wx.EVT_LEFT_UP, lambda _: self._open_url(self._component_url))
+        self._img_bmp.SetCursor(wx.Cursor(wx.CURSOR_HAND))
+
+        self._sym_svg: str | None = None
+        self._fp_svg: str | None = None
+
+        self._sym_bmp = wx.StaticBitmap(self)
+        self._sym_bmp.Hide()
+        self._sym_bmp.Bind(wx.EVT_LEFT_UP, lambda _: self._open_svg_in_browser(self._sym_svg))
+        self._sym_bmp.SetCursor(wx.Cursor(wx.CURSOR_HAND))
+
+        self._fp_bmp = wx.StaticBitmap(self)
+        self._fp_bmp.Hide()
+        self._fp_bmp.Bind(wx.EVT_LEFT_UP, lambda _: self._open_svg_in_browser(self._fp_svg))
+        self._fp_bmp.SetCursor(wx.Cursor(wx.CURSOR_HAND))
 
         self._sizer = wx.FlexGridSizer(cols=2, vgap=4, hgap=8)
         self._sizer.AddGrowableCol(1, 1)
 
+        # Right column: product image + symbol SVG + footprint SVG stacked vertically
+        right_col = wx.BoxSizer(wx.VERTICAL)
+        right_col.Add(self._img_bmp, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.BOTTOM, 4)
+        right_col.Add(self._sym_bmp, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.BOTTOM, 4)
+        right_col.Add(self._fp_bmp, 0, wx.ALIGN_CENTER_HORIZONTAL)
+
         outer = wx.BoxSizer(wx.HORIZONTAL)
         outer.Add(self._sizer, 1, wx.EXPAND | wx.ALL, 4)
-        outer.Add(self._img_bmp, 0, wx.ALIGN_TOP | wx.ALL, 4)
+        outer.Add(right_col, 0, wx.ALIGN_TOP | wx.ALL, 4)
         self.SetSizer(outer)
         self._widgets: list[wx.Window] = []
 
     def set_image(self, data: bytes | None) -> None:
         if data:
             try:
-                img = wx.Image(io.BytesIO(data))
+                img = wx.Image(io.BytesIO(data))  # pyright: ignore[reportArgumentType, reportCallIssue]
                 if img.IsOk():
                     w, h = img.GetWidth(), img.GetHeight()
                     if w > self._IMG_MAX or h > self._IMG_MAX:
                         scale = self._IMG_MAX / max(w, h)
                         img = img.Scale(int(w * scale), int(h * scale), wx.IMAGE_QUALITY_HIGH)
-                    self._img_bmp.SetBitmap(wx.Bitmap(img))
+                    self._img_bmp.SetBitmap(wx.Bitmap(img))  # pyright: ignore[reportArgumentType]
                     self._img_bmp.Show()
                     self.FitInside()
                     self.Layout()
@@ -270,6 +301,78 @@ class DetailPanel(wx.ScrolledWindow):  # type: ignore[misc]
         self._img_bmp.Hide()
         self.FitInside()
         self.Layout()
+
+    def _svg_str_to_bitmap(self, svg_str: str, width: int) -> wx.Bitmap | None:
+        """Convert SVG string to a wx.Bitmap with the given width; height scales proportionally.
+
+        Uses cairosvg (full SVG support incl. text) when available,
+        falls back to wx.svg (shapes only, no text) otherwise.
+        """
+        svg_bytes = svg_str.encode("utf-8")
+        try:
+            import cairosvg  # type: ignore[import-untyped]
+
+            png_bytes = cairosvg.svg2png(bytestring=svg_bytes, output_width=width)
+            img = wx.Image(io.BytesIO(png_bytes), wx.BITMAP_TYPE_PNG)  # pyright: ignore[reportArgumentType, reportCallIssue]
+            if img.IsOk():
+                return wx.Bitmap(img)  # pyright: ignore[reportArgumentType]
+        except ImportError:
+            logging.debug("cairosvg not available, falling back to wx.svg (no text rendering)")
+        except Exception as e:
+            logging.debug(f"cairosvg render failed: {e}")
+
+        return self._svg_fallback_bitmap(svg_bytes, width)
+
+    def _svg_fallback_bitmap(self, svg_bytes: bytes, width: int) -> wx.Bitmap | None:
+        """Fallback SVG renderer via wx.svg (NanoSVG) — shapes only, no text."""
+        try:
+            import wx.svg
+
+            svg_img = wx.svg.SVGimage.CreateFromBytes(svg_bytes)
+            vb_w = svg_img.width or width
+            vb_h = svg_img.height or width
+            scale = width / vb_w if vb_w else 1.0
+            bmp_h = max(1, int(vb_h * scale))
+            return svg_img.ConvertToScaledBitmap(wx.Size(width, bmp_h))
+        except Exception as e:
+            logging.debug(f"wx.svg render failed: {e}")
+        return None
+
+    def set_svg_previews(self, symbol_svg: str | None, footprint_svg: str | None) -> None:
+        """Display symbol and footprint SVG previews below the product image."""
+        self._sym_svg = symbol_svg
+        self._fp_svg = footprint_svg
+        for bmp_ctrl, svg_str in ((self._sym_bmp, symbol_svg), (self._fp_bmp, footprint_svg)):
+            if svg_str:
+                bmp = self._svg_str_to_bitmap(svg_str, self._SVG_WIDTH)
+                if bmp is not None:
+                    bmp_ctrl.SetBitmap(bmp)  # pyright: ignore[reportArgumentType]
+                    bmp_ctrl.Show()
+                else:
+                    bmp_ctrl.Hide()
+            else:
+                bmp_ctrl.Hide()
+        self.FitInside()
+        self.Layout()
+
+    def _open_svg_in_browser(self, svg_str: str | None) -> None:
+        if not svg_str:
+            return
+        try:
+            with tempfile.NamedTemporaryFile(
+                suffix=".svg", delete=False, mode="w", encoding="utf-8"
+            ) as f:
+                f.write(svg_str)
+                path = f.name
+            webbrowser.open(f"file://{path}")
+            # Clean up after the browser has had time to read the file
+            threading.Timer(30.0, lambda: Path(path).unlink(missing_ok=True)).start()
+        except Exception as e:
+            logging.debug(f"Failed to open SVG in browser: {e}")
+
+    def _open_url(self, url: str | None) -> None:
+        if url:
+            webbrowser.open(url)
 
     def _add_row(self, label: str, widget: wx.Window) -> None:
         lbl = wx.StaticText(self, label=f"{label}:")
@@ -281,7 +384,10 @@ class DetailPanel(wx.ScrolledWindow):  # type: ignore[misc]
         self._widgets += [lbl, widget]
 
     def show_component(self, row: Row) -> None:
+        self._component_url = _pick(row, ["url"]) or None
         self._img_bmp.Hide()
+        self._sym_bmp.Hide()
+        self._fp_bmp.Hide()
         for w in self._widgets:
             w.Destroy()
         self._widgets.clear()
@@ -330,6 +436,8 @@ class DetailPanel(wx.ScrolledWindow):  # type: ignore[misc]
 
     def clear(self) -> None:
         self._img_bmp.Hide()
+        self._sym_bmp.Hide()
+        self._fp_bmp.Hide()
         for w in self._widgets:
             w.Destroy()
         self._widgets.clear()
@@ -356,7 +464,9 @@ class SearchPanel(wx.Panel):  # type: ignore[misc]
         self._sort_asc: bool = True
         self._search_request_id: int = 0
         self._image_request_id: int = 0
+        self._cad_request_id: int = 0
         self._image_cache: OrderedDict[str, bytes] = OrderedDict()
+        self._cad_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._build_ui()
 
     # ------------------------------------------------------------------
@@ -518,16 +628,21 @@ class SearchPanel(wx.Panel):  # type: ignore[misc]
         if 0 <= idx < len(self._results):
             row = self._results[idx]
             self.detail_panel.show_component(row)
-            self._image_request_id += 1
-            req_id = self._image_request_id
             lcsc_url = row.get("url", "")
+            lcsc = _pick(row, ["lcsc", "componentCode"])
+
+            self._image_request_id += 1
             threading.Thread(
-                target=self._fetch_image, args=(str(lcsc_url), req_id), daemon=True
+                target=self._fetch_image, args=(str(lcsc_url), self._image_request_id), daemon=True
             ).start()
-            if self._on_select_cb is not None:
-                lcsc = self.get_selected_lcsc()
-                if lcsc:
-                    self._on_select_cb(lcsc)
+
+            self._cad_request_id += 1
+            threading.Thread(
+                target=self._fetch_cad_data, args=(lcsc, self._cad_request_id), daemon=True
+            ).start()
+
+            if self._on_select_cb is not None and lcsc:
+                self._on_select_cb(lcsc)
 
     def _fetch_image(self, lcsc_url: str, req_id: int) -> None:
         if lcsc_url in self._image_cache:
@@ -556,6 +671,42 @@ class SearchPanel(wx.Panel):  # type: ignore[misc]
         # Discard result if user has already selected a different component.
         if req_id == self._image_request_id:
             self.detail_panel.set_image(data)
+
+    def _fetch_cad_data(self, lcsc_id: str, req_id: int) -> None:
+        if not lcsc_id:
+            return
+
+        if lcsc_id in self._cad_cache:
+            wx.CallAfter(lambda: self._on_cad_ready(req_id, self._cad_cache[lcsc_id]))
+            return
+
+        cad_data: dict[str, Any] | None = None
+        try:
+            result = self.api.get_cad_data_of_component(lcsc_id=lcsc_id)
+            if isinstance(result, dict) and result:
+                cad_data = result
+                self._cad_cache[lcsc_id] = cad_data
+                if len(self._cad_cache) > _CAD_CACHE_MAX:
+                    self._cad_cache.popitem(last=False)
+        except Exception as e:
+            logging.debug(f"CAD data fetch failed for {lcsc_id}: {e}")
+        wx.CallAfter(lambda: self._on_cad_ready(req_id, cad_data))
+
+    def _on_cad_ready(self, req_id: int, cad_data: dict[str, Any] | None) -> None:
+        if req_id != self._cad_request_id:
+            return
+        sym_svg: str | None = None
+        fp_svg: str | None = None
+        if cad_data:
+            try:
+                sym_svg = render_symbol_svg(cad_data)
+            except Exception as e:
+                logging.debug(f"Symbol SVG render failed: {e}")
+            try:
+                fp_svg = render_footprint_svg(cad_data)
+            except Exception as e:
+                logging.debug(f"Footprint SVG render failed: {e}")
+        self.detail_panel.set_svg_previews(sym_svg, fp_svg)
 
     # ------------------------------------------------------------------
     # Helpers
