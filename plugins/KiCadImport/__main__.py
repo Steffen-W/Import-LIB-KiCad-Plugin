@@ -58,6 +58,12 @@ if __name__ == "__main__":
         help="Use a custom library name for all imports (e.g., 'Custom' instead of Samacsys/Snapeda/EasyEDA)",
     )
 
+    parser.add_argument(
+        "--compress-models",
+        action="store_true",
+        help="Compress STEP models to .step.gz (gzip, supported by KiCad >= 6.0)",
+    )
+
     args = parser.parse_args()
 
     lib_folder = Path(args.lib_folder)
@@ -75,6 +81,7 @@ if __name__ == "__main__":
             KICAD_3RD_PARTY_LINK=path_variable,
             prefer_step=args.prefer_step,
             lib_name=args.lib_name,
+            compress_models=args.compress_models,
         )
     elif args.download_folder:
         download_folder = Path(args.download_folder)
@@ -119,6 +126,7 @@ if __name__ == "__main__":
                     overwrite=args.overwrite_if_exists,
                     lib_var=path_variable,
                     prefer_step=args.prefer_step,
+                    compress_models=args.compress_models,
                 )
 
                 logger.debug(f"EasyEDA config: {config}")

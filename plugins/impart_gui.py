@@ -100,15 +100,20 @@ class impartGUI(wx.Dialog):
         )
         fgSizer1.Add(self.m_autoImport, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
+        self.m_check_autoLib = wx.CheckBox(
+            self, wx.ID_ANY, "auto settings", wx.DefaultPosition, wx.DefaultSize, 0
+        )
+        fgSizer1.Add(self.m_check_autoLib, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
         self.m_overwrite = wx.CheckBox(
             self, wx.ID_ANY, "overwrite lib", wx.DefaultPosition, wx.DefaultSize, 0
         )
         fgSizer1.Add(self.m_overwrite, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
-        self.m_check_autoLib = wx.CheckBox(
-            self, wx.ID_ANY, "auto settings", wx.DefaultPosition, wx.DefaultSize, 0
+        self.m_checkBoxCompressModels = wx.CheckBox(
+            self, wx.ID_ANY, "zip 3D", wx.DefaultPosition, wx.DefaultSize, 0
         )
-        fgSizer1.Add(self.m_check_autoLib, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+        fgSizer1.Add(self.m_checkBoxCompressModels, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
         self.m_checkBoxSingleLib = wx.CheckBox(
             self, wx.ID_ANY, "single lib name", wx.DefaultPosition, wx.DefaultSize, 0

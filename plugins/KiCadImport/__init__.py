@@ -4,6 +4,7 @@ from __future__ import annotations
 # Assembles local KiCad component libraries from downloaded Octopart,
 # Samacsys, Ultralibrarian and Snapeda zipfiles using kiutils.
 # Supports KiCad 7.0 and newer.
+import gzip
 import logging
 import shutil
 import sys
@@ -84,7 +85,7 @@ class LibImporter:
     def print(self, txt: str) -> None:
         print("->" + txt)
 
-    def __init__(self, prefer_step: bool = False, lib_name: str | None = None):
+    def __init__(self, prefer_step: bool = False, lib_name: str | None = None, compress_models: bool = False):
         self.KICAD_3RD_PARTY_LINK: str = "${KICAD_3RD_PARTY}"
         self.DEST_PATH = Path.home() / "KiCad"
         self.dcm_skipped = False
@@ -95,6 +96,7 @@ class LibImporter:
         self.footprint_parser = FootprintModelParser()
         self.prefer_step = prefer_step
         self.lib_name = lib_name
+        self.compress_models = compress_models
 
     def set_DEST_PATH(self, DEST_PATH_: str | Path = Path.home() / "KiCad") -> None:
         self.DEST_PATH = Path(DEST_PATH_)
@@ -405,10 +407,10 @@ class LibImporter:
         if not footprint_file.exists():
             return False
 
-        # If prefer_step and step is available, use .step extension
+        # If prefer_step and step is available, ensure .step/.step.gz extension
         if self.prefer_step and step_available:
-            model_name_path = Path(model_name)
-            model_name = model_name_path.stem + ".step"
+            if not (model_name.endswith(".step") or model_name.endswith(".stp") or model_name.endswith(".step.gz")):
+                model_name = Path(model_name).stem + ".step"
 
         lib_name = self.get_lib_name(remote_type)
         model_path = f"{self.KICAD_3RD_PARTY_LINK}/{lib_name}.3dshapes/{model_name}"
@@ -576,10 +578,12 @@ class LibImporter:
                 if not model_dir.exists():
                     model_dir.mkdir(parents=True, exist_ok=True)
 
-                model_file = model_dir / model_path.name
+                is_step = model_path.suffix.lower() in (".step", ".stp")
+                dest_name = model_path.name + ".gz" if (self.compress_models and is_step) else model_path.name
+                model_file = model_dir / dest_name
 
                 if model_file.exists() and not overwrite_if_exists:
-                    self.print(f"3D model {model_path.name} already exists. Skipping.")
+                    self.print(f"3D model {model_file.name} already exists. Skipping.")
                     self.model_skipped = True
                 else:
                     # Create backup if file exists
@@ -588,19 +592,25 @@ class LibImporter:
                         shutil.copy2(model_file, backup_path)
                         backup_files[model_file] = backup_path
 
-                    # Copy model file
-                    shutil.copy2(model_path, model_file)
-                    success_items.append(f"saved 3D model {model_path.name}")
-                    self.print(f"Saved 3D model {model_path.name}")
+                    if self.compress_models and is_step:
+                        with (
+                            open(model_path, "rb") as f_in,
+                            gzip.open(model_file, "wb", compresslevel=9) as f_out,
+                        ):
+                            f_out.write(f_in.read())
+                    else:
+                        shutil.copy2(model_path, model_file)
+
+                    success_items.append(f"saved 3D model {model_file.name}")
+                    self.print(f"Saved 3D model {model_file.name}")
 
                     # Update footprint with model reference
                     if footprint_file_path and footprint_file_path.exists():
-                        step_available = model_path.suffix.lower() in (".step", ".stp")
                         model_update_success = self.update_footprint_with_model(
                             footprint_file_path,
-                            model_path.name,
+                            model_file.name,
                             remote_type,
-                            step_available,
+                            step_available=is_step,
                         )
                         if not model_update_success:
                             logger.warning("Failed to update footprint with model reference")
@@ -792,6 +802,7 @@ def main(
     KICAD_3RD_PARTY_LINK: str = "${KICAD_3RD_PARTY}",
     prefer_step: bool = False,
     lib_name: str | None = None,
+    compress_models: bool = False,
 ) -> None:
     lib_folder = Path(lib_folder)
     lib_file = Path(lib_file)
@@ -808,7 +819,7 @@ def main(
         print(f"Error: file {lib_file} to be imported was not found!")
         return
 
-    impart = LibImporter(prefer_step=prefer_step, lib_name=lib_name)
+    impart = LibImporter(prefer_step=prefer_step, lib_name=lib_name, compress_models=compress_models)
     impart.KICAD_3RD_PARTY_LINK = KICAD_3RD_PARTY_LINK
     impart.set_DEST_PATH(lib_folder)
     try:

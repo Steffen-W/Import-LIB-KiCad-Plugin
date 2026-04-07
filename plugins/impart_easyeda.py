@@ -2,6 +2,7 @@
 # Based on: https://github.com/uPesy/easyeda2kicad.py/blob/master/easyeda2kicad/__main__.py
 from __future__ import annotations
 
+import gzip
 import logging
 import sys
 from dataclasses import dataclass
@@ -61,6 +62,7 @@ class ImportConfig:
     overwrite: bool = False
     lib_var: str = "${EASYEDA2KICAD}"
     prefer_step: bool = False
+    compress_models: bool = False
 
 
 class EasyEDAImporter:
@@ -114,7 +116,7 @@ class EasyEDAImporter:
             logger.error(f"Symbol import failed: {e}")
             return False, None
 
-    def _import_footprint(self, ee_footprint: EeFootprint, use_step: bool = False) -> Path | None:
+    def _import_footprint(self, ee_footprint: EeFootprint, model_ext: str = "wrl") -> Path | None:
         """Export footprint to .kicad_mod and return the file path."""
         try:
             footprint_file = self.footprint_dir / f"{ee_footprint.info.name}.kicad_mod"
@@ -127,7 +129,7 @@ class EasyEDAImporter:
             ExporterFootprintKicad(footprint=ee_footprint).export(
                 footprint_full_path=str(footprint_file),
                 model_3d_path=model_3d_path,
-                model_3d_extension="step" if use_step else "wrl",
+                model_3d_extension=model_ext,
             )
             self._print(f"Created footprint: {footprint_file.name}")
             return footprint_file
@@ -138,7 +140,11 @@ class EasyEDAImporter:
             return None
 
     def _import_3d_model(self, cad_data: dict[str, Any]) -> tuple[Path | None, Path | None]:
-        """Download and export 3D model. Returns (wrl_path, step_path)."""
+        """Download and export 3D model. Returns (wrl_path, step_path).
+
+        When compress_models is True, STEP is saved as .step.gz (gzip),
+        natively supported by KiCad >= 6.0. WRL is not compressed.
+        """
         try:
             model_3d = Easyeda3dModelImporter(
                 easyeda_cp_cad_data=cad_data,
@@ -155,16 +161,35 @@ class EasyEDAImporter:
                 self._print("No 3D model available for this component.")
                 return None, None
 
+            model_name = exporter.output.name
+
+            # When compression is on, check for already-compressed files before exporting
+            if not self.config.overwrite and self.config.compress_models:
+                step_gz = self.model_dir / f"{model_name}.step.gz"
+                if step_gz.exists():
+                    self._print("3D model files already exist.")
+                    wrl_path = self.model_dir / f"{model_name}.wrl"
+                    return wrl_path if wrl_path.exists() else None, step_gz
+
             if not exporter.export(output_dir=str(self.model_dir), overwrite=self.config.overwrite):
                 self._print("3D model files already exist.")
                 return None, None
 
-            model_name = exporter.output.name
             wrl_path = self.model_dir / f"{model_name}.wrl"
             step_path = self.model_dir / f"{model_name}.step"
 
-            wrl = wrl_path if wrl_path.exists() else None
-            step = step_path if step_path.exists() else None
+            wrl: Path | None = wrl_path if wrl_path.exists() else None
+            step: Path | None = step_path if step_path.exists() else None
+
+            if self.config.compress_models and step:
+                gz_path = step.parent / (step.name + ".gz")
+                with (
+                    open(step, "rb") as f_in,
+                    gzip.open(gz_path, "wb", compresslevel=9) as f_out,
+                ):
+                    f_out.write(f_in.read())
+                step.unlink()
+                step = gz_path
 
             if wrl:
                 self._print(f"Created 3D model (WRL): {wrl.name}")
@@ -207,7 +232,11 @@ class EasyEDAImporter:
             symbol_ok, _ = self._import_symbol(cad_data)
             wrl_path, step_path = self._import_3d_model(cad_data)
             use_step = self.config.prefer_step and step_path is not None
-            footprint_path = self._import_footprint(ee_footprint, use_step=use_step)
+            if use_step and step_path:
+                model_ext = "step.gz" if self.config.compress_models else "step"
+            else:
+                model_ext = "wrl"
+            footprint_path = self._import_footprint(ee_footprint, model_ext=model_ext)
 
             result = ImportPaths(
                 symbol_lib=self.symbol_lib_path if symbol_ok else None,

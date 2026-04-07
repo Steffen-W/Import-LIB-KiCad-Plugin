@@ -6,6 +6,7 @@ Supports Octopart, Samacsys, Ultralibrarian, Snapeda and EasyEDA.
 from __future__ import annotations
 
 import atexit
+import hashlib
 import logging
 import os
 import socket
@@ -20,17 +21,24 @@ script_dir = Path(__file__).resolve().parent
 if str(script_dir) not in sys.path:
     sys.path.insert(0, str(script_dir))
 
+_PLUGIN_PORT = 49152 + (int(hashlib.md5(str(script_dir).encode()).hexdigest(), 16) % 16383)
 
-def quick_instance_check(port: int = 59999) -> bool:
-    """Quick check if another instance is running without logging."""
+
+def quick_instance_check() -> bool:
+    """Quick pre-logging check: is another instance already listening?
+
+    Only used to decide the logging mode before full IPC verification.
+    The real check (bind attempt) happens in instance_manager.is_already_running().
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client_socket.settimeout(1.0)
-        client_socket.connect(("127.0.0.1", port))
-        client_socket.close()
+        s.settimeout(0.5)
+        s.connect(("127.0.0.1", _PLUGIN_PORT))
         return True
-    except (socket.timeout, ConnectionRefusedError, OSError):
+    except OSError:
         return False
+    finally:
+        s.close()
 
 
 if __name__ == "__main__":
@@ -147,6 +155,7 @@ class PluginThread(Thread):
 
     def __init__(self, wx_object: wx.Window, backend: ImpartBackend) -> None:
         Thread.__init__(self)
+        self.daemon = True
         self.wx_object = wx_object
         self.backend = backend
         self.stop_thread = False
@@ -208,6 +217,7 @@ class ImpartBackend:
         self.run_thread = False
         self.auto_import = False
         self.overwrite_import = False
+        self.compress_models = False
         self.local_lib = False
         self.auto_lib = False
         self.print_buffer = ""
@@ -265,12 +275,12 @@ class ImpartBackend:
         try:
             # Convert string to Path for import_all function
             lib_path = Path(lib_file)
+            self.importer.compress_models = self.compress_models
             result = self.importer.import_all(
                 lib_path,
                 overwrite_if_exists=self.overwrite_import,
             )
-            # Handle potential None result
-            if result and len(result) > 0:
+            if isinstance(result, list) and result:
                 self.print_to_buffer(result[0])
 
         except AssertionError as e:
@@ -425,6 +435,11 @@ class ImpartFrontend(impartGUI):
         self.m_textCtrl_libname.Show(single_lib)
         self.Layout()
         self.backend.importer.lib_name = lib_name if single_lib and lib_name else None
+
+        compress_models_val = self.backend.config.get_value("compress_models")
+        compress_models = compress_models_val == "True"  # default False if not set
+        self.m_checkBoxCompressModels.SetValue(compress_models)
+        self.backend.compress_models = compress_models
 
         self._update_button_label()
         # Add drag & drop support
@@ -657,6 +672,7 @@ class ImpartFrontend(impartGUI):
         """Save current settings to backend and persistent config."""
         self.backend.auto_import = self.m_autoImport.IsChecked()
         self.backend.overwrite_import = self.m_overwrite.IsChecked()
+        self.backend.compress_models = self.m_checkBoxCompressModels.IsChecked()
         self.backend.auto_lib = self.m_check_autoLib.IsChecked()
         self.backend.local_lib = self.m_checkBoxLocalLib.IsChecked()
         self.backend.config.set_value("auto_import", str(self.backend.auto_import))
@@ -665,6 +681,9 @@ class ImpartFrontend(impartGUI):
         self.backend.config.set_value("local_lib", str(self.backend.local_lib))
         self.backend.config.set_value("single_lib", str(self.m_checkBoxSingleLib.IsChecked()))
         self.backend.config.set_value("lib_name", self.m_textCtrl_libname.GetValue().strip())
+        self.backend.config.set_value(
+            "compress_models", str(self.m_checkBoxCompressModels.IsChecked())
+        )
 
     def BottonClick(self, event: wx.CommandEvent) -> None:
         """Handle main button click."""
@@ -862,6 +881,7 @@ class ImpartFrontend(impartGUI):
             lib_name=self.backend.importer.lib_name or "EasyEDA",
             overwrite=self.m_overwrite.IsChecked(),
             lib_var=path_variable,
+            compress_models=self.m_checkBoxCompressModels.IsChecked(),
         )
 
         component_id = self.m_textCtrl2.GetValue().strip()
@@ -908,10 +928,6 @@ if __name__ == "__main__":
 
     if instance_manager.is_already_running():
         logging.info("Plugin already running - focus command sent")
-        # Wait a bit for the command to be processed
-        import time
-
-        time.sleep(0.5)
         sys.exit(0)
 
     try:
@@ -921,6 +937,7 @@ if __name__ == "__main__":
         if not instance_manager.start_server(frontend):
             logging.warning("Failed to start IPC server - continuing anyway")
 
+        wx.CallAfter(frontend.Raise)
         frontend.ShowModal()
         frontend.Destroy()
         logging.info("Application finished successfully")
