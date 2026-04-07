@@ -5,10 +5,12 @@ Handles ensuring only one instance runs and brings existing window to foreground
 
 from __future__ import annotations
 
-import json
+import errno
+import hashlib
 import logging
 import socket
 import threading
+from pathlib import Path
 from typing import Any
 
 try:
@@ -17,85 +19,87 @@ except ImportError:
     wx = None
 
 
-class SingleInstanceManager:
-    """Manages single instance with IPC communication and window state."""
+def _plugin_port(plugin_dir: Path) -> int:
+    """Derive a stable, plugin-specific port from the install path.
 
-    def __init__(self, port: int = 59999):
-        self.port = port
+    Uses a hash of the directory path so that different plugins installed in
+    different locations always get different ports without any manual config.
+    Port range 49152–65534 (IANA dynamic/private range).
+    """
+    h = int(hashlib.md5(str(plugin_dir).encode()).hexdigest(), 16)
+    return 49152 + (h % 16383)
+
+
+class SingleInstanceManager:
+    """Manages single instance with IPC communication and window state.
+
+    The TCP port is the single source of truth — no lock file needed.
+    """
+
+    def __init__(self) -> None:
+        self.port = _plugin_port(Path(__file__).resolve().parent)
         self.socket: socket.socket | None = None
         self.server_thread: threading.Thread | None = None
         self.running = False
         self.frontend_instance: Any | None = None
-        self._stopped: bool = False
-        self._stopping: bool = False
+        self._stopped = False
 
     def is_already_running(self) -> bool:
-        """Check if another instance is running and send focus command."""
-        logging.info(f"Checking for existing instance on port {self.port}...")
+        """Try to claim the port. Returns True if another instance already holds it.
+
+        On success (first instance): the socket is bound and ready for start_server().
+        On failure (instance exists): sends a focus command to the existing window.
+        """
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # SO_REUSEADDR allows re-binding quickly after a clean shutdown.
+        # SO_REUSEPORT is intentionally NOT set: on Linux it allows multiple
+        # processes to co-listen on the same port, which breaks single-instance
+        # enforcement (the kernel would load-balance connections between them).
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.settimeout(2.0)
-            client_socket.connect(("127.0.0.1", self.port))
-
-            message = {"command": "focus"}
-            data = json.dumps(message).encode("utf-8")
-            client_socket.send(data)
-
-            # Wait for response to ensure command was processed
-            try:
-                client_socket.settimeout(1.0)
-                response = client_socket.recv(64)
-                logging.info(
-                    f"Focus command acknowledged: {response.decode('utf-8', errors='replace')}"
-                )
-            except socket.timeout:
-                logging.warning("Focus command sent but no acknowledgment received")
-
-            client_socket.close()
-
-            logging.info("Existing instance found - focus command sent")
+            s.bind(("127.0.0.1", self.port))
+            s.listen(5)
+            s.settimeout(1.0)
+            self.socket = s
+            logging.info(f"Port {self.port} claimed — starting as new instance")
+            return False
+        except OSError as e:
+            s.close()
+            if e.errno != errno.EADDRINUSE:
+                logging.error(f"Unexpected socket error on port {self.port}: {e}")
+                return False
+            logging.info(f"Port {self.port} in use — sending focus to existing instance")
+            self._send_focus()
             return True
 
-        except (ConnectionRefusedError, OSError) as e:
-            logging.info(f"No existing instance found ({e}) - starting new instance")
-            return False
+    def _send_focus(self) -> None:
+        s = None
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.5)
+            s.connect(("127.0.0.1", self.port))
+            s.sendall(b"focus\n")
+            try:
+                s.settimeout(1.0)
+                logging.info(f"Focus acknowledged: {s.recv(4)!r}")
+            except socket.timeout:
+                logging.warning("Focus sent but no acknowledgment received")
+        except OSError as e:
+            logging.warning(f"Could not send focus command: {e}")
+        finally:
+            if s:
+                s.close()
 
     def start_server(self, frontend_instance: Any) -> bool:
-        """Start IPC server to listen for commands."""
+        """Start the IPC server using the socket claimed in is_already_running()."""
+        if self.socket is None:
+            logging.error("start_server() called without a claimed socket")
+            return False
+
         self._stopped = False
-        self._stopping = False
-        self.frontend_instance = frontend_instance
-
-        # Try to find an available port if default is busy
-        for port_attempt in range(self.port, self.port + 3):
-            try:
-                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                # Also set SO_REUSEPORT on systems that support it
-                try:
-                    self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-                except (AttributeError, OSError):
-                    # SO_REUSEPORT not available on this system (e.g., Windows)
-                    pass
-                self.socket.bind(("127.0.0.1", port_attempt))
-                self.socket.listen(1)
-
-                # Update port if we had to use a different one
-                if port_attempt != self.port:
-                    logging.info(f"Port {self.port} was busy, using {port_attempt} instead")
-                    self.port = port_attempt
-
-                self.running = True
-                break
-
-            except OSError as e:
-                if self.socket:
-                    self.socket.close()
-                    self.socket = None
-                if port_attempt == self.port + 2:  # Last attempt
-                    logging.error(f"Failed to start IPC server on any port: {e}")
-                    return False
-                continue
+        self.running = True
+        if self.frontend_instance is None:
+            self.frontend_instance = frontend_instance
 
         self.server_thread = threading.Thread(target=self._server_loop, daemon=True)
         self.server_thread.start()
@@ -104,27 +108,21 @@ class SingleInstanceManager:
         return True
 
     def _server_loop(self) -> None:
-        """Main server loop to handle incoming commands."""
+        sock = self.socket
+        if sock is None:
+            return
         while self.running:
             client_socket = None
             try:
-                if self.socket is None:
-                    break
-                self.socket.settimeout(1.0)  # Add timeout to server socket
-                client_socket, _ = self.socket.accept()
+                client_socket, _ = sock.accept()
                 client_socket.settimeout(5.0)
-
-                data = client_socket.recv(1024).decode("utf-8", errors="ignore")
-                if data:
+                data = client_socket.recv(64).strip()
+                if data == b"focus" and self.frontend_instance and wx:
                     try:
-                        message = json.loads(data)
-                        self._handle_command(message)
-                        # Send acknowledgment
-                        client_socket.send(b"OK")
-                    except json.JSONDecodeError:
-                        logging.warning("Received invalid JSON data")
-                        client_socket.send(b"ERROR")
-
+                        wx.CallAfter(self._bring_to_foreground)
+                    except RuntimeError as e:
+                        logging.warning(f"wx.CallAfter failed: {e}")
+                client_socket.sendall(b"ok\n")
             except socket.timeout:
                 continue
             except OSError as e:
@@ -132,122 +130,58 @@ class SingleInstanceManager:
                     logging.error(f"Server socket error: {e}")
                 break
             finally:
-                # Always close client socket
                 if client_socket:
                     try:
                         client_socket.close()
                     except OSError:
                         pass
 
-    def _handle_command(self, message: dict[str, Any]) -> None:
-        """Handle incoming commands."""
-        command = message.get("command")
-
-        if command == "focus" and self.frontend_instance:
-            if wx:
-                try:
-                    wx.CallAfter(self._bring_to_foreground)
-                    logging.info("Scheduled window focus command")
-                except RuntimeError as e:
-                    logging.warning(f"wx.CallAfter failed (app may be closing): {e}")
-            else:
-                logging.warning("wx not available - cannot bring window to foreground")
-
     def _bring_to_foreground(self) -> None:
         """Bring the window to foreground (must be called from main thread)."""
         if not self.frontend_instance:
-            logging.warning("No frontend instance available")
             return
-
         try:
-            # Check if window object is still valid
-            if not hasattr(self.frontend_instance, "IsShown"):
-                logging.error("Frontend instance has no IsShown method - window may be destroyed")
-                self.frontend_instance = None
+            if self.frontend_instance.IsBeingDeleted():
                 return
-
-            # Additional safety check for destroyed window
-            if (
-                hasattr(self.frontend_instance, "IsBeingDeleted")
-                and self.frontend_instance.IsBeingDeleted()
-            ):
-                logging.warning("Frontend instance is being deleted - skipping focus")
-                return
-
-            # Handle hidden window (running in background)
             if not self.frontend_instance.IsShown():
-                logging.info("Window is hidden - showing and bringing to foreground")
                 self.frontend_instance.Show(True)
-
-            # Handle iconized window
-            if (
-                hasattr(self.frontend_instance, "IsIconized")
-                and self.frontend_instance.IsIconized()
-            ):
-                logging.info("Window is iconized - restoring")
-                self.frontend_instance.Iconize(False)
-
-            # Bring to foreground: briefly iconize then restore so the window
-            # manager treats it as a newly shown window and places it on top.
-            if not self.frontend_instance.IsIconized():
-                self.frontend_instance.Iconize(True)
+            # Iconize then restore: convinces the window manager to raise the
+            # window even when another top-level window (e.g. board editor) has focus.
+            self.frontend_instance.Iconize(True)
             self.frontend_instance.Iconize(False)
             self.frontend_instance.Raise()
             self.frontend_instance.SetFocus()
-
-            # Fallback for cases where Raise() is blocked by another
-            # top-level window (e.g. board editor has focus): at least
-            # notify the user via taskbar.
-            if hasattr(self.frontend_instance, "RequestUserAttention"):
-                self.frontend_instance.RequestUserAttention()
-
-            logging.info("Successfully brought window to foreground")
-
+            self.frontend_instance.RequestUserAttention()
+            logging.info("Window brought to foreground")
         except Exception as e:
             logging.error(f"Failed to bring window to foreground: {e}")
-            # If window is broken, reset the instance
-            self.frontend_instance = None
+            # Only drop the reference if the window is confirmed destroyed.
+            # Clearing on any exception would permanently disable focus on transient errors.
+            try:
+                if self.frontend_instance.IsBeingDeleted():
+                    self.frontend_instance = None
+            except Exception:
+                self.frontend_instance = None
 
     def register_frontend(self, frontend_instance: Any) -> bool:
-        """Register a frontend instance. Returns True if this is the first instance."""
-        if self.frontend_instance is None:
-            self.frontend_instance = frontend_instance
-            logging.info("Registered new frontend instance")
-            return True
-        else:
-            logging.info("Frontend instance already exists - new instance should not be created")
+        """Register a frontend instance. Returns False if one is already registered."""
+        if self.frontend_instance is not None:
             return False
-
-    def unregister_frontend(self) -> None:
-        """Unregister the current frontend instance."""
-        self.frontend_instance = None
-        logging.info("Unregistered frontend instance")
-
-    def is_frontend_hidden(self) -> bool:
-        """Check if frontend is currently hidden."""
-        if self.frontend_instance and hasattr(self.frontend_instance, "IsShown"):
-            return not self.frontend_instance.IsShown()
-        return False
+        self.frontend_instance = frontend_instance
+        return True
 
     def stop_server(self) -> None:
-        """Stop the IPC server with robust cleanup."""
-        # Prevent multiple stops
-        if hasattr(self, "_stopped") and self._stopped:
+        """Stop the IPC server."""
+        if self._stopped:
             return
-
-        if hasattr(self, "_stopping") and self._stopping:
-            return
-
-        self._stopping = True
-        logging.info("Stopping IPC server")
+        self._stopped = True
         self.running = False
 
-        # Close socket first to stop accepting new connections
         if self.socket:
             try:
                 self.socket.shutdown(socket.SHUT_RDWR)
             except Exception:
-                pass  # Socket might already be closed
+                pass
             try:
                 self.socket.close()
             except Exception as e:
@@ -255,15 +189,11 @@ class SingleInstanceManager:
             finally:
                 self.socket = None
 
-        # Force stop server thread with longer timeout
         if self.server_thread and self.server_thread.is_alive():
             self.server_thread.join(timeout=5.0)
             if self.server_thread.is_alive():
-                logging.warning("Server thread did not stop cleanly within 5 seconds")
-                # Force cleanup thread reference
-                self.server_thread = None
+                logging.warning("Server thread did not stop within 5 seconds")
+            self.server_thread = None
 
-        self.unregister_frontend()
-        self._stopping = False
-        self._stopped = True
+        self.frontend_instance = None
         logging.info("IPC server stopped")
