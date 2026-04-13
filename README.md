@@ -12,7 +12,7 @@
 [![Nightly Build](https://img.shields.io/badge/nightly-download-orange)](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/tag/nightly)
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Steffen-W/Import-LIB-KiCad-Plugin/total)](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest/download/Import-LIB-KiCad-Plugin.zip)
 
-# KiCad Import-LIB-KiCad-Plugin ![icon](plugins/icon_small.png)
+# KiCad Import-LIB-KiCad-Plugin ![icon](plugins/icon.png)
 
 This plugin allows importing downloaded libraries from the platforms [Octopart](https://octopart.com/), [Samacsys](https://componentsearchengine.com/), [Ultralibrarian](https://app.ultralibrarian.com/search), [Snapeda](https://www.snapeda.com/home/) and [EasyEDA](https://www.lcsc.com/). It can import symbols, footprints, descriptions, and if available, 3D files. Normally, when you select the imported symbol in KiCad, the appropriate footprint and the 3D file should also be linked. Provided, of course, that the libraries have been included as specified below.
 
@@ -22,7 +22,7 @@ This plugin allows importing downloaded libraries from the platforms [Octopart](
 
 ## Installation
 
-Install the plugin easily through KiCad's **Plugin And Content Manager**. Select ![icon](plugins/icon_small.png) **Import-LIB-KiCad-Plugin** in the Plugins tab, press **Install** and then **Apply Pending Changes**.
+Install the plugin easily through KiCad's **Plugin And Content Manager**. Select ![icon](plugins/icon.png) **Import-LIB-KiCad-Plugin** in the Plugins tab, press **Install** and then **Apply Pending Changes**.
 
 You can also download the latest version [here](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest/download/Import-LIB-KiCad-Plugin.zip) and install it via **KiCad** -> **Plugin And Content Manager** -> **Install from File...** -> select **Import-LIB-KiCad-Plugin.zip** and import.
 
