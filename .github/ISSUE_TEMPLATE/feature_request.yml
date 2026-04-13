@@ -1,0 +1,30 @@
+name: Feature Request
+description: Suggest a new feature or improvement for the impartGUI KiCad plugin
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the situation or limitation you are running into.
+      placeholder: "I often struggle with ... / It is not possible to ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would you like to happen?
+      description: Describe your idea for a solution or improvement.
+      placeholder: "It would be great if the plugin could ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_info
+    attributes:
+      label: Alternatives or additional context
+      description: Workarounds you have tried, screenshots, links, or anything else that might help.
+      placeholder: "Optional: add screenshots, links, or further details here."
+    validations:
+      required: false

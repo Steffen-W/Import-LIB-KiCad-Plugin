@@ -1,0 +1,85 @@
+name: Bug Report
+description: Report a problem with the impartGUI KiCad plugin
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > **Before reporting:** Please check if your issue is already fixed in the [latest release](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest).
+
+        **Tip:** The plugin automatically creates log files that make it much easier to find the cause of a problem. Please attach them if possible — see the last field for details.
+
+  - type: input
+    id: plugin_version
+    attributes:
+      label: Plugin Version
+      description: "Plugin and Content Manager → Installed → impart GUI for KiCad → version shown at the bottom of the description"
+      placeholder: "e.g. 202x.xx.xx"
+    validations:
+      required: true
+
+  - type: input
+    id: kicad_version
+    attributes:
+      label: KiCad Version
+      description: "Help → About KiCad"
+      placeholder: "e.g. 10.0.0-1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating_system
+    attributes:
+      label: Operating System
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproducible
+    attributes:
+      label: Can you reproduce the problem?
+      options:
+        - Always
+        - Sometimes
+        - Only once
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What went wrong?
+      description: Describe what happened, what you expected, and how to reproduce it. Even rough steps help a lot.
+      placeholder: |
+        What I did:
+        1. Open KiCad
+        2. Start impartGUI
+        3. Tried to import a component from ...
+
+        What happened:
+        The plugin showed an error / crashed / did nothing / ...
+
+        What I expected:
+        The component should have been imported to ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: log_content
+    attributes:
+      label: Logs / Attachments (optional but very helpful)
+      description: |
+        The plugin saves log files that often show exactly what went wrong.
+        Attach `plugin.log` and `plugin_fallback.log` by drag & drop, or paste their contents here.
+
+        **Where to find them:**
+        KiCad → Plugin and Content Manager → Open Package Directory → `plugins` → `com_github_Steffen-W_impartGUI` (the plugin folder)
+      placeholder: "Drag and drop the log files here, or paste their contents."
+      render: text
+    validations:
+      required: false
