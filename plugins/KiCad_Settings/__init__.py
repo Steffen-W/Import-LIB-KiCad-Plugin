@@ -14,6 +14,19 @@ if str(kiutils_src) not in sys.path:
 
 from kiutils.libraries import Library, LibTable  # noqa: E402
 
+try:
+    from ..atomic_file import atomic_write, atomic_write_text
+except ImportError:
+    from atomic_file import (  # type: ignore[import-not-found,no-redef]
+        atomic_write,
+        atomic_write_text,
+    )
+
+
+def _atomic_save_lib_table(table: LibTable, path: str) -> None:
+    """Save a kiutils LibTable atomically (LibTable.to_file() itself writes in place)."""
+    atomic_write(path, table.to_file)
+
 
 class KiCad_Settings:
     def __init__(self, SettingPath: str, path_prefix: str = "${KICAD_3RD_PARTY}") -> None:
@@ -49,7 +62,7 @@ class KiCad_Settings:
             if not os.path.exists(path):
                 self.logger.info(f"Symbol library table not found, creating empty table: {path}")
                 empty_table = LibTable()
-                empty_table.to_file(path)
+                _atomic_save_lib_table(empty_table, path)
 
             sym_table = LibTable.from_file(path)
             self.logger.info(
@@ -84,7 +97,7 @@ class KiCad_Settings:
             if not os.path.exists(path):
                 self.logger.info(f"Symbol library table not found, creating empty table: {path}")
                 empty_table = LibTable()
-                empty_table.to_file(path)
+                _atomic_save_lib_table(empty_table, path)
 
             sym_table = LibTable.from_file(path)
 
@@ -97,7 +110,7 @@ class KiCad_Settings:
             # Create new library and add it to the table
             new_lib = Library(name=libname, type="KiCad", uri=libpath, options="", description="")
             sym_table.libs.append(new_lib)
-            sym_table.to_file(path)
+            _atomic_save_lib_table(sym_table, path)
 
             self.logger.info(f"Successfully added symbol library '{libname}' to table")
 
@@ -126,7 +139,7 @@ class KiCad_Settings:
                 self.logger.error(f"URI '{old_uri}' not found in symbol library table")
                 raise ValueError(f"URI '{old_uri}' not found in the file.")
 
-            sym_table.to_file(path)
+            _atomic_save_lib_table(sym_table, path)
             self.logger.info("Successfully updated symbol library table")
 
         except Exception as e:
@@ -141,7 +154,7 @@ class KiCad_Settings:
             if not os.path.exists(path):
                 self.logger.info(f"Footprint library table not found, creating empty table: {path}")
                 empty_table = LibTable()
-                empty_table.to_file(path)
+                _atomic_save_lib_table(empty_table, path)
 
             fp_table = LibTable.from_file(path)
             self.logger.info(
@@ -176,7 +189,7 @@ class KiCad_Settings:
             if not os.path.exists(path):
                 self.logger.info(f"Footprint library table not found, creating empty table: {path}")
                 empty_table = LibTable()
-                empty_table.to_file(path)
+                _atomic_save_lib_table(empty_table, path)
 
             fp_table = LibTable.from_file(path)
 
@@ -189,7 +202,7 @@ class KiCad_Settings:
             uri_lib = self.path_prefix + "/" + libname + ".pretty"
             new_lib = Library(name=libname, type="KiCad", uri=uri_lib, options="", description="")
             fp_table.libs.append(new_lib)
-            fp_table.to_file(path)
+            _atomic_save_lib_table(fp_table, path)
 
             self.logger.info(
                 f"Successfully added footprint library '{libname}' with URI '{uri_lib}'"
@@ -224,8 +237,7 @@ class KiCad_Settings:
         self.logger.debug(f"Writing KiCad JSON config to: {path}")
 
         try:
-            with open(path, "w") as file:
-                json.dump(kicad_json, file, indent=2)
+            atomic_write_text(path, json.dumps(kicad_json, indent=2))
             self.logger.info("Successfully wrote KiCad JSON config")
 
         except Exception as e:
@@ -257,8 +269,7 @@ class KiCad_Settings:
         self.logger.debug(f"Writing KiCad common config to: {path}")
 
         try:
-            with open(path, "w") as file:
-                json.dump(kicad_common, file, indent=2)
+            atomic_write_text(path, json.dumps(kicad_common, indent=2))
             self.logger.info("Successfully wrote KiCad common config")
 
         except Exception as e:

@@ -1,7 +1,13 @@
 import configparser
+import io
 import logging
 from pathlib import Path
 from typing import Optional, Union
+
+try:
+    from ..atomic_file import atomic_write_text
+except ImportError:
+    from atomic_file import atomic_write_text  # type: ignore[import-not-found,no-redef]
 
 
 class ConfigHandler:
@@ -72,7 +78,8 @@ class ConfigHandler:
 
     def save_config(self) -> None:
         try:
-            with open(self.config_path, "w") as configfile:
-                self.config.write(configfile)
+            buffer = io.StringIO()
+            self.config.write(buffer)
+            atomic_write_text(str(self.config_path), buffer.getvalue())
         except Exception as e:
             logging.error(f"Error saving the configuration: {e}")

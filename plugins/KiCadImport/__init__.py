@@ -85,7 +85,9 @@ class LibImporter:
     def print(self, txt: str) -> None:
         print("->" + txt)
 
-    def __init__(self, prefer_step: bool = False, lib_name: str | None = None, compress_models: bool = False):
+    def __init__(
+        self, prefer_step: bool = False, lib_name: str | None = None, compress_models: bool = False
+    ):
         self.KICAD_3RD_PARTY_LINK: str = "${KICAD_3RD_PARTY}"
         self.DEST_PATH = Path.home() / "KiCad"
         self.dcm_skipped = False
@@ -409,7 +411,11 @@ class LibImporter:
 
         # If prefer_step and step is available, ensure .step/.step.gz extension
         if self.prefer_step and step_available:
-            if not (model_name.endswith(".step") or model_name.endswith(".stp") or model_name.endswith(".step.gz")):
+            if not (
+                model_name.endswith(".step")
+                or model_name.endswith(".stp")
+                or model_name.endswith(".step.gz")
+            ):
                 model_name = Path(model_name).stem + ".step"
 
         lib_name = self.get_lib_name(remote_type)
@@ -579,7 +585,11 @@ class LibImporter:
                     model_dir.mkdir(parents=True, exist_ok=True)
 
                 is_step = model_path.suffix.lower() in (".step", ".stp")
-                dest_name = model_path.name + ".gz" if (self.compress_models and is_step) else model_path.name
+                dest_name = (
+                    model_path.name + ".gz"
+                    if (self.compress_models and is_step)
+                    else model_path.name
+                )
                 model_file = model_dir / dest_name
 
                 if model_file.exists() and not overwrite_if_exists:
@@ -819,7 +829,9 @@ def main(
         print(f"Error: file {lib_file} to be imported was not found!")
         return
 
-    impart = LibImporter(prefer_step=prefer_step, lib_name=lib_name, compress_models=compress_models)
+    impart = LibImporter(
+        prefer_step=prefer_step, lib_name=lib_name, compress_models=compress_models
+    )
     impart.KICAD_3RD_PARTY_LINK = KICAD_3RD_PARTY_LINK
     impart.set_DEST_PATH(lib_folder)
     try:
