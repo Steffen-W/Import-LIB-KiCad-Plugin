@@ -100,11 +100,6 @@ class impartGUI(wx.Dialog):
         )
         fgSizer1.Add(self.m_autoImport, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
-        self.m_check_autoLib = wx.CheckBox(
-            self, wx.ID_ANY, "auto settings", wx.DefaultPosition, wx.DefaultSize, 0
-        )
-        fgSizer1.Add(self.m_check_autoLib, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
-
         self.m_overwrite = wx.CheckBox(
             self, wx.ID_ANY, "overwrite lib", wx.DefaultPosition, wx.DefaultSize, 0
         )

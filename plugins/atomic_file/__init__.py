@@ -1,4 +1,4 @@
-"""Atomic file replacement shared by ConfigHandler and KiCad_Settings.
+"""Atomic file replacement shared by ConfigHandler and KiCadImport.
 
 Guards against truncating/corrupting the destination file if the process is
 interrupted mid-write (crash, force-quit, unhandled exception): the new

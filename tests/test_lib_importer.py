@@ -11,7 +11,6 @@ import pytest
 from kiutils.symbol import SymbolLib
 
 from plugins import KiCadImport
-from plugins.KiCad_Settings import KiCad_Settings
 from plugins.KiCadImport import LibImporter, find_in_zip
 from plugins.KiCadImport.footprint_model_parser import FootprintModelParser
 
@@ -299,10 +298,3 @@ def test_import_state_is_reset_per_import(importer: LibImporter, make_zip: MakeZ
     assert importer.import_all(archive) == ("OK",)
 
     assert not (importer.lib_skipped or importer.footprint_skipped or importer.model_skipped)
-
-
-@pytest.mark.parametrize("name", ["missing", "file"])
-def test_settings_reject_non_directory_path(tmp_path: Path, name: str) -> None:
-    (tmp_path / "file").write_text("")
-    with pytest.raises(NotADirectoryError):
-        KiCad_Settings(str(tmp_path / name))

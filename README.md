@@ -42,7 +42,7 @@ Provided that the paths have been [added correctly in KiCad](#including-the-impo
 
 ## Including the imported libraries in KiCad
 
-⚠️ **IMPORTANT:** Before using the plugin, you must manually configure the library paths in KiCad. The automatic configuration option may not work reliably in all cases.
+⚠️ **IMPORTANT:** Before using the plugin, you must manually configure the library paths in KiCad. The plugin checks this configuration and lists missing entries, but never changes KiCad's settings itself.
 
 **Step 1: Configure Environment Variable**
 
@@ -81,10 +81,6 @@ Provided that the paths have been [added correctly in KiCad](#including-the-impo
 **Step 4: Restart KiCad**
 
 After adding the library paths, **restart KiCad** to ensure all settings are properly loaded.
-
----
-
-**About the "auto KiCad setting" option:** While the plugin offers an automatic configuration option, it may not work reliably in all KiCad versions or configurations. If you encounter errors like "Failed to add library automatically", follow the manual steps above instead.
 
 ## CLI Support
 
@@ -198,7 +194,7 @@ Yes, you can always do that. The libraries are neither deleted nor edited in any
 - [x] Test on a Mac
 - [x] Testing all library formats
 - [x] Using the new KiCad format
-- [x] Possibility of automatic KiCad settings adjustment
+- [x] Check of the KiCad library settings
 
 If you notice an error then please write me an issue. If you want to change the GUI or the functionality, I am also open for ideas.
 

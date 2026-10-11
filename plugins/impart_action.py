@@ -219,7 +219,6 @@ class ImpartBackend:
         self.overwrite_import = False
         self.compress_models = False
         self.local_lib = False
-        self.auto_lib = False
         self.print_buffer = ""
 
         try:
@@ -288,8 +287,8 @@ class ImpartBackend:
             self.print_to_buffer("")
 
 
-def check_library_import(backend: ImpartBackend, add_if_possible: bool = True) -> str:
-    """Check and potentially add libraries to KiCad settings."""
+def check_library_import(backend: ImpartBackend) -> str:
+    """Check that KiCad's settings include the imported libraries."""
     msg = ""
 
     if backend.local_lib:
@@ -307,7 +306,7 @@ def check_library_import(backend: ImpartBackend, add_if_possible: bool = True) -
     else:
         kicad_settings = backend.kicad_settings
         dest_path = backend.config.get_DEST_PATH()
-        msg = kicad_settings.check_GlobalVar(dest_path, add_if_possible)
+        msg = kicad_settings.check_GlobalVar(dest_path)
 
     libs_to_check = (
         [backend.importer.lib_name]
@@ -315,7 +314,7 @@ def check_library_import(backend: ImpartBackend, add_if_possible: bool = True) -
         else ImpartBackend.SUPPORTED_LIBRARIES
     )
     for lib_name in libs_to_check:
-        msg += _check_single_library(kicad_settings, lib_name, dest_path, add_if_possible)
+        msg += _check_single_library(kicad_settings, lib_name, dest_path)
 
     return msg
 
@@ -324,7 +323,6 @@ def _check_single_library(
     kicad_settings: KiCad_Settings,
     lib_name: str,
     dest_path: str,
-    add_if_possible: bool,
 ) -> str:
     """Check a single library for import."""
     msg = ""
@@ -338,12 +336,12 @@ def _check_single_library(
 
     for variant in symbol_variants:
         if os.path.isfile(os.path.join(dest_path, variant)):
-            msg += kicad_settings.check_symbollib(variant, add_if_possible)
+            msg += kicad_settings.check_symbollib(variant)
             break
 
     # Check for footprint libraries
     if os.path.isdir(os.path.join(dest_path, f"{lib_name}.pretty")):
-        msg += kicad_settings.check_footprintlib(lib_name, add_if_possible)
+        msg += kicad_settings.check_footprintlib(lib_name)
 
     return msg
 
@@ -411,15 +409,12 @@ class ImpartFrontend(impartGUI):
         # Set checkboxes (load from persistent config)
         auto_import = self.backend.config.get_value("auto_import") == "True"
         overwrite_import = self.backend.config.get_value("overwrite_import") == "True"
-        auto_lib = self.backend.config.get_value("auto_lib") == "True"
         local_lib = self.backend.config.get_value("local_lib") == "True"
         self.m_autoImport.SetValue(auto_import)
         self.m_overwrite.SetValue(overwrite_import)
-        self.m_check_autoLib.SetValue(auto_lib)
         self.m_checkBoxLocalLib.SetValue(local_lib)
         self.backend.auto_import = auto_import
         self.backend.overwrite_import = overwrite_import
-        self.backend.auto_lib = auto_lib
         self.backend.local_lib = local_lib
         self.m_dirPicker_librarypath.Enable(not local_lib)
 
@@ -668,11 +663,9 @@ class ImpartFrontend(impartGUI):
         self.backend.auto_import = self.m_autoImport.IsChecked()
         self.backend.overwrite_import = self.m_overwrite.IsChecked()
         self.backend.compress_models = self.m_checkBoxCompressModels.IsChecked()
-        self.backend.auto_lib = self.m_check_autoLib.IsChecked()
         self.backend.local_lib = self.m_checkBoxLocalLib.IsChecked()
         self.backend.config.set_value("auto_import", str(self.backend.auto_import))
         self.backend.config.set_value("overwrite_import", str(self.backend.overwrite_import))
-        self.backend.config.set_value("auto_lib", str(self.backend.auto_lib))
         self.backend.config.set_value("local_lib", str(self.backend.local_lib))
         self.backend.config.set_value("single_lib", str(self.m_checkBoxSingleLib.IsChecked()))
         self.backend.config.set_value("lib_name", self.m_textCtrl_libname.GetValue().strip())
@@ -742,8 +735,7 @@ class ImpartFrontend(impartGUI):
 
     def _check_and_show_library_warnings(self) -> None:
         """Check library settings and show warnings if needed."""
-        add_if_possible = self.m_check_autoLib.IsChecked()
-        msg = check_library_import(self.backend, add_if_possible)
+        msg = check_library_import(self.backend)
 
         if msg:
             self._show_library_warning(msg)
