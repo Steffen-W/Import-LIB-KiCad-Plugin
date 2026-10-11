@@ -26,6 +26,8 @@ Install the plugin easily through KiCad's **Plugin And Content Manager**. Select
 
 You can also download the latest version [here](https://github.com/Steffen-W/Import-LIB-KiCad-Plugin/releases/latest/download/Import-LIB-KiCad-Plugin.zip) and install it via **KiCad** -> **Plugin And Content Manager** -> **Install from File...** -> select **Import-LIB-KiCad-Plugin.zip** and import.
 
+**Requires KiCad 9.0 or newer.** KiCad 8 is no longer offered through the Plugin And Content Manager. To use the plugin there, copy the `plugins` folder of this repository into a new subfolder of KiCad's plugin directory (**PCB Editor** -> **Tools** -> **External Plugins** -> **Open Plugin Directory**) and restart KiCad.
+
 ## Use of the application
 
 The import window is accessible in the **PCB Editor** -> **Tools** -> **External Plugins** -> **impartGUI**
@@ -42,7 +44,7 @@ Provided that the paths have been [added correctly in KiCad](#including-the-impo
 
 ## Including the imported libraries in KiCad
 
-⚠️ **IMPORTANT:** Before using the plugin, you must manually configure the library paths in KiCad. The plugin checks this configuration and lists missing entries, but never changes KiCad's settings itself.
+⚠️ **IMPORTANT:** The library paths must be added to KiCad manually. The plugin checks this configuration and lists missing entries, but never changes KiCad's settings itself.
 
 **Step 1: Configure Environment Variable**
 
@@ -52,11 +54,15 @@ Provided that the paths have been [added correctly in KiCad](#including-the-impo
 | --------------- | --------------------------- |
 | KICAD_3RD_PARTY | **YourLibraryFolder**/KiCad |
 
-**Step 2: Add Symbol Libraries**
+**Note:** `KICAD9_3RD_PARTY`, `KICAD10_3RD_PARTY` etc. belong to KiCad's Plugin And Content Manager. Leave them unchanged and add `KICAD_3RD_PARTY` as a new entry.
+
+**Step 2: Import a First Part**
+
+[Import](#use-of-the-application) one part from each source you plan to use. This creates the library files; KiCad only accepts library entries whose file already exists. In Steps 3 and 4, add only these libraries.
+
+**Step 3: Add Symbol Libraries**
 
 **Preferences** -> **Manage Symbol Libraries** -> **Global Libraries** -> Add the following entries
-
-**Note:** Add only the libraries you plan to use. Errors will appear if you add libraries that don't exist yet - they will be created automatically when you import your first component from that source.
 
 | Active             | Visible            | Nickname       | Library Path                                | Library Format |
 | ------------------ | ------------------ | -------------- | ------------------------------------------- | -------------- |
@@ -65,11 +71,9 @@ Provided that the paths have been [added correctly in KiCad](#including-the-impo
 | :heavy_check_mark: | :heavy_check_mark: | UltraLibrarian | ${KICAD_3RD_PARTY}/UltraLibrarian.kicad_sym | KiCad          |
 | :heavy_check_mark: | :heavy_check_mark: | EasyEDA        | ${KICAD_3RD_PARTY}/EasyEDA.kicad_sym        | KiCad          |
 
-**Step 3: Add Footprint Libraries**
+**Step 4: Add Footprint Libraries**
 
 **Preferences** -> **Manage Footprint Libraries** -> **Global Libraries** -> Add the following entries
-
-**Note:** Add only the libraries you plan to use. As with symbol libraries, errors will appear until you import your first component.
 
 | Active             | Nickname       | Library Path                             | Library Format |
 | ------------------ | -------------- | ---------------------------------------- | -------------- |
@@ -78,9 +82,19 @@ Provided that the paths have been [added correctly in KiCad](#including-the-impo
 | :heavy_check_mark: | UltraLibrarian | ${KICAD_3RD_PARTY}/UltraLibrarian.pretty | KiCad          |
 | :heavy_check_mark: | EasyEDA        | ${KICAD_3RD_PARTY}/EasyEDA.pretty        | KiCad          |
 
-**Step 4: Restart KiCad**
+**Step 5: Restart KiCad**
 
 After adding the library paths, **restart KiCad** to ensure all settings are properly loaded.
+
+## Standalone GUI
+
+The import window also runs without the PCB Editor or without KiCad. It needs Python 3 with wxPython (`pip install wxPython`):
+
+```bash
+python plugins/impart_action.py
+```
+
+Without a running KiCad, project detection is not available, so **Save local, in the project folder** cannot be used.
 
 ## CLI Support
 
@@ -173,9 +187,6 @@ Yes, this is of course always possible. But you should keep in mind that the exi
 No, you can import from all sources freely. Each source gets its own library (e.g. `Samacsys.kicad_sym`, `Snapeda.kicad_sym`, `Octopart.kicad_sym`, `UltraLibrarian.kicad_sym`, `EasyEDA.kicad_sym`). If you enable **single lib name**, all imports are merged into one library instead.
 
 ### General KiCad Questions
-
-**I have entered a library in the settings in KiCad that does not exist at this time, what happens?**
-You get a message that this library does not exist. Nothing more. As soon as it exists, it can be accessed.
 
 **Can I remove a library from the settings?**
 Yes, you can always do that. The libraries are neither deleted nor edited in any way. They are just not included.
