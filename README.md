@@ -96,9 +96,10 @@ python -m KiCadImport -h
 ```
 
 ```bash
-usage: __main__.py [-h] (--download-folder DOWNLOAD_FOLDER | --download-file DOWNLOAD_FILE | --easyeda EASYEDA)
+usage: __main__.py [-h]
+                   (--download-folder DOWNLOAD_FOLDER | --download-file DOWNLOAD_FILE | --easyeda EASYEDA)
                    --lib-folder LIB_FOLDER [--overwrite-if-exists] [--path-variable PATH_VARIABLE]
-                   [--prefer-step] [--lib-name LIB_NAME]
+                   [--prefer-step] [--lib-name LIB_NAME] [--compress-models]
 
 Import KiCad libraries from a file or folder.
 
@@ -115,10 +116,11 @@ options:
                         Overwrite existing files if they already exist
   --path-variable PATH_VARIABLE
                         Example: if only project-specific '${KIPRJMOD}' standard is '${KICAD_3RD_PARTY}'
-  --prefer-step         Use STEP instead of WRL as the 3D model reference in footprints
-                        (falls back to WRL if no STEP available)
-  --lib-name LIB_NAME   Use a custom library name for all imports
-                        (e.g., 'Custom' instead of Samacsys/Snapeda/EasyEDA)
+  --prefer-step         EasyEDA: use STEP instead of WRL as the 3D model reference (archives always prefer
+                        STEP)
+  --lib-name LIB_NAME   Use a custom library name for all imports (e.g., 'Custom' instead of
+                        Samacsys/Snapeda/EasyEDA)
+  --compress-models     Compress STEP models to .step.gz (gzip, supported by KiCad >= 6.0)
 ```
 
 ## KiCad IPC API (Recommended)
@@ -229,6 +231,19 @@ git submodule update --remote --merge
 - Updates version in `metadata.json` with current date
 - Packages only essential files (excludes dev files, caches, etc.)
 - Creates `Import-LIB-KiCad-Plugin.zip` ready for KiCad Plugin Manager
+
+### Code Checks
+
+The type checker needs the plugin's optional runtime dependencies to resolve all imports, so run every check from one virtual environment. mypy and pytest are pinned to the last major versions that support the project's Python 3.9 target.
+
+```bash
+python3 -m venv venv
+venv/bin/pip install ruff "mypy<2" "pytest<9" types-psutil kicad-python cairosvg certifi
+
+venv/bin/ruff check . && venv/bin/ruff format --check .
+venv/bin/mypy . --strict
+venv/bin/pytest tests
+```
 
 ## Many thanks to
 

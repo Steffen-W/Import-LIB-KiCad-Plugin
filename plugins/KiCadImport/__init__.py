@@ -6,6 +6,7 @@ from __future__ import annotations
 # Supports KiCad 7.0 and newer.
 import gzip
 import logging
+import os
 import shutil
 import sys
 import tempfile
@@ -35,8 +36,10 @@ except ImportError:
 
 
 try:
+    from ..atomic_file import atomic_write
     from ..kicad_cli import KicadCli
 except ImportError:
+    from atomic_file import atomic_write  # type: ignore[import-not-found,no-redef]
     from kicad_cli import KicadCli  # type: ignore[import-not-found,no-redef]
 
 try:
@@ -47,29 +50,19 @@ except Exception as e:
     cli = None
 
 
-def check_file(path: Path) -> None:
-    """
-    Check if file exists, if not create parent directories and touch file.
-    :param path:
-    """
-    if not path.exists():
-        if not path.parent.is_dir():
-            path.parent.mkdir(parents=True)
-        path.touch(mode=0o666)
-
-
 def find_in_zip(root: zipfile.Path, suffix: str) -> zipfile.Path | None:
     """
-    Recursively search under `root` for the first file whose name ends with `suffix`.
+    Search under `root` for the first file whose name ends with `suffix`.
     Returns a zipfile.Path if found, otherwise None.
     """
-    if root.name.endswith(suffix):
-        return root
-    elif root.is_dir():
-        for child in root.iterdir():
-            match = find_in_zip(child, suffix)
-            if match:
-                return match
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if node.name.endswith(suffix):
+            return node
+        if node.is_dir():
+            # Reversed so pop() visits children in archive order.
+            stack.extend(reversed(list(node.iterdir())))
     return None
 
 
@@ -85,20 +78,18 @@ class LibImporter:
     def print(self, txt: str) -> None:
         print("->" + txt)
 
-    def __init__(
-        self, prefer_step: bool = False, lib_name: str | None = None, compress_models: bool = False
-    ):
+    def __init__(self, lib_name: str | None = None, compress_models: bool = False):
         self.KICAD_3RD_PARTY_LINK: str = "${KICAD_3RD_PARTY}"
         self.DEST_PATH = Path.home() / "KiCad"
-        self.dcm_skipped = False
+        self._reset_import_state()
+        self.footprint_parser = FootprintModelParser()
+        self.lib_name = lib_name
+        self.compress_models = compress_models
+
+    def _reset_import_state(self) -> None:
         self.lib_skipped = False
         self.footprint_skipped = False
         self.model_skipped = False
-        self.footprint_name: str | None = None
-        self.footprint_parser = FootprintModelParser()
-        self.prefer_step = prefer_step
-        self.lib_name = lib_name
-        self.compress_models = compress_models
 
     def set_DEST_PATH(self, DEST_PATH_: str | Path = Path.home() / "KiCad") -> None:
         self.DEST_PATH = Path(DEST_PATH_)
@@ -107,12 +98,23 @@ class LibImporter:
         """Get effective library name - custom name if set, otherwise remote type name"""
         return self.lib_name if self.lib_name else remote_type.name
 
+    # Windows device names; reserved regardless of case and extension.
+    _WINDOWS_RESERVED_NAMES = frozenset(
+        {"CON", "PRN", "AUX", "NUL"}
+        | {f"COM{i}" for i in range(1, 10)}
+        | {f"LPT{i}" for i in range(1, 10)}
+    )
+
     def cleanName(self, name: str) -> str:
         invalid = '<>:"/\\|?* '
         name = name.strip()
         original_name = name
         for char in invalid:  # remove invalid characters
             name = name.replace(char, "_")
+        # Windows forbids trailing dots; this also eliminates "." and "..".
+        name = name.rstrip(".") or "_"
+        if name.split(".", 1)[0].upper() in self._WINDOWS_RESERVED_NAMES:
+            name = f"_{name}"
         if original_name != name:
             logger.debug(f"Cleaned name: {original_name} -> {name}")
         return name
@@ -221,32 +223,28 @@ class LibImporter:
         logger.error("Unable to identify library format - no usable files found")
         raise ValueError("Unable to identify library format. Missing essential files.")
 
-    def extract_file_to_temp(self, file_path: Path | zipfile.Path | None) -> tuple[Path, Path]:
+    def extract_file_to_temp(self, file_path: Path | zipfile.Path) -> tuple[Path, Path]:
         """
         Extract a file from zipfile.Path to a temporary location
 
         Returns:
             Tuple of (temp_dir, extracted_file_path)
         """
-        if not file_path:
-            logger.error("No file path provided for extraction")
-            raise ValueError("No file path")
-
         temp_dir = Path(tempfile.mkdtemp())
         extracted = temp_dir / file_path.name
 
         try:
             with file_path.open("rb") as src, open(extracted, "wb") as dst:
                 shutil.copyfileobj(src, dst)
-        except Exception as e:
-            logger.error(f"Failed to extract {file_path}: {e}")
+        except Exception:
+            shutil.rmtree(temp_dir, ignore_errors=True)
             raise
 
         return temp_dir, extracted
 
     def load_symbol_lib(
         self,
-        symbol_path: Path | zipfile.Path | None,
+        symbol_path: Path | zipfile.Path,
         dcm_path: Path | zipfile.Path | None = None,
     ) -> tuple[SymbolLib, str]:
         """
@@ -255,19 +253,13 @@ class LibImporter:
         Returns:
             Tuple of (SymbolLib object, symbol name)
         """
-        if not symbol_path:
-            logger.error("No symbol path provided")
-            raise ValueError("No symbol path")
-
         temp_dir, extracted_path = self.extract_file_to_temp(symbol_path)
 
         # Extract DCM file to same directory if available
         if dcm_path:
             try:
-                _, dcm_extracted_path = self.extract_file_to_temp(dcm_path)
-                dcm_target = temp_dir / dcm_path.name
-                if dcm_extracted_path != dcm_target:
-                    shutil.copy2(dcm_extracted_path, dcm_target)
+                with dcm_path.open("rb") as src, open(temp_dir / dcm_path.name, "wb") as dst:
+                    shutil.copyfileobj(src, dst)
             except Exception as e:
                 logger.warning(f"Failed to extract DCM file: {e}")
 
@@ -307,47 +299,33 @@ class LibImporter:
         finally:
             shutil.rmtree(temp_dir)
 
-    def extract_footprint_to_file(
-        self, footprint_path: Path | zipfile.Path | None, dest_file: Path
-    ) -> str | None:
-        """Extract footprint to destination file with upgrade and return footprint name"""
-        if not footprint_path:
-            return None
+    def extract_footprint(self, footprint_path: Path | zipfile.Path) -> tuple[Path, Path]:
+        """
+        Extract and upgrade a footprint to a temporary location
 
-        footprint_file = footprint_path
+        Returns:
+            Tuple of (temp_dir, footprint_file) with the file named after the cleaned
+            footprint name from its content
+        """
         if footprint_path.is_dir():
-            for item in footprint_path.iterdir():
-                if item.name.endswith(".kicad_mod"):
-                    footprint_file = item
-                    break
+            kicad_mod = next(
+                (i for i in footprint_path.iterdir() if i.name.endswith(".kicad_mod")), None
+            )
+            if kicad_mod is None:
+                raise ValueError("No .kicad_mod file found in directory")
+            footprint_path = kicad_mod
 
-            if not footprint_file or footprint_file.is_dir():
-                logger.warning("No .kicad_mod file found in directory")
-                return None
-
-        temp_dir = Path(tempfile.mkdtemp())
+        temp_dir, temp_file = self.extract_file_to_temp(footprint_path)
         try:
-            # Extract to temporary file
-            temp_file = temp_dir / footprint_file.name
-            with footprint_file.open("rb") as src, open(temp_file, "wb") as dst:
-                shutil.copyfileobj(src, dst)
-
-            # Upgrade footprint using CLI if available
             if cli is not None and cli.exists():
                 try:
-                    # Create temporary .pretty directory for upgrade
+                    # kicad-cli only upgrades whole .pretty libraries
                     temp_pretty = temp_dir / "temp.pretty"
                     temp_pretty.mkdir()
-
-                    # Copy footprint to .pretty structure
-                    pretty_footprint = temp_pretty / temp_file.name
-                    shutil.copy2(temp_file, pretty_footprint)
-
-                    # Upgrade in-place (no output folder)
+                    shutil.copy2(temp_file, temp_pretty / temp_file.name)
                     result = cli.upgrade_footprint_lib(pretty_folder=str(temp_pretty), force=True)
 
                     if result.success:
-                        # Use upgraded file from same directory
                         upgraded_file = temp_pretty / temp_file.name
 
                         if upgraded_file.exists():
@@ -369,66 +347,25 @@ class LibImporter:
             if not footprint_name:
                 raise ValueError("Could not extract valid footprint name")
 
-            # Copy to final destination
-            shutil.copy2(temp_file, dest_file)
+            footprint_file = temp_dir / f"{self.cleanName(footprint_name)}.kicad_mod"
+            if temp_file != footprint_file:
+                os.replace(temp_file, footprint_file)
+        except Exception:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            raise
 
-            logger.info(f"Successfully extracted footprint: {footprint_name}")
-            return footprint_name
-
-        except Exception as e:
-            logger.error(f"Failed to extract footprint: {e}")
-            return None
-        finally:
-            shutil.rmtree(temp_dir)
-
-    def load_model(self, model_path: Path | zipfile.Path | None) -> tuple[Path | None, Path | None]:
-        """
-        Load a 3D model from a path in a zip file
-
-        Returns:
-            Tuple of (temp_dir, extracted_model_path)
-        """
-        if not model_path:
-            return (None, None)
-
-        try:
-            result = self.extract_file_to_temp(model_path)
-            return result
-        except Exception as e:
-            logger.error(f"Failed to load 3D model: {e}")
-            return (None, None)
+        logger.info(f"Extracted footprint: {footprint_file.stem}")
+        return temp_dir, footprint_file
 
     def update_footprint_with_model(
-        self,
-        footprint_file: Path,
-        model_name: str,
-        remote_type: REMOTE_TYPES,
-        step_available: bool = False,
-    ) -> bool:
-        """Update footprint file with model using string manipulation"""
-        if not footprint_file.exists():
-            return False
-
-        # If prefer_step and step is available, ensure .step/.step.gz extension
-        if self.prefer_step and step_available:
-            if not (
-                model_name.endswith(".step")
-                or model_name.endswith(".stp")
-                or model_name.endswith(".step.gz")
-            ):
-                model_name = Path(model_name).stem + ".step"
-
+        self, footprint_file: Path, model_name: str, remote_type: REMOTE_TYPES
+    ) -> None:
+        """Point the footprint's 3D model reference to model_name in the library's 3dshapes dir"""
         lib_name = self.get_lib_name(remote_type)
         model_path = f"{self.KICAD_3RD_PARTY_LINK}/{lib_name}.3dshapes/{model_name}"
-
-        try:
-            content = footprint_file.read_text(encoding="utf-8")
-            updated_content = self.footprint_parser.update_or_add_model(content, model_path)
-            footprint_file.write_text(updated_content, encoding="utf-8")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to update footprint model: {e}")
-            return False
+        content = footprint_file.read_text(encoding="utf-8")
+        updated_content = self.footprint_parser.update_or_add_model(content, model_path)
+        footprint_file.write_text(updated_content, encoding="utf-8")
 
     def update_symbol_properties(
         self, symbol_lib: SymbolLib, footprint_name: str, remote_type: REMOTE_TYPES
@@ -454,13 +391,13 @@ class LibImporter:
             if footprint_prop:
                 # Update the footprint reference with library prefix
                 old_value = footprint_prop.value
-                footprint_prop.value = f"{lib_name}:{self.cleanName(footprint_name)}"
+                footprint_prop.value = f"{lib_name}:{footprint_name}"
                 logger.debug(f"Updated footprint property: {old_value} -> {footprint_prop.value}")
             else:
                 # Add footprint property if it doesn't exist
                 new_prop = Property(
                     key="Footprint",
-                    value=f"{lib_name}:{self.cleanName(footprint_name)}",
+                    value=f"{lib_name}:{footprint_name}",
                     id=0,  # Will be assigned by kiutils
                     position=Position(0, 0),
                     effects=Effects(
@@ -477,81 +414,80 @@ class LibImporter:
 
         return symbol_lib
 
+    @staticmethod
+    def _prepare_target(path: Path, backups: dict[Path, Path | None]) -> None:
+        """Create the parent directory and register path for rollback (None = new file)."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            backups[path] = None
+            return
+        fd, name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".backup")
+        os.close(fd)
+        backup_path = Path(name)
+        try:
+            shutil.copy2(path, backup_path)
+        except BaseException:
+            backup_path.unlink(missing_ok=True)
+            raise
+        backups[path] = backup_path
+
+    def _compresses(self, model_path: Path) -> bool:
+        return self.compress_models and model_path.suffix.lower() in (".step", ".stp")
+
+    def _write_model(self, model_path: Path, dest: str) -> None:
+        if self._compresses(model_path):
+            with open(model_path, "rb") as f_in, gzip.open(dest, "wb", compresslevel=9) as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        else:
+            shutil.copyfile(model_path, dest)
+
     def save_to_library(
         self,
         symbol_lib: SymbolLib | None,
-        footprint_file_path: Path | None,
+        footprint_path: Path | None,
         model_path: Path | None,
         remote_type: REMOTE_TYPES,
         symbol_name: str,
         overwrite_if_exists: bool = True,
     ) -> bool:
         """
-        Save the component to the KiCad library with backup protection
+        Save the component to the KiCad library; all written files are rolled back on failure
 
         Returns:
             True if successful, False otherwise
         """
         lib_name = self.get_lib_name(remote_type)
         success_items = []
-        backup_files = {}  # Track backup files for rollback
+        backups: dict[Path, Path | None] = {}
 
         try:
-            # 1. Save symbol library with atomic write
             if symbol_lib:
                 lib_file_path = self.DEST_PATH / f"{lib_name}.kicad_sym"
+                existing_lib = (
+                    SymbolLib().from_file(str(lib_file_path))
+                    if lib_file_path.exists()
+                    else SymbolLib()
+                )
+                symbol_exists = symbol_name in [s.entryName for s in existing_lib.symbols]
 
-                # Create backup if file exists
-                backup_path = None
-                if lib_file_path.exists():
-                    backup_path = lib_file_path.with_suffix(".kicad_sym.backup")
-                    shutil.copy2(lib_file_path, backup_path)
-                    backup_files[lib_file_path] = backup_path
-                    existing_lib = SymbolLib().from_file(str(lib_file_path))
-                else:
-                    existing_lib = SymbolLib()
-                    check_file(lib_file_path)
-
-                # Check if symbol already exists
-                existing_names = [s.entryName for s in existing_lib.symbols]
-                symbol_exists = symbol_name in existing_names
-
-                # Decide what to do
                 if symbol_exists and not overwrite_if_exists:
                     self.print(f"Symbol {symbol_name} already exists in library. Skipping.")
                     self.lib_skipped = True
                 else:
-                    # Single place for symbol insertion/update
-                    if symbol_exists and overwrite_if_exists:
-                        # Remove existing symbol
-                        existing_lib.symbols = [
-                            s for s in existing_lib.symbols if s.entryName != symbol_name
-                        ]
-                        action = "updated"
-                    else:
-                        action = "added"
+                    existing_lib.symbols = [
+                        s for s in existing_lib.symbols if s.entryName != symbol_name
+                    ] + symbol_lib.symbols
+                    action = "updated" if symbol_exists else "added"
 
-                    # Add new symbols
-                    existing_lib.symbols.extend(symbol_lib.symbols)
+                    def write_verified(tmp_path: str) -> None:
+                        existing_lib.to_file(tmp_path)
+                        if not SymbolLib().from_file(tmp_path).symbols:
+                            raise ValueError(
+                                "Library verification failed: written library is empty"
+                            )
 
-                    # Atomic write: Save to temporary file first
-                    temp_lib_path = lib_file_path.with_suffix(".tmp")
-                    existing_lib.to_file(str(temp_lib_path))
-
-                    # Verify the written file
-                    try:
-                        test_lib = SymbolLib().from_file(str(temp_lib_path))
-                        if not test_lib.symbols:
-                            raise ValueError("Written library is empty")
-                    except Exception as e:
-                        if temp_lib_path.exists():
-                            temp_lib_path.unlink()
-                        raise ValueError(f"Library verification failed: {e}")
-
-                    # Replace original with temp file (atomic on most filesystems)
-                    if lib_file_path.exists():
-                        lib_file_path.unlink()
-                    temp_lib_path.rename(lib_file_path)
+                    self._prepare_target(lib_file_path, backups)
+                    atomic_write(str(lib_file_path), write_verified)
 
                     if cli is not None:
                         result = cli.upgrade_sym_lib(str(lib_file_path), str(lib_file_path))
@@ -561,76 +497,46 @@ class LibImporter:
                                 + f"details: {result.stderr}"
                             )
 
-                    # Output message
-                    if action == "updated":
-                        success_items.append(f"updated symbol {symbol_name}")
-                        self.print(f"Updated symbol {symbol_name} in library")
-                    else:  # added
-                        success_items.append(f"added symbol {symbol_name}")
-                        self.print(f"Added symbol {symbol_name} to library")
+                    success_items.append(f"{action} symbol {symbol_name}")
+                    self.print(f"{action.capitalize()} symbol {symbol_name} in library")
 
-            # 2. Handle footprint (already extracted to destination)
-            if footprint_file_path and footprint_file_path.exists():
-                if not overwrite_if_exists:
-                    self.print(f"Footprint {footprint_file_path.name} already exists. Skipping.")
+            model_file: Path | None = None
+            if model_path:
+                compressed = self._compresses(model_path)
+                model_name = model_path.name + ".gz" if compressed else model_path.name
+                model_file = self.DEST_PATH / f"{lib_name}.3dshapes" / model_name
+
+            if footprint_path:
+                if model_file:
+                    self.update_footprint_with_model(footprint_path, model_file.name, remote_type)
+
+                footprint_file = self.DEST_PATH / f"{lib_name}.pretty" / footprint_path.name
+                if footprint_file.exists() and not overwrite_if_exists:
+                    self.print(f"Footprint {footprint_file.name} already exists. Skipping.")
                     self.footprint_skipped = True
                 else:
-                    success_items.append(f"saved footprint {footprint_file_path.stem}")
-                    self.print(f"Saved footprint {footprint_file_path.stem}")
+                    self._prepare_target(footprint_file, backups)
+                    atomic_write(
+                        str(footprint_file), lambda tmp: shutil.copyfile(footprint_path, tmp)
+                    )
+                    success_items.append(f"saved footprint {footprint_file.stem}")
+                    self.print(f"Saved footprint {footprint_file.stem}")
 
-            # 3. Save 3D model
-            if model_path:
-                model_dir = self.DEST_PATH / f"{lib_name}.3dshapes"
-                if not model_dir.exists():
-                    model_dir.mkdir(parents=True, exist_ok=True)
-
-                is_step = model_path.suffix.lower() in (".step", ".stp")
-                dest_name = (
-                    model_path.name + ".gz"
-                    if (self.compress_models and is_step)
-                    else model_path.name
-                )
-                model_file = model_dir / dest_name
-
+            if model_path and model_file:
                 if model_file.exists() and not overwrite_if_exists:
                     self.print(f"3D model {model_file.name} already exists. Skipping.")
                     self.model_skipped = True
                 else:
-                    # Create backup if file exists
-                    if model_file.exists():
-                        backup_path = model_file.with_suffix(f"{model_file.suffix}.backup")
-                        shutil.copy2(model_file, backup_path)
-                        backup_files[model_file] = backup_path
-
-                    if self.compress_models and is_step:
-                        with (
-                            open(model_path, "rb") as f_in,
-                            gzip.open(model_file, "wb", compresslevel=9) as f_out,
-                        ):
-                            f_out.write(f_in.read())
-                    else:
-                        shutil.copy2(model_path, model_file)
+                    self._prepare_target(model_file, backups)
+                    atomic_write(str(model_file), lambda tmp: self._write_model(model_path, tmp))
 
                     success_items.append(f"saved 3D model {model_file.name}")
                     self.print(f"Saved 3D model {model_file.name}")
 
-                    # Update footprint with model reference
-                    if footprint_file_path and footprint_file_path.exists():
-                        model_update_success = self.update_footprint_with_model(
-                            footprint_file_path,
-                            model_file.name,
-                            remote_type,
-                            step_available=is_step,
-                        )
-                        if not model_update_success:
-                            logger.warning("Failed to update footprint with model reference")
+            for backup_path in backups.values():
+                if backup_path:
+                    backup_path.unlink(missing_ok=True)
 
-            # Success - clean up backup files
-            for backup_path in backup_files.values():
-                if backup_path and backup_path.exists():
-                    backup_path.unlink()
-
-            # Log summary of what was saved
             if success_items:
                 logger.info(f"Saved: {', '.join(success_items)}")
 
@@ -640,30 +546,30 @@ class LibImporter:
             logger.error(f"Error during save_to_library: {e}")
             self.print(f"Error during save: {e}")
 
-            # Rollback: Restore original files from backups
-            for original_path, backup_path in backup_files.items():
-                if backup_path and backup_path.exists():
-                    try:
-                        if original_path.exists():
-                            original_path.unlink()
-                        shutil.move(backup_path, original_path)
-                        logger.info(f"Restored backup for: {original_path}")
-                    except Exception as restore_error:
-                        logger.error(f"Failed to restore backup {backup_path}: {restore_error}")
-
-            # Clean up any remaining temporary files
-            for pattern in [f"{lib_name}.kicad_sym.tmp", "*.tmp"]:
-                for temp_file in self.DEST_PATH.glob(pattern):
-                    if temp_file.exists():
-                        temp_file.unlink(missing_ok=True)
+            for path, backup_path in backups.items():
+                try:
+                    if backup_path:
+                        os.replace(backup_path, path)
+                    else:
+                        path.unlink(missing_ok=True)
+                    logger.info(f"Rolled back: {path}")
+                except OSError as rollback_error:
+                    logger.error(f"Failed to roll back {path}: {rollback_error}")
 
             return False
 
     def import_all(
         self, zip_file: Path, overwrite_if_exists: bool = True
     ) -> tuple[str, ...] | None:
-        """Import symbols, footprints, and 3D models from a zip file"""
+        """
+        Import symbols, footprints, and 3D models from a zip file
+
+        Returns:
+            ("OK",) on success, ("Warning",) if parts could not be imported, None on failure
+        """
         logger.info(f"Importing {zip_file.name}")
+
+        self._reset_import_state()
 
         if not zipfile.is_zipfile(zip_file):
             logger.error(f"{zip_file} is not a valid zip file")
@@ -672,24 +578,19 @@ class LibImporter:
 
         self.print(f"Import: {zip_file}")
 
-        temp_dirs = []  # Track temporary directories to clean up later
+        temp_dirs: list[Path] = []
+        failed: list[str] = []  # Parts present in the archive that could not be imported
 
         try:
             with zipfile.ZipFile(zip_file) as zf:
-                # Identify library type and locate files
                 remote_type, files = self.identify_remote_type(zf)
                 logger.info(f"Type: {remote_type.name}")
                 self.print(f"Identified as {remote_type.name}")
 
-                # Handle partial archives
                 if remote_type == REMOTE_TYPES.Partial:
                     logger.warning("Archive contains incomplete data - partial import only")
                     self.print("Warning: Archive contains incomplete data")
-                    if not files["model"]:
-                        self.print("No usable content found in archive")
-                        return None
 
-                # Load symbol library
                 symbol_lib = None
                 symbol_name = "unknown"
                 if files["symbol"]:
@@ -698,75 +599,39 @@ class LibImporter:
                     )
                     logger.info(f"Loaded symbol: {symbol_name}")
 
-                # Handle footprint - extract directly to destination
-                footprint_file_path = None
+                footprint_path = None
                 if files["footprint"]:
-                    footprint_dir = self.DEST_PATH / f"{self.get_lib_name(remote_type)}.pretty"
-                    if not footprint_dir.exists():
-                        footprint_dir.mkdir(parents=True, exist_ok=True)
-
-                    # Generate initial footprint filename
-                    temp_footprint_name = None
-                    if files["footprint"].is_dir():
-                        for item in files["footprint"].iterdir():
-                            if item.name.endswith(".kicad_mod"):
-                                temp_footprint_name = self.cleanName(item.name[:-10])
-                                break
+                    try:
+                        footprint_temp_dir, footprint_path = self.extract_footprint(
+                            files["footprint"]
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to extract footprint: {e}")
+                        self.print(f"Warning: Failed to extract footprint: {e}")
+                        failed.append("footprint")
                     else:
-                        temp_footprint_name = self.cleanName(files["footprint"].name[:-10])
+                        temp_dirs.append(footprint_temp_dir)
 
-                    if temp_footprint_name:
-                        footprint_file_path = footprint_dir / f"{temp_footprint_name}.kicad_mod"
-
-                        if footprint_file_path.exists() and not overwrite_if_exists:
-                            # Skip extraction entirely – file must not be overwritten
-                            logger.debug(f"Footprint {footprint_file_path.name} exists, skipping")
-                        else:
-                            # Extract footprint with upgrade
-                            extracted_name = self.extract_footprint_to_file(
-                                files["footprint"], footprint_file_path
-                            )
-
-                            if extracted_name:
-                                self.footprint_name = extracted_name
-                                # Rename file if name changed after parsing
-                                if extracted_name != temp_footprint_name:
-                                    new_footprint_path = (
-                                        footprint_dir / f"{extracted_name}.kicad_mod"
-                                    )
-                                    if footprint_file_path.exists():
-                                        footprint_file_path.rename(new_footprint_path)
-                                        footprint_file_path = new_footprint_path
-
-                                logger.info(
-                                    f"Successfully processed footprint: {self.footprint_name}"
-                                )
-                            else:
-                                logger.warning("Failed to extract footprint")
-                                self.print("Warning: Failed to extract footprint")
-                                footprint_file_path = None
-
-                # Load 3D model
-                model_temp_dir = None
                 model_path = None
                 if files["model"]:
-                    model_temp_dir, model_path = self.load_model(files["model"])
-                    if model_temp_dir:
+                    try:
+                        model_temp_dir, model_path = self.extract_file_to_temp(files["model"])
+                    except Exception as e:
+                        logger.warning(f"Failed to load 3D model: {e}")
+                        self.print(f"Warning: Failed to load 3D model: {e}")
+                        failed.append("3D model")
+                    else:
                         temp_dirs.append(model_temp_dir)
-                        if model_path:
-                            logger.info(f"Loaded 3D model: {model_path.name}")
 
-                # Update symbol with footprint reference
-                if symbol_lib and self.footprint_name:
+                if symbol_lib and footprint_path:
                     symbol_lib = self.update_symbol_properties(
-                        symbol_lib, self.footprint_name, remote_type
+                        symbol_lib, footprint_path.stem, remote_type
                     )
 
-                # Save everything to the library
-                if symbol_lib or footprint_file_path or model_path:
+                if symbol_lib or footprint_path or model_path:
                     success = self.save_to_library(
                         symbol_lib=symbol_lib,
-                        footprint_file_path=footprint_file_path,
+                        footprint_path=footprint_path,
                         model_path=model_path,
                         remote_type=remote_type,
                         symbol_name=symbol_name,
@@ -774,6 +639,11 @@ class LibImporter:
                     )
 
                     if success:
+                        if failed:
+                            msg = f"Import incomplete: {' and '.join(failed)} missing"
+                            logger.warning(msg)
+                            self.print(msg)
+                            return ("Warning",)
                         if self.lib_skipped and self.footprint_skipped and self.model_skipped:
                             logger.info("Import completed - all files already exist")
                             self.print("Import completed")
@@ -787,11 +657,11 @@ class LibImporter:
                     else:
                         logger.warning("Import failed during save")
                         self.print("Import failed during save")
-                        return ("Warning",)
+                        return None
                 else:
                     logger.warning("No content to import")
                     self.print("Warning: No content found to import")
-                    return ("Warning",)
+                    return None
 
         except Exception as e:
             logger.error(f"Import failed: {str(e)}")
@@ -799,10 +669,8 @@ class LibImporter:
             logging.exception("Import error")
             return None
         finally:
-            # Clean up temporary directories
             for temp_dir in temp_dirs:
-                if temp_dir and temp_dir.exists():
-                    shutil.rmtree(temp_dir)
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 def main(
@@ -810,7 +678,6 @@ def main(
     lib_folder: str | Path,
     overwrite: bool = False,
     KICAD_3RD_PARTY_LINK: str = "${KICAD_3RD_PARTY}",
-    prefer_step: bool = False,
     lib_name: str | None = None,
     compress_models: bool = False,
 ) -> None:
@@ -829,9 +696,7 @@ def main(
         print(f"Error: file {lib_file} to be imported was not found!")
         return
 
-    impart = LibImporter(
-        prefer_step=prefer_step, lib_name=lib_name, compress_models=compress_models
-    )
+    impart = LibImporter(lib_name=lib_name, compress_models=compress_models)
     impart.KICAD_3RD_PARTY_LINK = KICAD_3RD_PARTY_LINK
     impart.set_DEST_PATH(lib_folder)
     try:

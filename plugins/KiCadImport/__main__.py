@@ -20,7 +20,6 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Import KiCad libraries from a file or folder.")
 
-    # Create mutually exclusive arguments for file or folder
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
         "--download-folder",
@@ -50,7 +49,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--prefer-step",
         action="store_true",
-        help="Use STEP instead of WRL as the 3D model reference in footprints (falls back to WRL if no STEP available)",
+        help="EasyEDA: use STEP instead of WRL as the 3D model reference (archives always prefer STEP)",
     )
 
     parser.add_argument(
@@ -79,7 +78,6 @@ if __name__ == "__main__":
             lib_folder=args.lib_folder,
             overwrite=args.overwrite_if_exists,
             KICAD_3RD_PARTY_LINK=path_variable,
-            prefer_step=args.prefer_step,
             lib_name=args.lib_name,
             compress_models=args.compress_models,
         )
@@ -96,16 +94,14 @@ if __name__ == "__main__":
             zip_files = list(download_folder.glob("*.zip"))
             logger.info(f"Found {len(zip_files)} zip files to process")
             for zip_file in zip_files:
-                if (
-                    zip_file.is_file() and zip_file.stat().st_size >= 1024
-                ):  # Check if it's a file and at least 1 KB
+                if zip_file.is_file() and zip_file.stat().st_size >= 1024:
                     main(
                         lib_file=zip_file,
                         lib_folder=args.lib_folder,
                         overwrite=args.overwrite_if_exists,
                         KICAD_3RD_PARTY_LINK=path_variable,
-                        prefer_step=args.prefer_step,
                         lib_name=args.lib_name,
+                        compress_models=args.compress_models,
                     )
                 else:
                     logger.warning(f"Skipping {zip_file}: too small or not a file")
@@ -133,7 +129,6 @@ if __name__ == "__main__":
                 paths = EasyEDAImporter(config).import_component(component_id)
                 logger.info(f"EasyEDA import completed for {component_id}")
 
-                # Print results
                 if paths.symbol_lib:
                     print(f"Library path : {paths.symbol_lib}")
                 if paths.footprint_file:

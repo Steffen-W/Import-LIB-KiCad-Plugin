@@ -276,12 +276,7 @@ class ImpartBackend:
             # Convert string to Path for import_all function
             lib_path = Path(lib_file)
             self.importer.compress_models = self.compress_models
-            result = self.importer.import_all(
-                lib_path,
-                overwrite_if_exists=self.overwrite_import,
-            )
-            if isinstance(result, list) and result:
-                self.print_to_buffer(result[0])
+            self.importer.import_all(lib_path, overwrite_if_exists=self.overwrite_import)
 
         except AssertionError as e:
             self.print_to_buffer(f"Assertion Error: {e}")

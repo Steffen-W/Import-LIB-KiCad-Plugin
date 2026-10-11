@@ -43,7 +43,7 @@ def _dirfsync(directory: str) -> None:
         os.close(dir_fd)
 
 
-def atomic_write(path: str, write_fn: Callable[[str], None]) -> None:
+def atomic_write(path: str, write_fn: Callable[[str], object]) -> None:
     """Atomically replace `path` with content produced by `write_fn(tmp_path)`.
 
     `write_fn` receives a temporary path in the same directory as `path` and

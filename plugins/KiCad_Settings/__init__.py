@@ -34,10 +34,19 @@ class KiCad_Settings:
         self.path_prefix = path_prefix
         base_path = Path(SettingPath)
 
+        if not base_path.is_dir():
+            raise NotADirectoryError(f"KiCad settings path is not a directory: {SettingPath}")
+
         if not (base_path / "sym-lib-table").exists() and not (base_path / "fp-lib-table").exists():
-            version_dirs = [
-                d for d in base_path.iterdir() if d.is_dir() and d.name.replace(".", "").isdigit()
-            ]
+            try:
+                version_dirs = [
+                    d
+                    for d in base_path.iterdir()
+                    if d.is_dir() and d.name.replace(".", "").isdigit()
+                ]
+            except OSError as e:
+                self.logger.warning(f"Could not scan settings path {SettingPath}: {e}")
+                version_dirs = []
 
             if version_dirs:
                 # Sort by version and take the highest
