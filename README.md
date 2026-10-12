@@ -94,7 +94,7 @@ The import window also runs without the PCB Editor or without KiCad. It needs Py
 python plugins/impart_action.py
 ```
 
-Without a running KiCad, project detection is not available, so **Save local, in the project folder** cannot be used.
+Without a running KiCad, no project is detected. With **Save local, in the project folder** enabled, select the project folder in the library path field or in the dialog that opens on import.
 
 ## CLI Support
 

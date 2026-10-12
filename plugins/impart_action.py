@@ -287,12 +287,11 @@ class ImpartBackend:
             self.print_to_buffer("")
 
 
-def check_library_import(backend: ImpartBackend) -> str:
+def check_library_import(backend: ImpartBackend, project_dir: str | None) -> str:
     """Check that KiCad's settings include the imported libraries."""
     msg = ""
 
     if backend.local_lib:
-        project_dir = backend.kicad_app.get_project_dir()
         if not project_dir:
             return "\nLocal library mode enabled but no KiCad project available."
 
@@ -401,10 +400,10 @@ class ImpartFrontend(impartGUI):
     def _setup_gui(self) -> None:
         """Initialize GUI components."""
         self.kicad_project = self.backend.kicad_app.get_project_dir()
+        self.project_detected_by_kicad = bool(self.kicad_project)
 
         # Set initial values
         self.m_dirPicker_sourcepath.SetPath(self.backend.config.get_SRC_PATH())
-        self.m_dirPicker_librarypath.SetPath(self.backend.config.get_DEST_PATH())
 
         # Set checkboxes (load from persistent config)
         auto_import = self.backend.config.get_value("auto_import") == "True"
@@ -416,7 +415,7 @@ class ImpartFrontend(impartGUI):
         self.backend.auto_import = auto_import
         self.backend.overwrite_import = overwrite_import
         self.backend.local_lib = local_lib
-        self.m_dirPicker_librarypath.Enable(not local_lib)
+        self._update_library_picker()
 
         single_lib = self.backend.config.get_value("single_lib") == "True"
         lib_name = self.backend.config.get_value("lib_name") or ""
@@ -467,7 +466,8 @@ class ImpartFrontend(impartGUI):
 
     def _import_dropped_files(self, zip_files: list[str]) -> None:
         """Import files received via drag & drop."""
-        self._update_backend_settings()
+        if not self._update_backend_settings():
+            return
 
         for zip_file in zip_files:
             self.backend._import_single_file(zip_file)
@@ -482,13 +482,7 @@ class ImpartFrontend(impartGUI):
     def _print_initial_paths(self) -> None:
         """Print initial source and destination paths."""
         src_path = self.backend.config.get_SRC_PATH()
-
-        if self.backend.local_lib and self.kicad_project:
-            dest_path = self.kicad_project
-            lib_mode = "Local Project Library"
-        else:
-            dest_path = self.backend.config.get_DEST_PATH()
-            lib_mode = "Global Library"
+        lib_mode, dest_path = self._destination_info()
 
         self.backend.print_to_buffer(f"Library Mode: {lib_mode}")
         if self.kicad_project:
@@ -500,20 +494,89 @@ class ImpartFrontend(impartGUI):
     def _print_path_change(self, change_type: str, new_value: str = "") -> None:
         """Print path change information."""
         if change_type == "library_mode":
-            if self.backend.local_lib and self.kicad_project:
-                dest_path = self.kicad_project
-                lib_mode = "Local Project Library"
-            else:
-                dest_path = self.backend.config.get_DEST_PATH()
-                lib_mode = "Global Library"
-
+            lib_mode, dest_path = self._destination_info()
             self.backend.print_to_buffer(f"New Library Mode: {lib_mode}")
             self.backend.print_to_buffer(f"New Destination Directory: {dest_path}")
         elif change_type == "source":
             self.backend.print_to_buffer(f"New Source Directory: {new_value}")
         elif change_type == "destination":
-            if not self.backend.local_lib:
-                self.backend.print_to_buffer(f"New Destination Directory: {new_value}")
+            self.backend.print_to_buffer(f"New Destination Directory: {new_value}")
+
+    def _destination_info(self) -> tuple[str, str]:
+        """Return the active library mode and destination."""
+        if not self.backend.local_lib:
+            return "Global Library", self.backend.config.get_DEST_PATH()
+        if not self.kicad_project:
+            return "Local Project Library", "no KiCad project detected - select the project folder"
+        if not self.project_detected_by_kicad:
+            return "Local Project Library", f"{self.kicad_project} (selected manually)"
+        return "Local Project Library", self.kicad_project
+
+    def _update_library_picker(self) -> None:
+        """Update the destination picker's path and editability."""
+        picker = self.m_dirPicker_librarypath
+        if self.backend.local_lib:
+            picker.SetPath(self.kicad_project or "")
+            picker.Enable(not self.project_detected_by_kicad)
+            picker.SetToolTip("KiCad project folder")
+        else:
+            picker.SetPath(self.backend.config.get_DEST_PATH())
+            picker.Enable(True)
+            picker.SetToolTip("Global library folder")
+
+    def _set_project_dir(self, path: str) -> None:
+        """Use a manually selected folder as the project folder."""
+        self.kicad_project = path
+        self.project_detected_by_kicad = False
+        self.m_dirPicker_librarypath.SetPath(path)
+        self.backend.folder_handler.known_files = set()
+        self.backend.print_to_buffer(f"KiCad Project (selected manually): {path}")
+        if not any(Path(path).glob("*.kicad_pro")):
+            self.backend.print_to_buffer("Warning: No .kicad_pro file found in this folder.")
+
+    def _ask_project_dir(self) -> None:
+        """Ask for the project folder when KiCad did not report one."""
+        with wx.DirDialog(
+            self,
+            "No KiCad project detected - select the project folder",
+            style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST,
+        ) as dlg:
+            if dlg.ShowModal() == wx.ID_OK:
+                self._set_project_dir(dlg.GetPath())
+
+    def _resolve_project_dir(self) -> str | None:
+        """Return the project folder for local mode, asking for it if needed."""
+        if not self.kicad_project:
+            # KiCad may have opened a project after plugin start
+            self.backend.kicad_app.refresh_project_info()
+            self.kicad_project = self.backend.kicad_app.get_project_dir()
+            self.project_detected_by_kicad = bool(self.kicad_project)
+            if self.kicad_project:
+                self.backend.print_to_buffer(f"KiCad Project: {self.kicad_project}")
+
+        if self.kicad_project and not Path(self.kicad_project).is_dir():
+            self.backend.print_to_buffer(
+                f"Error: KiCad project directory does not exist: {self.kicad_project}"
+            )
+            logging.error(f"KiCad project directory invalid: {self.kicad_project}")
+            self.kicad_project = None
+            self.project_detected_by_kicad = False
+
+        self._update_library_picker()
+        if not self.kicad_project:
+            self._ask_project_dir()
+
+        if not self.kicad_project:
+            self.backend.print_to_buffer(
+                "Error: 'Save local' is selected, but no KiCad project folder is set."
+            )
+            self.backend.print_to_buffer("Please either:")
+            self.backend.print_to_buffer("  1. Select the project folder, or")
+            self.backend.print_to_buffer("  2. Uncheck 'Save local' to use the global library path")
+            logging.warning("Local library mode selected but no KiCad project folder set")
+            return None
+
+        return self.kicad_project
 
     def _update_button_label(self) -> None:
         """Update the main button label based on current state."""
@@ -531,7 +594,10 @@ class ImpartFrontend(impartGUI):
         """Handle local library checkbox change."""
         old_local_lib = self.backend.local_lib
         self.backend.local_lib = self.m_checkBoxLocalLib.IsChecked()
-        self.m_dirPicker_librarypath.Enable(not self.backend.local_lib)
+        if self.backend.local_lib and not old_local_lib:
+            self._resolve_project_dir()
+        else:
+            self._update_library_picker()
 
         # Print change information
         if old_local_lib != self.backend.local_lib:
@@ -675,30 +741,15 @@ class ImpartFrontend(impartGUI):
 
     def BottonClick(self, event: wx.CommandEvent) -> None:
         """Handle main button click."""
-        self._update_backend_settings()
-
         if self.backend.run_thread:
             self._stop_import()
-        else:
+        elif self._update_backend_settings():
             self._start_import()
 
         event.Skip()
 
-    def _update_backend_settings(self) -> None:
-        """Update backend with current GUI settings."""
-        if self.backend.local_lib:
-            if not self.kicad_project:
-                return
-            self.backend.importer.set_DEST_PATH(Path(self.kicad_project))
-            kicad_link = "${KIPRJMOD}"
-        else:
-            dest_path = self.backend.config.get_DEST_PATH()
-            if dest_path:
-                self.backend.importer.set_DEST_PATH(Path(dest_path))
-            kicad_link = "${KICAD_3RD_PARTY}"
-
-        self.backend.importer.KICAD_3RD_PARTY_LINK = kicad_link
-
+    def _update_backend_settings(self) -> bool:
+        """Sync GUI settings and report whether the destination is usable."""
         # Update single library name
         if self.m_checkBoxSingleLib.IsChecked():
             name = self.m_textCtrl_libname.GetValue().strip()
@@ -712,6 +763,19 @@ class ImpartFrontend(impartGUI):
             self.backend.folder_handler.known_files = set()
 
         self._save_settings()
+
+        if self.backend.local_lib:
+            project_dir = self._resolve_project_dir()
+            if not project_dir:
+                return False
+            self.backend.importer.set_DEST_PATH(Path(project_dir))
+            kicad_link = "${KIPRJMOD}"
+        else:
+            self.backend.importer.set_DEST_PATH(Path(self.backend.config.get_DEST_PATH()))
+            kicad_link = "${KICAD_3RD_PARTY}"
+
+        self.backend.importer.KICAD_3RD_PARTY_LINK = kicad_link
+        return True
 
     def _stop_import(self) -> None:
         """Stop the import process."""
@@ -735,7 +799,7 @@ class ImpartFrontend(impartGUI):
 
     def _check_and_show_library_warnings(self) -> None:
         """Check library settings and show warnings if needed."""
-        msg = check_library_import(self.backend)
+        msg = check_library_import(self.backend, self.kicad_project)
 
         if msg:
             self._show_library_warning(msg)
@@ -757,21 +821,20 @@ class ImpartFrontend(impartGUI):
 
     def DirChange(self, event: wx.CommandEvent) -> None:
         """Handle directory path changes."""
-        # Get old values for comparison
         old_src = self.backend.config.get_SRC_PATH()
-        old_dest = self.backend.config.get_DEST_PATH()
-
-        # Update paths
         new_src = self.m_dirPicker_sourcepath.GetPath()
-        new_dest = self.m_dirPicker_librarypath.GetPath()
-
         self.backend.config.set_SRC_PATH(new_src)
-        self.backend.config.set_DEST_PATH(new_dest)
-        self.backend.folder_handler.known_files = set()
-
         if old_src != new_src:
+            self.backend.folder_handler.known_files = set()
             self._print_path_change("source", new_src)
-        if old_dest != new_dest:
+
+        new_dest = self.m_dirPicker_librarypath.GetPath()
+        if self.backend.local_lib:
+            if new_dest and new_dest != self.kicad_project:
+                self._set_project_dir(new_dest)
+        elif new_dest and new_dest != self.backend.config.get_DEST_PATH():
+            self.backend.config.set_DEST_PATH(new_dest)
+            self.backend.folder_handler.known_files = set()
             self._print_path_change("destination", new_dest)
 
         event.Skip()
@@ -793,7 +856,9 @@ class ImpartFrontend(impartGUI):
 
     def ButtomManualImport(self, event: wx.CommandEvent) -> None:
         """Handle manual EasyEDA import."""
-        self._update_backend_settings()
+        if not self._update_backend_settings():
+            event.Skip()
+            return
         try:
             self._perform_easyeda_import()
         except Exception as e:
@@ -830,44 +895,11 @@ class ImpartFrontend(impartGUI):
                 )
                 return
 
-        if self.backend.local_lib:
-            if not self.kicad_project:
-                # Try a late refresh – KiCad may have opened a project after plugin start
-                self.backend.kicad_app.refresh_project_info()
-                self.kicad_project = self.backend.kicad_app.get_project_dir()
-            if not self.kicad_project:  # still None after refresh → genuine error
-                self.backend.print_to_buffer(
-                    "Error: Local library mode selected, but no KiCad project is open."
-                )
-                self.backend.print_to_buffer("Please either:")
-                self.backend.print_to_buffer("  1. Open a KiCad project first, or")
-                self.backend.print_to_buffer(
-                    "  2. Uncheck 'Local Library' to use global library path"
-                )
-                logging.error("Local library mode selected but no KiCad project available")
-                return
-
-            # Verify the project path exists and is valid
-            project_path = Path(self.kicad_project)
-            if not project_path.exists() or not project_path.is_dir():
-                self.backend.print_to_buffer(
-                    f"Error: KiCad project directory does not exist: {self.kicad_project}"
-                )
-                self.backend.print_to_buffer("Please check your KiCad project setup.")
-                logging.error(f"KiCad project directory invalid: {self.kicad_project}")
-                return
-
-            path_variable = "${KIPRJMOD}"
-            base_folder = project_path
-        else:
-            path_variable = "${KICAD_3RD_PARTY}"
-            base_folder = Path(self.backend.config.get_DEST_PATH())
-
         config = ImportConfig(
-            base_folder=Path(base_folder),
+            base_folder=self.backend.importer.DEST_PATH,
             lib_name=self.backend.importer.lib_name or "EasyEDA",
             overwrite=self.m_overwrite.IsChecked(),
-            lib_var=path_variable,
+            lib_var=self.backend.importer.KICAD_3RD_PARTY_LINK,
             compress_models=self.m_checkBoxCompressModels.IsChecked(),
         )
 
