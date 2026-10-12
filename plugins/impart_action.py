@@ -14,7 +14,10 @@ import sys
 from pathlib import Path
 from threading import Thread
 from time import sleep
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
+
+if TYPE_CHECKING:
+    from .component_search import SearchDialog
 
 # Setup paths for local imports
 script_dir = Path(__file__).resolve().parent
@@ -391,6 +394,7 @@ class ImpartFrontend(impartGUI):
 
         self.backend = create_backend_handler()
         self.thread: PluginThread | None = None
+        self.search_dialog: SearchDialog | None = None
 
         self._setup_gui()
         self._setup_events()
@@ -840,33 +844,40 @@ class ImpartFrontend(impartGUI):
         event.Skip()
 
     def OnComponentSearch(self, event: wx.CommandEvent) -> None:
-        """Open the component search dialog and fill the LCSC field on selection."""
-        try:
-            from .component_search import SearchDialog
-        except ImportError:
-            from component_search import SearchDialog  # type: ignore[import-not-found,no-redef]
+        """Open component search and import its confirmed selection."""
+        if self.search_dialog is None:
+            try:
+                from .component_search import SearchDialog
+            except ImportError:
+                from component_search import (  # type: ignore[import-not-found,no-redef]
+                    SearchDialog,
+                )
 
-        def _live_update(lcsc: str) -> None:
-            self.m_textCtrl2.SetValue(lcsc)
+            # Preserve search results when the dialog is reopened.
+            self.search_dialog = SearchDialog(self, on_select=self.m_textCtrl2.SetValue)
 
-        dlg = SearchDialog(self, on_select=_live_update)
-        dlg.ShowModal()
-        dlg.Destroy()
+        if self.search_dialog.ShowModal() == wx.ID_OK:
+            lcsc = self.search_dialog.get_lcsc()
+            if lcsc:
+                self.m_textCtrl2.SetValue(lcsc)
+                self._import_easyeda()
         event.Skip()
 
     def ButtomManualImport(self, event: wx.CommandEvent) -> None:
         """Handle manual EasyEDA import."""
+        self._import_easyeda()
+        event.Skip()
+
+    def _import_easyeda(self) -> None:
+        """Import the component entered in the LCSC field."""
         if not self._update_backend_settings():
-            event.Skip()
             return
         try:
             self._perform_easyeda_import()
         except Exception as e:
             error_msg = f"Error: {e}\nPython version: {sys.version}"
             self.backend.print_to_buffer(error_msg)
-            logging.exception("Manual import failed")
-        finally:
-            event.Skip()
+            logging.exception("EasyEDA import failed")
         self._check_and_show_library_warnings()
 
     def _perform_easyeda_import(self) -> None:

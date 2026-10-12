@@ -447,16 +447,18 @@ class DetailPanel(wx.ScrolledWindow):  # type: ignore[misc]
 
 
 class SearchPanel(wx.Panel):  # type: ignore[misc]
-    """Self-contained component-search panel - can later be embedded anywhere."""
+    """Component search panel with selection and import callbacks."""
 
     def __init__(
         self,
         parent: wx.Window,
         on_select: Callable[[str], None] | None = None,
+        on_import: Callable[[str], None] | None = None,
     ) -> None:
         super().__init__(parent)
         self.api = EasyedaApi()
         self._on_select_cb = on_select
+        self._on_import_cb = on_import
         self._all_results: list[Row] = []
         self._results: list[Row] = []
         self._filter_state = FilterState()
@@ -482,9 +484,14 @@ class SearchPanel(wx.Panel):  # type: ignore[misc]
         self.search_ctrl.SetHint("Search JLCPCB / EasyEDA …")
         self.btn_search = wx.Button(self, label="Search")
         self.btn_filter = wx.Button(self, label="Filter")
+        self.btn_import = wx.Button(self, label="Import")
+        self.btn_import.SetToolTip("Import the selected component (or double-click a row)")
+        self.btn_import.Disable()
+        self.btn_import.Show(self._on_import_cb is not None)
         search_row.Add(self.search_ctrl, 1, wx.EXPAND | wx.RIGHT, 4)
         search_row.Add(self.btn_search, 0, wx.RIGHT, 4)
-        search_row.Add(self.btn_filter, 0)
+        search_row.Add(self.btn_filter, 0, wx.RIGHT, 4)
+        search_row.Add(self.btn_import, 0)
         root.Add(search_row, 0, wx.EXPAND | wx.ALL, 6)
 
         # ---- splitter: result list (top) / detail panel (bottom) ----
@@ -514,7 +521,10 @@ class SearchPanel(wx.Panel):  # type: ignore[misc]
         self.btn_search.Bind(wx.EVT_BUTTON, self._on_search)
         self.search_ctrl.Bind(wx.EVT_TEXT_ENTER, self._on_search)
         self.btn_filter.Bind(wx.EVT_BUTTON, self._on_filter)
+        self.btn_import.Bind(wx.EVT_BUTTON, self._on_import)
         self.list_ctrl.Bind(wx.EVT_LIST_ITEM_SELECTED, self._on_item_selected)
+        self.list_ctrl.Bind(wx.EVT_LIST_ITEM_DESELECTED, self._on_item_deselected)
+        self.list_ctrl.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self._on_import)
         self.list_ctrl.Bind(wx.EVT_LIST_COL_CLICK, self._on_col_click)
 
     # ------------------------------------------------------------------
@@ -564,6 +574,7 @@ class SearchPanel(wx.Panel):  # type: ignore[misc]
 
     def _populate_list(self) -> None:
         self.list_ctrl.DeleteAllItems()
+        self.btn_import.Disable()
         for row in self._results:
             values = [_pick(row, keys) for (_, keys, _) in COLUMNS]
             idx = self.list_ctrl.InsertItem(self.list_ctrl.GetItemCount(), values[0])
@@ -630,6 +641,7 @@ class SearchPanel(wx.Panel):  # type: ignore[misc]
             self.detail_panel.show_component(row)
             lcsc_url = row.get("url", "")
             lcsc = _pick(row, ["lcsc", "componentCode"])
+            self.btn_import.Enable(bool(lcsc))
 
             self._image_request_id += 1
             threading.Thread(
@@ -643,6 +655,14 @@ class SearchPanel(wx.Panel):  # type: ignore[misc]
 
             if self._on_select_cb is not None and lcsc:
                 self._on_select_cb(lcsc)
+
+    def _on_item_deselected(self, _: wx.ListEvent) -> None:
+        self.btn_import.Disable()
+
+    def _on_import(self, _: wx.Event) -> None:
+        lcsc = self.get_selected_lcsc()
+        if lcsc and self._on_import_cb is not None:
+            self._on_import_cb(lcsc)
 
     def _fetch_image(self, lcsc_url: str, req_id: int) -> None:
         if lcsc_url in self._image_cache:
@@ -742,13 +762,9 @@ class SearchPanel(wx.Panel):  # type: ignore[misc]
 
 
 class SearchDialog(wx.Dialog):  # type: ignore[misc]
-    """Wraps SearchPanel in a dialog.
+    """Component search dialog that confirms imports with ``wx.ID_OK``.
 
-    Parameters
-    ----------
-    on_select:
-        Optional callback called immediately whenever the user clicks a row in
-        the result list.  Receives the LCSC# string of the selected component.
+    ``on_select`` receives the LCSC number whenever the selection changes.
     """
 
     def __init__(
@@ -761,7 +777,9 @@ class SearchDialog(wx.Dialog):  # type: ignore[misc]
             title="Component Search",
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
-        self.panel = SearchPanel(self, on_select=on_select)
+        self.panel = SearchPanel(
+            self, on_select=on_select, on_import=lambda _: self.EndModal(wx.ID_OK)
+        )
 
         root = wx.BoxSizer(wx.VERTICAL)
         root.Add(self.panel, 1, wx.EXPAND)

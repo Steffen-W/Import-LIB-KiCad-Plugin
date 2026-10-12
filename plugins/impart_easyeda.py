@@ -101,14 +101,17 @@ class EasyEDAImporter:
                 footprint_lib_name=self.config.lib_name,
                 overwrite=self.config.overwrite,
             ):
-                self._print(f"Symbol '{component_name}' already exists.")
+                self._print(
+                    f"Symbol '{component_name}' already exists in "
+                    f"{self.symbol_lib_path.name} (overwrite disabled)."
+                )
                 return False, component_name
 
             if easyeda_symbol.sub_symbols:
                 self._print(
                     f"Imported {len(easyeda_symbol.sub_symbols)} sub-symbols for: {component_name}"
                 )
-            self._print(f"Saved symbol: {component_name}")
+            self._print(f"Saved symbol: {component_name} -> {self.symbol_lib_path.name}")
             return True, component_name
 
         except Exception as e:
@@ -122,7 +125,10 @@ class EasyEDAImporter:
             footprint_file = self.footprint_dir / f"{ee_footprint.info.name}.kicad_mod"
 
             if footprint_file.exists() and not self.config.overwrite:
-                self._print(f"Footprint already exists: {footprint_file.name}")
+                self._print(
+                    f"Footprint '{footprint_file.name}' already exists in "
+                    f"{self.footprint_dir.name} (overwrite disabled)."
+                )
                 return None
 
             model_3d_path = f"{self.config.lib_var}/{self.config.lib_name}.3dshapes"
@@ -131,7 +137,7 @@ class EasyEDAImporter:
                 model_3d_path=model_3d_path,
                 model_3d_extension=model_ext,
             )
-            self._print(f"Created footprint: {footprint_file.name}")
+            self._print(f"Created footprint: {footprint_file.name} -> {self.footprint_dir.name}")
             return footprint_file
 
         except Exception as e:
@@ -162,17 +168,18 @@ class EasyEDAImporter:
                 return None, None
 
             model_name = exporter.output.name
+            exists_msg = f"3D model '{model_name}' already exists in {self.model_dir.name} (overwrite disabled)."
 
             # When compression is on, check for already-compressed files before exporting
             if not self.config.overwrite and self.config.compress_models:
                 step_gz = self.model_dir / f"{model_name}.step.gz"
                 if step_gz.exists():
-                    self._print("3D model files already exist.")
+                    self._print(exists_msg)
                     wrl_path = self.model_dir / f"{model_name}.wrl"
                     return wrl_path if wrl_path.exists() else None, step_gz
 
             if not exporter.export(output_dir=str(self.model_dir), overwrite=self.config.overwrite):
-                self._print("3D model files already exist.")
+                self._print(exists_msg)
                 return None, None
 
             wrl_path = self.model_dir / f"{model_name}.wrl"
@@ -192,9 +199,9 @@ class EasyEDAImporter:
                 step = gz_path
 
             if wrl:
-                self._print(f"Created 3D model (WRL): {wrl.name}")
+                self._print(f"Created 3D model (WRL): {wrl.name} -> {self.model_dir.name}")
             if step:
-                self._print(f"Created 3D model (STEP): {step.name}")
+                self._print(f"Created 3D model (STEP): {step.name} -> {self.model_dir.name}")
 
             return wrl, step
 
@@ -204,11 +211,9 @@ class EasyEDAImporter:
             return None, None
 
     def import_component(self, component_id: str) -> ImportPaths:
-        """
-        Import a component and all its assets.
-        Returns ImportPaths with all created file paths.
-        """
+        """Import a component and return the paths of its imported assets."""
         self._print(f"Starting import for EasyEDA/LCSC component: {component_id}")
+        self._print(f"Target library: '{self.config.lib_name}' in {self.config.base_folder}")
 
         if not component_id.startswith("C"):
             error_msg = (
@@ -248,15 +253,19 @@ class EasyEDAImporter:
             created_files = sum(1 for path in result if path)
             if created_files > 0:
                 self._print(
-                    f"EasyEDA import completed successfully! ({created_files} files created)"
+                    f"EasyEDA import of {component_id} into '{self.config.lib_name}' "
+                    f"completed ({created_files} files created)"
                 )
             else:
-                self._print("EasyEDA import completed, but no new files were created")
+                self._print(
+                    f"EasyEDA import of {component_id} completed, "
+                    f"no new files created in '{self.config.lib_name}'"
+                )
 
             return result
 
         except Exception as e:
-            self._print(f"EasyEDA import failed: {e}")
+            self._print(f"EasyEDA import of {component_id} failed: {e}")
             logger.error(f"Component import failed for {component_id}: {e}")
             raise
 
