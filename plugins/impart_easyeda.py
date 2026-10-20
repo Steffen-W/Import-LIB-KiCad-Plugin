@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import logging
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -268,6 +269,20 @@ class EasyEDAImporter:
             self._print(f"EasyEDA import of {component_id} failed: {e}")
             logger.error(f"Component import failed for {component_id}: {e}")
             raise
+
+
+def parse_lcsc_ids(text: str) -> list[str]:
+    """Return the unique, upper-case LCSC IDs separated by whitespace, ',' or ';'."""
+    ids = [part.upper() for part in re.split(r"[\s,;]+", text) if part]
+    if not ids:
+        raise ValueError("Enter at least one LCSC component ID (for example, C2040)")
+
+    invalid = [part for part in ids if not re.fullmatch(r"C[0-9]+", part)]
+    if invalid:
+        raise ValueError(
+            f"Invalid LCSC component ID(s): {', '.join(invalid)}. Expected IDs such as C2040"
+        )
+    return list(dict.fromkeys(ids))
 
 
 def import_easyeda_component(

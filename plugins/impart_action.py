@@ -883,12 +883,17 @@ class ImpartFrontend(impartGUI):
     def _perform_easyeda_import(self) -> None:
         """Perform EasyEDA component import."""
         try:
-            from .impart_easyeda import ImportConfig, import_easyeda_component
+            from .impart_easyeda import (
+                ImportConfig,
+                import_easyeda_component,
+                parse_lcsc_ids,
+            )
         except ImportError:
             try:
                 from impart_easyeda import (  # type: ignore[no-redef]
                     ImportConfig,
                     import_easyeda_component,
+                    parse_lcsc_ids,
                 )
             except ImportError as e:
                 error_msg = f"Failed to import EasyEDA module: {e}\n\nThis usually means easyeda2kicad is not properly installed or has missing dependencies."
@@ -914,32 +919,46 @@ class ImpartFrontend(impartGUI):
             compress_models=self.m_checkBoxCompressModels.IsChecked(),
         )
 
-        component_id = self.m_textCtrl2.GetValue().strip()
-
         try:
-            _ = import_easyeda_component(
-                component_id=component_id,
-                config=config,
-                print_func=self.backend.print_to_buffer,
-            )
-            self.backend.print_to_buffer("")
-            logging.info(f"Successfully imported EasyEDA component {component_id}")
-
+            component_ids = parse_lcsc_ids(self.m_textCtrl2.GetValue())
         except ValueError as e:
-            error_msg = f"Invalid component ID {component_id}: {e}"
-            logging.error(error_msg)
-            wx.MessageBox(error_msg, "Invalid Component ID", wx.OK | wx.ICON_WARNING)
+            logging.error(f"Invalid component ID input: {e}")
+            wx.MessageBox(str(e), "Invalid Component ID", wx.OK | wx.ICON_WARNING)
+            return
 
-        except RuntimeError as e:
-            error_msg = f"Runtime error importing {component_id}: {e}"
+        imported = 0
+        try:
+            for component_id in component_ids:
+                import_easyeda_component(
+                    component_id=component_id,
+                    config=config,
+                    print_func=self.backend.print_to_buffer,
+                )
+                self.backend.print_to_buffer("")
+                logging.info(f"Successfully imported EasyEDA component {component_id}")
+                imported += 1
+
+        except (RuntimeError, ValueError) as e:
+            failed_id = component_ids[imported]
+            error_msg = f"Error importing {failed_id}: {e}"
             logging.error(error_msg)
+            error_msg += _import_progress(imported, len(component_ids))
             wx.MessageBox(error_msg, "Import Error", wx.OK | wx.ICON_ERROR)
 
         except Exception as e:
-            error_msg = f"Unexpected error during import: {e}"
+            failed_id = component_ids[imported]
+            error_msg = f"Unexpected error importing {failed_id}: {e}"
             self.backend.print_to_buffer(error_msg)
-            logging.exception(f"Unexpected error importing {component_id}")
+            logging.exception(f"Unexpected error importing {failed_id}")
+            error_msg += _import_progress(imported, len(component_ids))
             wx.MessageBox(error_msg, "Unexpected Error", wx.OK | wx.ICON_ERROR)
+
+
+def _import_progress(imported: int, total: int) -> str:
+    """Note on the parts already imported when a multi-part import stops early."""
+    if total == 1:
+        return ""
+    return f"\n\n{imported} of {total} components were imported before the error."
 
 
 def create_backend_handler() -> ImpartBackend:
